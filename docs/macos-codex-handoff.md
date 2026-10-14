@@ -1,18 +1,23 @@
-# Mac Codex 交接（首次推送前版本）
+# Mac Codex 交接（M8.5 已上传）
 
 - 连接账号已核实：`ihatetheworld-ckl`。
 - 已存在目标：`https://github.com/ihatetheworld-ckl/Hackintosh-Navi44-Lab`。
 - 目标分支：`main`。
 - 可见性：GitHub API 核实为 Public。用户已明确回复“public就public”，
   因此更新本次目标；不把此指示当作首次源代码上传确认。
-- 远程推送：尚未执行；必须先获得用户对完整内容的确认。
+- 首次上传：用户已确认 388 文件 / 5,934,565 bytes 内容，
+  普通 Git Push 实际成功，远程 main 核实为
+  §e7a6fb4c92428c9ae4cee893b6f97e3d6b666b74§。
+- 首次导入远程 tree：§d8d57c737bb203c4ff771ee97fc4d523e58f8b87§，
+  388 个 blob 与本地审核清单逐一匹配，无工具链/ROM/Workflow/gitlink。
 - 固定源码基线提交：`a4d8a30c7bf30709b40ac2d146f29402918020c9`。
   该首次 import 已包含完整 M6–M8 源码、测试、报告和本交接文档的初稿。
 - 本文补齐基线 SHA 后形成普通后续本地提交；最终 main HEAD 以对话及
   Windows 本地 `reports/m85/local-commit.json` 为准（不嵌入自身提交 SHA）。
-  远程 HEAD 尚未存在/验证，不能把上述本地 SHA 当作已上传结果。
+  补充实际推送结果后形成普通文档提交，最终 main HEAD 在最终对话提供；
+  可复现的已审核完整导入固定为上述 e7a6fb4...，不是未经推送的本地结果。
 
-仅在代码完成首次审核并获准推送后，在经授权的 Mac 工作区使用：
+首次审核和上传已完成。在另行授权的 Mac 工作区使用：
 
 ~~~sh
 git clone https://github.com/ihatetheworld-ckl/Hackintosh-Navi44-Lab.git
@@ -23,6 +28,7 @@ git rev-parse HEAD
 
 认证由用户通过 GitHub 官方流程完成，禁止把 Token 写入命令、项目或报告。
 公开上传的 Git 作者邮箱采用 GitHub noreply；只修改仓库本地配置。
+本仓库 Public，克隆源代码无需取得 Windows 会话 Token。
 不使用 `--recurse-submodules`：本仓库没有活动子模块。
 如提供了固定交付 SHA，再核对 HEAD 或在独立目录检出该 SHA，不覆盖其他项目。
 

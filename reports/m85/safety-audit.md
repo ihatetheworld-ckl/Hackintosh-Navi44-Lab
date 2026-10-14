@@ -24,6 +24,15 @@ list 因沙箱 wincredman store 不可用失败，无凭据返回。
 没有私有仓库创建接口；此项是真实工具阻碍，不能报告迁移已完成。
 用户已自行创建目标；核实为 Public、空分支，用户明确接受 Public。
 尚未获得首次内容上传确认，没有上传任何 blob/tree/commit。
+以上为当时预检状态；用户随后明确确认首次上传并亲自在 GitHub 完成设备授权。
+原 GCM .NET TLS 尝试失败并保留退出码，网络权限不改变该限制。
+安全回退使用现有 Python/OpenSSL 的官方协议兼容实现，固定公开 client ID，
+不复制 client secret、不持久化 Token、不使用管理员/Full Access、不降低证书验证。
+Git 接收的 Authorization 仅限单次进程环境 URL scope，trace/helper/hooks 关闭。
+账号与 repo/push 权限和用户批准 SHA 核对后正常推送；远程 388 blob 逐一匹配。
+没有把不在 main 可达历史的私人作者邮箱对象上传。
+未上传辅助认证程序、Token、device_code、凭据文件或 TLS key log。
+补齐文档以普通 commit/push 同步；没有 Actions/PR/Release。
 
 凭据/密钥模式扫描与大小/路径/许可证检查有覆盖边界，不是秘密绝不存在的证明。
 源码中公有版权 contact 与必要历史路径归属信息保留；认证文件不进入 Git。

@@ -5,7 +5,10 @@
 本阶段继续使用原 Hackintosh-Navi44-Lab，没有重新开发 GPU 驱动。
 项目根和祖先均无已有 Git 工作树；根仓库现已初始化为 main。
 开发副本/upstream/历史快照中的独立 .git 保留，不进入主仓库。
-首次远程推送必须经用户确认，当前没有远程上传。
+首次远程推送已获用户明确确认并实际成功：
+e7a6fb4c92428c9ae4cee893b6f97e3d6b666b74，main，Public（用户已明确接受）。
+首次导入 388 文件、5,934,565 blob bytes；远程所有 blob 与本地审核清单一致。
+本报告补齐真实结果后使用普通文档提交同步，最终 HEAD 在最终对话提供。
 本地固定源码基线：a4d8a30c7bf30709b40ac2d146f29402918020c9，
 标题 Initial import: Navi44 M8 offline development。
 此固定源码基线有 386 普通文件，5,928,388 Git blob bytes（约 5.65 MiB），
@@ -157,6 +160,26 @@ ls-remote exit=0 且 heads 为空；origin 已配置为唯一目标，不改全�
 若认证需要用户操作，只允许官方浏览器/设备流程，不索取明文 Token。
 禁止 force push、覆盖其他仓库历史或确认前传送 blob/tree/源码。
 
+### 已实际完成的授权和上传
+
+用户随后确认首次上传内容。第一次 GCM none/device 推送尝试因 .NET/Windows TLS
+安全包凭据句柄失败（Git exit=128），没有上传代码，失败命令和退出码保留本机。
+申请的仅为 Codex 本轮网络权限，不含额外文件权限、Full Access 或管理员；
+原生 TLS 再检查仍失败，未关闭证书验证或修改 Windows TLS/安全策略。
+
+使用 Python 自带 OpenSSL 和已有可信 CA 安全回退到 GitHub 官方 device-flow 协议，
+公开 native client ID 从 GCM v2.9.0 源码核实。用户在官方页面亲自授权，
+Token 全程仅在辅助进程内存中；不存在项目/Windows Vault/全局 Git 凭据保存。
+Git 子进程仅经 URL 限定的临时环境 extraHeader 使用令牌，不把令牌放 argv/日志。
+账号 login/id、repo ID/Public/owner/push 权限、HEAD/origin 全部核对后执行普通推送。
+没有使用 force push，没有绕过身份授权，没有上传初始含私人作者邮箱的不可达对象。
+
+实际 Git Push 成功，远程 main 等于已批准 e7a6fb4...。
+远程 tree d8d57c737bb203c4ff771ee97fc4d523e58f8b87，388 blob 全部匹配。
+首推授权记录/真实 Git argv/exit 存 ignored local-history，永不包含 Token/header 值。
+机器可读远程核对结果见 remote-delivery.json；发布后文档再普通同步。
+公开仓库不等于驱动成熟，不改变 M9/Mac/Kext/GPU 均未实测的边界。
+
 ## Mac M9 交付
 
 纯 Host 源码完整；Mac 需已有 Python 3.11+ 与 Apple Clang，CMake 为可选既有工具。
@@ -175,9 +198,10 @@ M9 应优先验证真实 Apple Clang/SDK/Native object，避免继续堆积未�
 | GPU ROM/BAR/MMIO/DMA/初始化/显示/计算 | 未执行 |
 | Kext/SYS 安装、签名、加载 | 未执行 |
 | 管理员/安装系统工具/第三方脚本远程执行 | 未执行 |
-| GitHub 创建/上传/推送/Actions/PR/Release | 仓库由用户创建；本代理仅只读核实/API 和 ls-remote，未上传/推送/运行 Actions |
+| GitHub 创建/上传/推送 | 用户创建 Public 并明确接受/确认内容；本代理普通 Git Push 成功 |
+| GitHub Actions/PR/Release/其他仓库修改 | 未执行，无 Workflow |
 | 本地 Git init/config/精确 add/commit | 授权范围内；具体执行见本地 Git 记录 |
 
 仅执行审查后的 CPU 编译/测试和已有 Git/官方 GCM 查询。
 没有独立系统级追踪审计，不能承诺 OS/工具缓存与日志绝对零副作用。
-完成本地交付后停在首次推送确认边界；本机 Git 官方认证可能仍需单独完成。
+首次已审核上传完成，补齐交接文档后正常同步并停止，不进入 Mac/GPU/Kext 部署。
