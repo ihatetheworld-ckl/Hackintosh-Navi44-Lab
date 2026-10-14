@@ -14,6 +14,8 @@ docs/macos-codex-handoff.md、最新 reports/m85/development-report.md 和 M8 �
 - 无异常/无 RTTI 检查通过不等于 Darwin 内核 ABI 通过；Mac Host 不等于 Kext。
 - 合成 Fixture 不等于 Navi44/真实显示器实测；保留 SKIP/NOT RUN/UNVERIFIED。
 - 保留原许可证、固定 pin、门禁、源码补丁和有界测试断言。
-- 不创建/运行 GitHub Actions；不自动推送，不公开仓库，不 force push。
+- 不创建/运行 GitHub Actions，不 force push，不自行改变仓库可见性。
+- 用户已明确允许 ihatetheworld-ckl/Hackintosh-Navi44-Lab 使用 Public；
+  此例外仅适用于该目标，首次推送仍需完整清单确认。
 - 首次推送必须按用户指令展示并确认具体内容。敏感信息和 ROM/firmware 禁止上传。
 - 需要扩大授权时停止对应操作，继续其他已授权安全任务。

@@ -1,7 +1,8 @@
 # Hackintosh-Navi44-Lab
 
 RX 9060 XT / Navi44 / gfx1200 的 **CPU-only** 驱动研发项目。
-M8 已完成 Windows 离线解析与数据模型验证；M8.5 整理私有 Git 迁移。
+M8 已完成 Windows 离线解析与数据模型验证；M8.5 整理 GitHub 迁移。
+目标仓库由用户创建为 Public，用户已明确接受；首次上传仍须审核确认。
 EDID、AtomBIOS、Discovery、Firmware、ELF、N44I/N44Q 是静态软件模块。
 真实 GPU 显示、Vulkan/Metal、WindowServer、Darwin Native/Kext 构建均未验证。
 

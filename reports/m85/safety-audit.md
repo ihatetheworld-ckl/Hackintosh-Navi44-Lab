@@ -12,6 +12,8 @@ Darwin Native/device/plugin/硬件 backend 不参与 Host；原硬件 match/init
 Git 从已有受信任安装运行：空 init template、禁 hooks/签名/fsmonitor，
 进程内禁用 global/system config、凭据助手、外部属性/忽略规则；只修改 repo-local 配置。
 现有 Git 作者身份只用于本地提交元数据，首次推送审核将显示作者资料。
+用户接受 Public 后，未上传历史的作者/提交者改为 GitHub noreply，
+不改变源码 tree、不修改全局配置；旧私人邮箱对象不在 main 可达历史。
 逐文件 stage，检查实际 blob，不传递 token 参数，不运行嵌套上游钩子。
 嵌套 .git 保留；ROM、firmware、大工具链及 Workflow 排除。
 
@@ -20,6 +22,8 @@ Git Credential Manager 仅 --version、help、accounts list，禁交互/trace；
 list 因沙箱 wincredman store 不可用失败，无凭据返回。
 未进行 login/get/store/erase、外部创建/推送/Actions。
 没有私有仓库创建接口；此项是真实工具阻碍，不能报告迁移已完成。
+用户已自行创建目标；核实为 Public、空分支，用户明确接受 Public。
+尚未获得首次内容上传确认，没有上传任何 blob/tree/commit。
 
 凭据/密钥模式扫描与大小/路径/许可证检查有覆盖边界，不是秘密绝不存在的证明。
 源码中公有版权 contact 与必要历史路径归属信息保留；认证文件不进入 Git。

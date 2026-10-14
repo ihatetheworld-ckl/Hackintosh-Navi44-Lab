@@ -1,4 +1,4 @@
-# M8.5 GitHub 私有迁移准备完整报告
+# M8.5 GitHub 迁移准备完整报告
 
 ## 实际完成状态
 
@@ -6,6 +6,17 @@
 项目根和祖先均无已有 Git 工作树；根仓库现已初始化为 main。
 开发副本/upstream/历史快照中的独立 .git 保留，不进入主仓库。
 首次远程推送必须经用户确认，当前没有远程上传。
+本地固定源码基线：a4d8a30c7bf30709b40ac2d146f29402918020c9，
+标题 Initial import: Navi44 M8 offline development。
+此固定源码基线有 386 普通文件，5,928,388 Git blob bytes（约 5.65 MiB），
+无 gitlink/symlink、工具链/ROM/Workflow；扫描无已知敏感模式发现。
+后续交接文档提交仅补充真实基线 SHA 与本段记录，最终 main HEAD 在对话提供。
+用户随后提供仓库并接受 Public。为遵守不发布私人数据的要求，
+未上传的首次提交仅重建作者/提交者元数据，保留完全相同源码 tree：
+e2c4208fb36405633bc6fad45c56fb15c9811529。
+作者仍为 bangbangckl，邮箱改为 230952569+ihatetheworld-ckl@users.noreply.github.com，
+只改仓库本地配置，旧对象只在本机 reflog/unreachable history，不会随 main 正常推送。
+此为推送前隐私处理，没有修改远程历史，也没有使用 force push。
 
 已创建 .gitignore/.gitattributes、根 LICENSE/NOTICE、UPSTREAM_SOURCES.md、
 Mac 编译准备/交接文档、项目 AGENTS.md、两种安全 CPU 验证入口及本地迁移审核工具。
@@ -20,7 +31,8 @@ Core/Host/Platform、EDID/AtomBIOS/Firmware/ELF、N44I/N44Q 研发代码原字�
 全树只读遍历没有发现链接逃逸；不依赖符号链接移动文件，不删除上游元数据。
 Git 运行前检查新 .git 和父目录，使用空模板及空 hooks 目录，
 进程内隔离全局/系统 Git 配置、禁止签名/hooks/filters/凭据助手，不修改全局设置。
-真实 Git 2.55.0.windows.4；沿用既有正确 Git 身份，不借用上游作者身份。
+真实 Git 2.55.0.windows.4；沿用既有 Git 姓名，Public 发布采用账号 ID 对应 noreply，
+不借用上游作者身份。
 
 ## 上传内容与保留策略
 
@@ -122,19 +134,22 @@ stage 前扫描工作区候选，stage 后读取实际 Git blob 再扫描；
 ## GitHub 当前阻碍
 
 已通过连接核实账号 ihatetheworld-ckl；未猜测用户名。
-连接可访问清单无同名仓库，目标元数据查询返回 404：可能不存在或该连接无权限，
-不能据此声称已确认不存在。
+初始元数据查询返回 404；用户后来通过浏览器创建并提供链接。
+最新 GitHub API 已核实仓库 ID 1418325342、owner ihatetheworld-ckl、
+visibility=public、private=false、branches=[]。仓库是已授权用户的空白目标。
+用户明确回复“public就public”，本次按 Public 继续，仍须首次上传清单确认。
 没有 gh 可执行文件、浏览器自动化工具或创建仓库的连接接口。
 已检查既有 Git Credential Manager 2.9.0 的只读 accounts list；
 其在沙箱账号下因 wincredman store 不可用失败，未取得凭据。
 未调用 login/get/store/erase，未读取 Token，未触发设备授权或认证写入。
 当前进程没有 GH_TOKEN/GITHUB_TOKEN（只检查是否存在，未输出任何值）。
 
-因此尚不能从此工具环境创建 Private 仓库或执行已认证 Git Push。
-本地整理不受影响；没有下载/安装 gh、扩大权限、冒用连接内部凭据或把 Token 写入项目。
-未来须由可用的官方浏览器/设备授权流程或具备创建权限的连接完成空白 Private 仓库创建，
-然后核实 owner/private/空历史，再向用户展示具体 main/HEAD/数量/体积并获首次推送确认。
-禁止 public、force push、覆盖同名仓库历史或提前传送 blob/tree/源码。
+仓库已由用户创建，不再需要创建接口。当前 Windows Git 认证仍未验证，
+连接中的已认证权限不等于本机 Git 已有凭据。
+没有下载/安装 gh、扩大权限、冒用连接内部凭据或把 Token 写入项目。
+下一步先展示具体 main/HEAD/数量/体积并获首次推送确认；
+若认证需要用户操作，只允许官方浏览器/设备流程，不索取明文 Token。
+禁止 force push、覆盖其他仓库历史或确认前传送 blob/tree/源码。
 
 ## Mac M9 交付
 
@@ -154,9 +169,9 @@ M9 应优先验证真实 Apple Clang/SDK/Native object，避免继续堆积未�
 | GPU ROM/BAR/MMIO/DMA/初始化/显示/计算 | 未执行 |
 | Kext/SYS 安装、签名、加载 | 未执行 |
 | 管理员/安装系统工具/第三方脚本远程执行 | 未执行 |
-| GitHub 创建/上传/推送/Actions/PR/Release | 尚未执行 |
+| GitHub 创建/上传/推送/Actions/PR/Release | 仓库由用户创建；本代理仅只读核实，未上传/推送/运行 Actions |
 | 本地 Git init/config/精确 add/commit | 授权范围内；具体执行见本地 Git 记录 |
 
 仅执行审查后的 CPU 编译/测试和已有 Git/官方 GCM 查询。
 没有独立系统级追踪审计，不能承诺 OS/工具缓存与日志绝对零副作用。
-完成本地交付后停在远程创建/首次推送确认边界。
+完成本地交付后停在首次推送确认边界；本机 Git 官方认证可能仍需单独完成。
