@@ -1,0 +1,97 @@
+[
+  {
+    "path": "CMakeLists.txt",
+    "type": "modified",
+    "sha256": "3eb9439a84b4cb218339329a21813119468fd002fc4071b9609d3f9b2d96a096"
+  },
+  {
+    "path": "run_all_offline_tests.py",
+    "type": "added",
+    "sha256": "2a409a7935a4378a82f9c6d02671fa991fb8b3e566cd31c838236f46ca8ecc94"
+  },
+  {
+    "path": "finalize_m65.py",
+    "type": "added",
+    "sha256": "cf21f7c3c6d3ad02075d6ef139ebbce7cb006387709383f6f3c601c598cced35"
+  },
+  {
+    "path": "validate_m65_delivery.py",
+    "type": "added",
+    "sha256": "df6c8389dfc72f47b8731719676a831db6bff6b166240a72a1a5312182d82123"
+  },
+  {
+    "path": "m65_prepare.py",
+    "type": "added",
+    "sha256": "ed732bb6316f849fe4c9a51446637bdaceca954402215e81fc11c02a464192aa"
+  },
+  {
+    "path": "m65_acquire_toolchain.py",
+    "type": "added",
+    "sha256": "8e7473932712b938e427503efa330c40196f1c8f9b8f739784d0f3ce47a4d3b7"
+  },
+  {
+    "path": "m65_replace_discovery.py",
+    "type": "added",
+    "sha256": "c2c25bd824089bf14ea78b26bd9c711661052c2d5a2bdef89c51ee3b042f8c4d"
+  },
+  {
+    "path": "tests/test_m65.py",
+    "type": "added",
+    "sha256": "59fbfc0d5008a565d58eb0703981594e60f712e8221ef9c20d30b2fdecb664c0"
+  },
+  {
+    "path": "tests/fixtures/synthetic.py",
+    "type": "modified",
+    "sha256": "e785f76bba05d5d4831c7cf6134fed8f2f3a752fdb50c16b55e21e3031dda5c8"
+  },
+  {
+    "path": "tests/unit/m65_unit.cpp",
+    "type": "added",
+    "sha256": "3ffa3fcae2ac4bd41b4e97485c7a78e700396dee3920f98133cc8dfea6775e80"
+  },
+  {
+    "path": "tests/unit/m65_probe.cpp",
+    "type": "added",
+    "sha256": "6b0c7a2d3aee4785db4acc153cd8c752c083221559e44cb4c224844667d75456"
+  },
+  {
+    "path": "tests/unit/sanitizer_canary.cpp",
+    "type": "added",
+    "sha256": "a3b85a7ba56ac3c5a468a68a048a9c566c19577b545ad3656a67b31d96223290"
+  },
+  {
+    "path": "tests/unit/sanitizer_smoke.cpp",
+    "type": "added",
+    "sha256": "43737d0f03076aecc47e30adb54a50f526c82334b551acc5b2d153b8e7de89f9"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp",
+    "type": "modified",
+    "sha256": "b90bf1c7b5a842a077b83305e5980af7dd595d9823b5d70ef97f7ddd444c3102"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.hpp",
+    "type": "modified",
+    "sha256": "7c43d9261c038a230cd703f79292d39db8125413ca1c5ad09f59772b13e736db"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp",
+    "type": "modified",
+    "sha256": "1daaca11b84cc611890a48e25d2a5dd842b7b3a324b51ae544e2488d4ed8abc6"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.hpp",
+    "type": "added",
+    "sha256": "6857c026cbc8befe023248c8652c2ab14f6e80c0a5bc457020ad88b62570bc6d"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp",
+    "type": "added",
+    "sha256": "cb598b6b96c7859773d41cd3156285ff49941399db34a74ff876fc35c1a66267"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/host/navi44.py",
+    "type": "modified",
+    "sha256": "02ce2279733afe32bdbcc9d1b55985ead825de02f34ed617d5e711a735766871"
+  }
+]

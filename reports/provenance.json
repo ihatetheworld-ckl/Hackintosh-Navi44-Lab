@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-13 Asia/Shanghai",
+  "AMDRadeonRDNA4": {
+    "url": "https://github.com/RX4Darwin/AMDRadeonRDNA4.kext",
+    "commit": "49f7f20c00dd154384418078f8a09e79c400a06a",
+    "current_main_same": true,
+    "license": "BSD-3-Clause"
+  },
+  "Cobalt64": {
+    "url": "https://github.com/Almosst-DEV/Cobalt64",
+    "commit": "d6c9aedf8e6526a39e349b5886cbc8c7ddf77f65",
+    "current_main_same": true,
+    "top_license": "MIT; file/subdirectory licenses differ"
+  },
+  "Cobalt_PR12": {
+    "state": "open/unmerged",
+    "head": "2c3bba7771ed0d51dc01a6882987a4cfbbd1afe2",
+    "code_not_applied": true
+  },
+  "LLVM": {
+    "tag": "llvmorg-20.1.8",
+    "commit": "87f0227cb60147a26a1eeb4fb06e3b505e9c7261",
+    "reference": "upstream/references/llvm-ELF.h"
+  },
+  "Linux": {
+    "commit": "24a19b953e2a3d0ea5a8c4951a0ab8f32720c907",
+    "reference": "upstream/references/linux-discovery.h"
+  },
+  "Mesa": {
+    "cobalt_patch_base": "f5cb8ee032adabef599ae892ec4e42d796b84da9",
+    "full_repo_downloaded": false
+  },
+  "tools": {
+    "Python": "3.12.13",
+    "Git": "2.55.0.windows.4",
+    "C++": "not found",
+    "CMake": "not found",
+    "macOS SDK": "not available"
+  },
+  "fixtures": "synthetic only; no RX9060XT capture; no real firmware/shader",
+  "reference_sha256": {
+    "linux-discovery.h": "032d97c699c9378edb64b005ddc53ab08763b853f6b64fcdb0a71dd7999b98e5",
+    "llvm-ELF.h": "ff0685fe6d5a62a2df2df41eb278330153e2d0a52e573ae02cdcd56c3b6b579c"
+  }
+}

@@ -1,0 +1,28 @@
+Hackintosh-Navi44-Lab is a CPU-only research derivative of
+RX4Darwin/AMDRadeonRDNA4.kext at
+49f7f20c00dd154384418078f8a09e79c400a06a.
+
+The original BSD-3-Clause copyright and license remain in LICENSE and in
+development/AMDRadeonRDNA4-Navi44/LICENSE. M6 through M8 local modifications
+are identified in reports/changed-files.json, reports/m65/changed-files.json,
+reports/m7/changed-files.json, reports/m8/changed-files.json and patches/.
+Migration changes are documented in reports/m85/development-report.md.
+Project additions follow the existing BSD-3-Clause licensing policy.
+
+Exceptions must keep their original terms:
+- upstream/references/llvm-ELF.h: Apache-2.0 WITH LLVM-exception;
+  see licenses/LLVM-LICENSE.txt and the source header.
+- upstream/references/linux-discovery.h: AMD MIT notice in the source header.
+- development/AMDRadeonRDNA4-Navi44/src/amdgpu/clearstate*.h:
+  AMD MIT notices remain in each source header.
+- development/AMDRadeonRDNA4-Navi44/vulkan/mesa-patches/: Mesa MIT terms;
+  see the adjacent README.txt and LICENSE-Navi48-* notices.
+- Imported generated shader source arrays are upstream source references,
+  not validated Navi44 executables, firmware, or M8 GPU test results.
+
+The original author's public copyright contact is retained as attribution.
+No Apple proprietary SDK, GPU firmware payload or VBIOS ROM is distributed.
+Upstream emulator sources and hardware capture logs are omitted.
+Full third-party reference clones are omitted; fixed sources and licenses
+are listed in UPSTREAM_SOURCES.md. No claim is made that every upstream
+project uses the root license.

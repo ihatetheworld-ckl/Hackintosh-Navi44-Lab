@@ -1,0 +1,2862 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,7 +2,9 @@
+ project(Navi44Offline LANGUAGES CXX)
+ # No install, fetching, IOKit, device.cpp, plugin.cpp, GPU API or hardware backend.
+ set(DIR "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/src")
+-add_executable(navi44_host_tests tests/unit/m65_unit.cpp "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp" "${DIR}/offlinevalidation.cpp")
++set(CORE "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/core")
++set(CORE_SOURCES "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp" "${CORE}/validation.cpp" "${CORE}/device_info.cpp")
++add_executable(navi44_host_tests tests/unit/m65_unit.cpp "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp" "${DIR}/offlinevalidation.cpp" "${CORE}/validation.cpp" "${CORE}/device_info.cpp")
+ target_include_directories(navi44_host_tests PRIVATE "${DIR}")
+ target_compile_features(navi44_host_tests PRIVATE cxx_std_17)
+ if(MSVC)
+@@ -12,6 +14,20 @@
+ endif()
+ enable_testing()
+ add_test(NAME cpu_only COMMAND navi44_host_tests)
+-add_executable(navi44_probe tests/unit/m65_probe.cpp "${DIR}/ipdiscovery.cpp" "${DIR}/offlinevalidation.cpp" "${DIR}/codeobj.cpp")
++add_executable(navi44_probe tests/unit/m65_probe.cpp "${DIR}/offlinevalidation.cpp" ${CORE_SOURCES})
+ target_include_directories(navi44_probe PRIVATE "${DIR}")
+ target_compile_features(navi44_probe PRIVATE cxx_std_17)
++add_executable(navi44_m7_tests tests/unit/m7_unit.cpp "${DIR}/offlinevalidation.cpp" ${CORE_SOURCES})
++target_include_directories(navi44_m7_tests PRIVATE "${DIR}")
++target_compile_features(navi44_m7_tests PRIVATE cxx_std_17)
++add_test(NAME m7_cpu_only COMMAND navi44_m7_tests)
++# Only Core translation units use these flags; Host probe retains its STL/exception API.
++if(MSVC)
++  set_source_files_properties(${CORE_SOURCES} PROPERTIES COMPILE_OPTIONS "/GR-;/EHs-c-")
++else()
++  set_source_files_properties(${CORE_SOURCES} PROPERTIES COMPILE_OPTIONS
++    "-fno-exceptions;-fno-rtti;-ffreestanding;-Wframe-larger-than=4096")
++  foreach(target navi44_probe navi44_m7_tests)
++    target_compile_options(${target} PRIVATE -Wall -Wextra -Werror -UNDEBUG)
++  endforeach()
++endif()
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1,43 +1,43 @@
+ # Hackintosh-Navi44-Lab
+ 
+-RX 9060 XT / Navi 44 原生 macOS 项目的 **CPU-only 离线适配原型**。
+-当前已完成 M6.5 Windows C++ 编译、跨语言比较及 ASan/UBSan 验证；没有可部署 kext。
++RX 9060 XT / Navi44 的 CPU-only 跨平台驱动研发实验室。
++M7 已形成无 STL/异常的 Core、兼容 Host、Platform Mock 与 Darwin 静态接口；没有可部署驱动。
+ 
+-## 本轮交付
++## 当前交付
+ 
+-- [M6.5 完整开发报告](reports/m65-development-report.md)
+-- [编译结果](reports/m65-build-results.md)
+-- [测试结果](reports/m65-test-results.md)
+-- [安全审查](reports/m65-security-review.md)
+-- [未完成项](reports/m65-remaining-blockers.md)
+-- [机器可读结果](reports/m65/results.json)
+-- [M6→M6.5 补丁](patches/m65-from-m6-offline.patch)
+-- [上游累计补丁](patches/navi44-m65-offline-cumulative.patch)
++- [M7 完整开发与测试报告](reports/m7/development-report.md)
++- [M7 测试数据](reports/m7/test-results.json)
++- [M7 真实命令与退出码](reports/m7/commands.json)
++- [M7 安全审查](reports/m7/safety-audit.md)
++- [M7 未解决事项](reports/m7/remaining-blockers.md)
++- [Core 架构](docs/kernel-core-architecture.md)
++- [Darwin 接口](docs/darwin-adapter-design.md)
++- [内核构建边界](docs/kernel-compatibility.md)
++- [显示就绪度](docs/navi44-display-readiness.md)
++- [Cobalt ABI](docs/cobalt-abi-readiness.md)
++- [M6.5→M7 源码与文档补丁](patches/m7-from-m65.patch)
+ 
+-## 实际实现
++## 当前 CPU-only 入口
+ 
+-ASIC/profile；32/64 位 Discovery；旧 32 位接口溢出拒绝；firmware common header/需求模型；
+-ELF、metadata、kernel descriptor 一致性；模拟 N44I ABI；状态顺序与默认禁止硬件初始化。
+-严格校验 host 层使用 STL/异常，不能直接视为 macOS 内核兼容实现。
++仅在本项目根目录运行：
+ 
+-## 统一入口
++~~~powershell
++& 'D:\RuntimeEnvironment\mise\mise\data\installs\python\3.12.13\python.exe' -I -B -X utf8 run_m7_offline_tests.py
++~~~
+ 
+-在本项目目录，使用现有 Python：
++复用项目中的便携 LLVM-MinGW；不改变 PATH、不安装依赖、不需要管理员。
++日志 reports/m7/execution，构建 build/m7/execution，临时目录 tmp；单进程 30/40秒超时，测试串行。
++M7 path guard 检查授权目录、reparse/link/hardlink 与父目录逃逸；不能代替 OS 沙箱或防止并发 TOCTOU。
++Sanitizer canary 故意触发本项目 CPU 进程错误，非零退出用于证明检测器生效。
+ 
+-```powershell
+-& 'D:\RuntimeEnvironment\mise\mise\data\installs\python\3.12.13\python.exe' -I -B -X utf8 run_all_offline_tests.py
+-```
++## 历史
+ 
+-便携 Clang 位于 tools/toolchains/llvm/，无系统安装、PATH 修改或管理员权限。
+-入口依次执行 Python、C++ 编译/单元测试、静态分析、差分、受控变异、sanitizer 与预期失败 canary。
+-日志只在 reports/m65，构建产物只在 build/m65，临时目录在 tmp。
+-Canary 的非零退出是预期 CPU 内存错误检测，不是普通测试失败。
++[M6.5 报告](reports/m65-development-report.md)、reports/m65 与 M6 产物保留。
++M7 改动前快照在 reports/m7/history，M7 基线复现在 reports/m7/baseline。
++旧 run_all_offline_tests.py 主程序会写 M6.5 报告，不是 M7 入口，不应再执行。
++M7 只复用其已审核的 helper 定义且重定向输出；不执行其 main。
++m7_prepare.py / m7_refactor.py / core_model_m7.py 是一次性转换记录，非日常测试入口。
++旧 docs/next-stage-readiness.md 等保留为 M6.5 状态，当前事实以 M7 文档为准。
+ 
+-## 历史与禁用范围
+-
+-M6 原报告和补丁保留；基线快照在 reports/m65/history。
+-run_offline.py / finish_reports.py / tools_integrate.py 为历史入口或转换记录，不是当前统一入口；
+-不要再次执行会覆盖 M6 报告的历史生成器。
+-完整上游含硬件与安装脚本，仅作参考，不执行。
+-Navi44 不绑定；所有设备 init 恒拒绝；开发 Makefile 仍禁用；host 构建不链接 IOKit/device/plugin。
+-GPU、EFI、BIOS、磁盘分区、驱动加载及 macOS 安装均未执行。
++Navi44 match / device init / Makefile 历史安全门禁保持原样，所有 GPU 能力保持关闭。
++Darwin native / kext / GPU / Vulkan / Metal / EFI / 分区 / macOS 部署未执行。
+diff --git a/core_model_m7.py b/core_model_m7.py
+new file mode 100644
+--- /dev/null
++++ b/core_model_m7.py
+@@ -0,0 +1,31 @@
++"""One-time checked move of the existing advisory manifest/state into Core."""
++from pathlib import Path
++import sys
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++base=safe.ROOT/'development/AMDRadeonRDNA4-Navi44'
++source=base/'src/offlinevalidation.cpp'
++text=source.read_text(encoding='utf-8');start=text.index('bool Offline::firmwareRequirements')
++body=text[start:]
++if 'struct Part' not in body or 'Advisory structural requirements' not in body:
++    raise SystemExit('Manifest already moved or source differs; refusing reapplication')
++body=body.replace('bool Offline::firmwareRequirements','NaviCore::Result NaviCore::firmwareRequirements')
++body=body.replace('FirmwareRequirement (&out)[16], size_t &count, const char **why)',
++                  'FirmwareRequirement (&out)[16], size_t &count)')
++body=body.replace('count = 0;\n    auto fail = [&](const char *w) { count = 0; if (why) *why = w; return false; };',
++                  'count = 0;\n    for (auto &entry : out) entry = {};\n    auto fail = [&](const char *w) { count = 0; for (auto &entry : out) entry = {}; return failure(w); };')
++body=body.replace('    if (why) *why = nullptr;\n    return true;', '    return success();')
++validation=base/'core/validation.cpp'
++safe.write(validation,validation.read_text(encoding='utf-8')+'\n'+body)
++safe.write(source,text[:start]+'''bool Offline::firmwareRequirements(const Asic::Profile&p,const IpDiscovery&d,
++                                  FirmwareRequirement (&out)[16],size_t&count,const char**why){
++    return NaviHost::result(NaviCore::firmwareRequirements(p,d,out,count),why);
++}
++''')
++header=base/'src/offlinevalidation.hpp';text=header.read_text(encoding='utf-8')
++text=text.replace('#include "ipdiscovery.hpp"','#include "ipdiscovery.hpp"\n#include "../core/model.hpp"')
++text=text.replace('struct FirmwareRequirement { const char *block, *component; Asic::IpVersion ip; };',
++                  'using FirmwareRequirement = NaviCore::FirmwareRequirement;')
++start=text.index('enum class State');end=text.index('\n}\n#endif',start)
++text=text[:start]+'using State = NaviCore::State;\nusing Session = NaviCore::Session;'+text[end:]
++safe.write(header,text)
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/device_info.cpp b/development/AMDRadeonRDNA4-Navi44/core/device_info.cpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/device_info.cpp
+@@ -0,0 +1,40 @@
++#include "device_info.hpp"
++namespace NaviCore {
++namespace {
++uint16_t u16(const uint8_t*p){return uint16_t(p[0])|uint16_t(p[1])<<8;}
++uint32_t u32(const uint8_t*p){return uint32_t(u16(p))|uint32_t(u16(p+2))<<16;}
++uint64_t u64(const uint8_t*p){return uint64_t(u32(p))|uint64_t(u32(p+4))<<32;}
++void w16(uint8_t*p,uint16_t x){p[0]=uint8_t(x);p[1]=uint8_t(x>>8);}
++void w32(uint8_t*p,uint32_t x){w16(p,uint16_t(x));w16(p+2,uint16_t(x>>16));}
++void w64(uint8_t*p,uint64_t x){w32(p,uint32_t(x));w32(p+4,uint32_t(x>>32));}
++}
++Result decodeDeviceInfo(View v,DeviceInfo&out){
++    out=DeviceInfo{};if(!v.data||v.size!=kDeviceInfoSize)return failure("abi_v2_size");const uint8_t*d=v.data;
++    if(d[0]!='N'||d[1]!='4'||d[2]!='4'||d[3]!='I'||u16(d+4)!=2||u16(d+6)!=96||d[13]>1||u32(d+20)||d[27]||u32(d+64)!=1)return failure("abi_v2_header");
++    for(size_t i=68;i<96;++i)if(d[i])return failure("abi_v2_reserved");
++    auto p=Asic::identify(u16(d+8),u16(d+10),d[12],d[13]!=0);
++    if(p.family==Asic::Family::Unknown||u16(d+14)!=uint16_t(p.target)||(!d[13]&&d[12]))return failure("abi_v2_identity");
++    const uint32_t present=u32(d+16);if(present&~7u)return failure("abi_v2_presence");
++    if(present&1){if(d[24]!=p.expectedGc.major||d[25]!=p.expectedGc.minor||d[26]!=p.expectedGc.revision)return failure("abi_v2_gc");}
++    else if(d[24]||d[25]||d[26])return failure("abi_v2_unknown_gc");
++    uint32_t se=u32(d+28),cu=u32(d+32),rb=u32(d+36),tcc=u32(d+40),gb=u32(d+44);
++    if(present&2){if(!se||!cu||!rb||!tcc||!gb)return failure("abi_v2_topology");}
++    else if(se||cu||rb||tcc||gb)return failure("abi_v2_unknown_topology");
++    uint64_t vram=u64(d+48),bar=u64(d+56);
++    if(present&4){if(!vram||!bar||bar>vram)return failure("abi_v2_memory");}
++    else if(vram||bar)return failure("abi_v2_unknown_memory");
++    out={p,present,d[24],d[25],d[26],se,cu,rb,tcc,gb,vram,bar};return success();
++}
++Result encodeDeviceInfo(const DeviceInfo&i,uint8_t*out,size_t n){
++    if(!out||n!=kDeviceInfoSize)return failure("abi_v2_size");
++    const auto expected=Asic::identify(i.profile.vendor,i.profile.device,i.profile.revision,i.profile.revisionKnown);
++    if(i.profile.family!=expected.family||i.profile.revisionVerified||i.profile.topology.verified)return failure("abi_v2_unverified_model");
++    uint8_t raw[kDeviceInfoSize]{};raw[0]='N';raw[1]='4';raw[2]='4';raw[3]='I';w16(raw+4,2);w16(raw+6,96);
++    w16(raw+8,i.profile.vendor);w16(raw+10,i.profile.device);raw[12]=i.profile.revision;raw[13]=i.profile.revisionKnown;
++    w16(raw+14,uint16_t(i.profile.target));w32(raw+16,i.present);w32(raw+20,i.profile.capabilities);
++    raw[24]=i.gcMajor;raw[25]=i.gcMinor;raw[26]=i.gcRevision;w32(raw+28,i.se);w32(raw+32,i.cu);w32(raw+36,i.rb);w32(raw+40,i.tcc);w32(raw+44,i.gbAddrConfig);
++    w64(raw+48,i.vramBytes);w64(raw+56,i.visibleBarBytes);w32(raw+64,1);
++    DeviceInfo validated;Result r=decodeDeviceInfo({raw,sizeof(raw)},validated);if(!r.ok())return r;
++    for(size_t j=0;j<n;++j)out[j]=raw[j];return success();
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/device_info.hpp b/development/AMDRadeonRDNA4-Navi44/core/device_info.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/device_info.hpp
+@@ -0,0 +1,17 @@
++// N44I v2 pure serialization model; NOT Cobalt production ABI. BSD-3-Clause.
++#ifndef Navi44CoreDeviceInfo_hpp
++#define Navi44CoreDeviceInfo_hpp
++#include "validation.hpp"
++namespace NaviCore {
++struct DeviceInfo {
++    Asic::Profile profile;
++    uint32_t present; // field presence, NOT hardware verification or capability
++    uint8_t gcMajor,gcMinor,gcRevision;
++    uint32_t se,cu,rb,tcc,gbAddrConfig;
++    uint64_t vramBytes,visibleBarBytes;
++};
++constexpr size_t kDeviceInfoSize=96;
++Result decodeDeviceInfo(View,DeviceInfo&);
++Result encodeDeviceInfo(const DeviceInfo&,uint8_t*,size_t);
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/model.hpp b/development/AMDRadeonRDNA4-Navi44/core/model.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/model.hpp
+@@ -0,0 +1,24 @@
++// Existing M6.5 advisory manifest/state, now shared Core. BSD-3-Clause.
++#ifndef Navi44CoreModel_hpp
++#define Navi44CoreModel_hpp
++#include "validation.hpp"
++#include "../src/ipdiscovery.hpp"
++namespace NaviCore {
++struct FirmwareRequirement { const char *block,*component;Asic::IpVersion ip; };
++Result firmwareRequirements(const Asic::Profile&,const IpDiscovery&,
++                            FirmwareRequirement (&out)[16],size_t&count);
++enum class State:uint8_t { Unknown,PciMatched,ProfileValidated,DiscoveryValidated,
++                          FirmwareRequirementsValidated,OfflineReady,Failed };
++class Session {
++public:
++    State state{State::Unknown};
++    bool advance(State next){
++        if(state==State::Failed||state==State::OfflineReady)return false;
++        if(next==State::Failed){state=next;return true;}
++        if(static_cast<unsigned>(next)!=static_cast<unsigned>(state)+1){state=State::Failed;return false;}
++        state=next;return true;
++    }
++};
++static_assert(sizeof(State)==1,"fixed state representation; never wire-cast");
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/validation.cpp b/development/AMDRadeonRDNA4-Navi44/core/validation.cpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/validation.cpp
+@@ -0,0 +1,230 @@
++// Refactored M6.5 validation, BSD-3-Clause. No OS/STL/exception dependencies.
++#include "validation.hpp"
++#include "model.hpp"
++#include "../src/codeobj.hpp"
++namespace NaviCore {
++namespace {
++constexpr uint16_t nil=UINT16_MAX;
++uint16_t u16(const uint8_t*p){return uint16_t(p[0])|uint16_t(p[1])<<8;}
++uint32_t u32(const uint8_t*p){return uint32_t(u16(p))|uint32_t(u16(p+2))<<16;}
++uint64_t u64(const uint8_t*p){return uint64_t(u32(p))|uint64_t(u32(p+4))<<32;}
++size_t literalSize(const char*s){size_t n=0;while(s[n])++n;return n;}
++bool same(View a,View b){if(a.size!=b.size)return false;for(size_t i=0;i<a.size;++i)if(a.data[i]!=b.data[i])return false;return true;}
++bool eq(View a,const char*s){return same(a,{reinterpret_cast<const uint8_t*>(s),literalSize(s)});}
++bool utf8(View s){
++    for(size_t i=0;i<s.size;){uint32_t c=s.data[i++];if(c<0x80)continue;
++        unsigned rest;uint32_t minimum;
++        if(c>=0xc2&&c<=0xdf){rest=1;minimum=0x80;c&=31;}
++        else if(c>=0xe0&&c<=0xef){rest=2;minimum=0x800;c&=15;}
++        else if(c>=0xf0&&c<=0xf4){rest=3;minimum=0x10000;c&=7;}else return false;
++        if(rest>s.size-i)return false;
++        while(rest--){uint8_t b=s.data[i++];if((b&0xc0)!=0x80)return false;c=(c<<6)|(b&63);}
++        if(c<minimum||c>0x10ffff||(c>=0xd800&&c<=0xdfff))return false;
++    }return true;
++}
++class Metadata {
++    View input;Scratch& arena;size_t position{0};
++    Result big(unsigned width,uint64_t&x){
++        if(!input.inside(position,width))return failure("out_of_bounds",Error::Bounds,position);
++        x=0;while(width--)x=(x<<8)|input.data[position++];return success();
++    }
++    Result parse(unsigned depth,uint16_t&index){
++        if(depth>16)return failure("metadata_depth",Error::Budget,position);
++        if(!input.inside(position,1))return failure("out_of_bounds",Error::Bounds,position);
++        if(!arena.nodes||arena.used>=arena.capacity||arena.used>=nil)return failure("metadata_budget",Error::Budget,position);
++        index=uint16_t(arena.used++);arena.nodes[index]={Kind::Number,nil,nil,0,0,{nullptr,0}};
++        const uint8_t tag=input.data[position++];Node&node=arena.nodes[index];
++        if(tag<0x80){node.number=tag;return success();}
++        if((tag>=0xa0&&tag<=0xbf)||tag==0xd9||tag==0xda||tag==0xdb){
++            uint64_t length=tag&31;Result r=success();
++            if(tag>0xbf)r=big(tag==0xd9?1:tag==0xda?2:4,length);
++            if(!r.ok())return r;
++            View text;r=input.slice(position,length,text);if(!r.ok())return r;position+=size_t(length);
++            if(!utf8(text))return failure("metadata_utf8");node.kind=Kind::String;node.text=text;return success();
++        }
++        const bool map=(tag>=0x80&&tag<=0x8f)||tag==0xde||tag==0xdf;
++        const bool array=(tag>=0x90&&tag<=0x9f)||tag==0xdc||tag==0xdd;
++        if(map||array){uint64_t count=tag&15;Result r=success();
++            if(tag>=0xa0)r=big(tag==0xdc||tag==0xde?2:4,count);
++            if(!r.ok())return r;if(count>4096)return failure("metadata_count",Error::Budget);
++            node.kind=map?Kind::Map:Kind::Array;node.count=uint16_t(count);uint16_t previous=nil;
++            for(uint64_t i=0;i<count;++i){uint16_t key;r=parse(depth+1,key);if(!r.ok())return r;
++                if(map){
++                    if(arena.nodes[key].kind!=Kind::String)return failure("metadata_key");
++                    for(uint16_t p=node.child;p!=nil;){if(same(arena.nodes[p].text,arena.nodes[key].text))return failure("metadata_key");
++                        const uint16_t value=arena.nodes[p].next;p=arena.nodes[value].next;}
++                    uint16_t value;r=parse(depth+1,value);if(!r.ok())return r;
++                    arena.nodes[key].next=value;
++                    if(previous==nil)node.child=key;else arena.nodes[previous].next=key;previous=value;
++                }else{if(previous==nil)node.child=key;else arena.nodes[previous].next=key;previous=key;}
++            }return success();
++        }
++        if(tag>=0xcc&&tag<=0xcf)return big(1u<<(tag-0xcc),node.number);
++        return failure("metadata_encoding_unsupported",Error::Unsupported);
++    }
++    uint16_t field(uint16_t map,const char*key)const{
++        if(map==nil||arena.nodes[map].kind!=Kind::Map)return nil;
++        for(uint16_t p=arena.nodes[map].child;p!=nil;){const uint16_t value=arena.nodes[p].next;
++            if(eq(arena.nodes[p].text,key))return value;p=arena.nodes[value].next;}
++        return nil;
++    }
++    bool number(uint16_t n)const{return n!=nil&&arena.nodes[n].kind==Kind::Number;}
++    bool text(uint16_t n)const{return n!=nil&&arena.nodes[n].kind==Kind::String&&arena.nodes[n].text.size;}
++public:
++    Metadata(View v,Scratch&s):input(v),arena(s){}
++    Result validate(View elf,Asic::Target target,View selected){
++        arena.used=0;uint16_t root;Result r=parse(0,root);if(!r.ok())return r;
++        if(position!=input.size||arena.nodes[root].kind!=Kind::Map)return failure("metadata_envelope");
++        uint16_t version=field(root,"amdhsa.version"),kernels=field(root,"amdhsa.kernels");
++        if(version==nil||arena.nodes[version].kind!=Kind::Array||arena.nodes[version].count!=2)return failure("metadata_version_missing");
++        uint16_t a=arena.nodes[version].child,b=arena.nodes[a].next;
++        if(!number(a)||!number(b))return failure("metadata_version_missing");
++        if(arena.nodes[a].number!=1||arena.nodes[b].number>2)return failure("metadata_version_unsupported",Error::Unsupported);
++        if(kernels==nil||arena.nodes[kernels].kind!=Kind::Array||!arena.nodes[kernels].count)return failure("metadata_kernels_missing");
++        bool found=false;
++        for(uint16_t k=arena.nodes[kernels].child;k!=nil;k=arena.nodes[k].next){
++            uint16_t name=field(k,".name"),symbol=field(k,".symbol"),argument=field(k,".kernarg_segment_size");
++            if(!text(name)||!text(symbol))return failure("metadata_kernel_identity_missing");
++            if(!number(argument)||arena.nodes[argument].number>UINT32_MAX)return failure("metadata_kernarg_missing");
++            if(!selected.size||!same(arena.nodes[name].text,selected))continue;
++            if(found)return failure("elf_kernel_metadata_duplicate");found=true;
++            View sym=arena.nodes[symbol].text;
++            if(sym.size!=selected.size+3)return failure("elf_kernel_symbol_mismatch",Error::Mismatch);
++            for(size_t i=0;i<selected.size;++i)if(sym.data[i]!=selected.data[i])return failure("elf_kernel_symbol_mismatch",Error::Mismatch);
++            if(sym.data[selected.size]!='.'||sym.data[selected.size+1]!='k'||sym.data[selected.size+2]!='d')return failure("elf_kernel_symbol_mismatch",Error::Mismatch);
++            if(selected.size>127)return failure("elf_kernel_metadata_missing",Error::Unsupported);
++            char key[128];for(size_t i=0;i<selected.size;++i)key[i]=char(selected.data[i]);key[selected.size]=0;
++            CodeObj::Kernel kernel{};const char*why=nullptr;
++            if(!CodeObj::findKernel(elf.data,elf.size,key,kernel,&why,target))return failure("elf_descriptor_invalid");
++            if(arena.nodes[argument].number!=kernel.kernargSize)return failure("elf_descriptor_mismatch",Error::Mismatch);
++            const char*keys[]={".group_segment_fixed_size",".private_segment_fixed_size"};
++            const uint32_t values[]={kernel.groupSegmentSize,kernel.privateSegmentSize};
++            for(unsigned i=0;i<2;++i){uint16_t f=field(k,keys[i]);if(f!=nil&&(!number(f)||arena.nodes[f].number!=values[i]))return failure("elf_descriptor_mismatch",Error::Mismatch);}
++        }
++        if(selected.size&&!found)return failure("elf_kernel_metadata_missing",Error::Missing);
++        return success();
++    }
++};
++Result elfImpl(View v,Asic::Target target,Scratch&scratch,View selected){
++    if(target!=Asic::Target::Gfx1200&&target!=Asic::Target::Gfx1201)return failure("unknown_target",Error::Unsupported);
++    if(!v.inside(0,64)||!v.data)return failure("out_of_bounds",Error::Bounds);
++    const uint8_t*d=v.data;const uint8_t ident[]={0x7f,'E','L','F',2,1,1};
++    for(unsigned i=0;i<7;++i)if(d[i]!=ident[i])return failure("elf_ident");
++    if(u16(d+16)!=3||u16(d+18)!=224||u32(d+20)!=1)return failure("elf_type_machine_version");
++    if((u32(d+48)&255)!=uint32_t(target))return failure("elf_target_mismatch",Error::Mismatch);
++    const uint16_t ps=u16(d+54),pc=u16(d+56),ss=u16(d+58),sc=u16(d+60);
++    const uint64_t po=u64(d+32),so=u64(d+40);
++    if(u16(d+52)!=64||ps!=56||ss!=64||!pc||!sc)return failure("elf_tables_missing");
++    if(!v.inside(po,uint64_t(ps)*pc)||!v.inside(so,uint64_t(ss)*sc))return failure("out_of_bounds",Error::Bounds);
++    for(unsigned i=0;i<sc;++i){const uint8_t*s=d+so+uint64_t(i)*ss;if(u32(s+4)!=8&&!v.inside(u64(s+24),u64(s+32)))return failure("out_of_bounds",Error::Bounds);}
++    for(unsigned i=0;i<sc;++i){const uint8_t*s=d+so+uint64_t(i)*ss;const uint32_t kind=u32(s+4),link=u32(s+40);const uint64_t n=u64(s+32),entry=u64(s+56);
++        if((kind==2||kind==11)&&n){if(entry<24||n%entry||link>=sc||u32(d+so+uint64_t(link)*ss+4)!=3)return failure("elf_symbols_invalid");}
++        if((kind==4||kind==9)&&n){const uint64_t expected=kind==4?24:16;
++            if(entry!=expected||n%entry||link>=sc||u32(s+44)>=sc)return failure("elf_relocations_invalid");
++            const uint8_t*symbols=d+so+uint64_t(link)*ss;uint32_t type=u32(symbols+4);uint64_t stride=u64(symbols+56),size=u64(symbols+32);
++            if((type!=2&&type!=11)||stride<24||size%stride)return failure("elf_relocations_invalid");
++            for(uint64_t p=0;p<n;p+=entry)if((u64(d+u64(s+24)+p+8)>>32)>=size/stride)return failure("elf_relocations_invalid");
++            if(u64(s+8)&2)return failure("elf_relocations_unsupported",Error::Unsupported);
++        }
++    }
++    unsigned loads=0;bool metadata=false;
++    for(unsigned i=0;i<pc;++i){const uint8_t*p=d+po+uint64_t(i)*ps;if(u32(p)!=1)continue;
++        const uint64_t off=u64(p+8),va=u64(p+16),file=u64(p+32),mem=u64(p+40);
++        if(!v.inside(off,file)||va>(16u<<20)||mem>(16u<<20)-va)return failure("out_of_bounds",Error::Bounds);
++        if(!file||file>mem)return failure("elf_load_size");++loads;
++    }
++    for(unsigned i=0;i<sc;++i){const uint8_t*s=d+so+uint64_t(i)*ss;if(u32(s+4)!=7)continue;
++        const uint64_t off=u64(s+24),length=u64(s+32),end=off+length;uint64_t p=off;
++        while(p<end){if(p>end||12>end-p)return failure("out_of_bounds",Error::Bounds);
++            uint64_t names=u32(d+p),descs=u32(d+p+4);uint32_t type=u32(d+p+8);
++            uint64_t name=p+12,desc=name+((names+3)&~uint64_t(3)),next=desc+((descs+3)&~uint64_t(3));
++            if(name>end||names>end-name||desc>end||descs>end-desc||next>end)return failure("out_of_bounds",Error::Bounds);
++            const uint8_t owner[]={ 'A','M','D','G','P','U',0 };bool matched=names==7;
++            if(matched)for(unsigned j=0;j<7;++j)matched=matched&&d[name+j]==owner[j];
++            if(matched&&type==32&&descs){if(metadata)return failure("elf_duplicate_metadata");
++                Result r=Metadata({d+desc,size_t(descs)},scratch).validate(v,target,selected);if(!r.ok())return r;metadata=true;}
++            p=next;
++        }
++    }
++    if(!loads||!metadata)return failure("elf_load_or_metadata_missing",Error::Missing);
++    return success();
++}
++}
++Result elf(View v,Asic::Target t,Scratch&s,View name){
++    s.used=0;if(name.size&&!name.data)return failure("out_of_bounds",Error::Bounds);
++    Result r=elfImpl(v,t,s,name);if(!r.ok())s.used=0;return r;
++}
++Result firmware(View v,uint16_t major,uint16_t minor,View component){
++    if(!v.inside(0,32)||!v.data)return failure("out_of_bounds",Error::Bounds);
++    const uint8_t*d=v.data;if(u16(d+8)!=1||u16(d+10)!=0)return failure("firmware_header_version",Error::Unsupported);
++    uint32_t size=u32(d),header=u32(d+4),count=u32(d+20),off=u32(d+24);
++    if(size!=v.size||header<32||header>size||off<header||!count)return failure("firmware_size");
++    if(!v.inside(off,count))return failure("out_of_bounds",Error::Bounds);
++    if(u16(d+12)!=major||u16(d+14)!=minor)return failure("firmware_ip_mismatch",Error::Mismatch);
++    const char*allowed[]={"pfp","me","mec","rlc","imu","mes","mes1","sos","ta","smu","sdma","dmub"};bool known=false;
++    if(component.data)for(auto c:allowed)known=known||eq(component,c);
++    if(!known)return failure("firmware_component_unsupported",Error::Unsupported);
++    if(u32(d+28))return failure("firmware_crc_unverified",Error::Unsupported);return success();
++}
++Result deviceInfo(View v,Asic::Profile&out){
++    out=Asic::identify(0,0);if(!v.data||v.size!=32)return failure("abi_size");const uint8_t*d=v.data;
++    if(d[0]!='N'||d[1]!='4'||d[2]!='4'||d[3]!='I'||u16(d+4)!=1||u16(d+6)!=32||d[13]>1||u64(d+16)||u64(d+24))return failure("abi_header_or_capabilities");
++    if(u16(d+8)!=0x1002)return failure("unknown_vendor",Error::Unsupported);
++    auto p=Asic::identify(u16(d+8),u16(d+10),d[12],d[13]!=0);
++    if(p.family==Asic::Family::Unknown)return failure("unknown_device",Error::Unsupported);
++    if(u16(d+14)!=uint16_t(p.target)||(!d[13]&&d[12]))return failure("abi_target_or_revision",Error::Mismatch);out=p;return success();
++}
++Result pspPackage(View v,Package&out){
++    out=Package{};if(!v.data||!v.inside(0,36))return failure("firmware_package_bounds",Error::Bounds);
++    const uint8_t*d=v.data;const uint32_t size=u32(d),header=u32(d+4),payload=u32(d+24),length=u32(d+20);
++    const uint16_t major=u16(d+8),minor=u16(d+10);
++    if(major!=2||minor>1)return failure("firmware_package_version",Error::Unsupported);
++    const size_t base=minor==1?40:36;
++    if(size!=v.size||header<base||header>size||payload<header||!length||!v.inside(payload,length))return failure("firmware_package_bounds",Error::Bounds);
++    if(u32(d+28))return failure("firmware_crc_unverified",Error::Unsupported);
++    uint32_t count=u32(d+32);if(!count||count>12||!v.inside(base,uint64_t(count)*16)||header<base+uint64_t(count)*16)return failure("firmware_package_count");
++    if(minor==1&&u32(d+36))return failure("firmware_package_aux_unverified",Error::Unsupported);
++    Package result{};
++    for(uint32_t i=0;i<count;++i){const uint8_t*p=d+base+i*16;const uint32_t type=u32(p),version=u32(p+4),offset=u32(p+8),n=u32(p+12);
++        if(!type||type>12||!n)return failure("firmware_package_component",Error::Unsupported);
++        if(result.parts[type].payload.size)return failure("firmware_package_duplicate");
++        if(offset>length||n>length-offset)return failure("firmware_package_bounds",Error::Bounds);
++        for(uint32_t j=1;j<=12;++j)if(result.parts[j].payload.size){const uint64_t old=result.parts[j].payload.data-v.data;
++            if(uint64_t(payload)+offset<old+result.parts[j].payload.size&&old<uint64_t(payload)+offset+n)return failure("firmware_package_overlap");}
++        result.parts[type]={type,version,{d+uint64_t(payload)+offset,n}};
++    }
++    if(!result.parts[1].payload.size||!result.parts[2].payload.size)return failure("firmware_package_required_missing",Error::Missing);
++    result.count=count;result.signatureVerified=false;out=result;return success();
++}
++}
++
++NaviCore::Result NaviCore::firmwareRequirements(const Asic::Profile &p, const IpDiscovery &discovery,
++                                  FirmwareRequirement (&out)[16], size_t &count) {
++    count = 0;
++    for (auto &entry : out) entry = {};
++    auto fail = [&](const char *w) { count = 0; for (auto &entry : out) entry = {}; return failure(w); };
++    const auto expected = Asic::identify(p.vendor, p.device, p.revision, p.revisionKnown);
++    if (expected.family == Asic::Family::Unknown || p.family != expected.family || p.target != expected.target || p.capabilities)
++        return fail("profile_tampered");
++    IpDiscovery::IpEntry64 gc;
++    if (!discovery.findIp64(11,0,gc) || gc.major != expected.expectedGc.major ||
++        gc.minor != expected.expectedGc.minor || gc.revision != expected.expectedGc.revision) return fail("gc_profile_mismatch");
++    uint32_t se = 0, rb = 0;
++    if (!discovery.gcInfo(se,rb)) return fail("topology_unknown");
++    struct Part { uint16_t hw; const char *block; const char *component; };
++    const Part parts[] = {{11,"gc","pfp"},{11,"gc","me"},{11,"gc","mec"},{11,"gc","rlc"},
++        {11,"gc","imu"},{11,"gc","mes"},{11,"gc","mes1"},{255,"psp","sos"},{255,"psp","ta"},
++        {1,"smu","smu"},{42,"sdma","sdma"},{271,"dcn","dmub"}};
++    for (const auto &part : parts) {
++        IpDiscovery::IpEntry64 ip;
++        if (!discovery.findIp64(part.hw,0,ip)) {
++            if (part.hw == 255) return fail("required_ip_missing:psp");
++            if (part.hw == 1) return fail("required_ip_missing:smu");
++            if (part.hw == 42) return fail("required_ip_missing:sdma");
++            if (part.hw == 271) return fail("required_ip_missing:dcn");
++            return fail("required_ip_missing:gc");
++        }
++        out[count++] = {part.block,part.component,{ip.major,ip.minor,ip.revision,true}};
++    }
++    return success(); // Advisory structural requirements; no firmware signature/load.
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/validation.hpp b/development/AMDRadeonRDNA4-Navi44/core/validation.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/validation.hpp
+@@ -0,0 +1,41 @@
++// Kernel-friendly CPU data core, BSD-3-Clause. No STL/heap/exceptions/IO.
++#ifndef Navi44CoreValidation_hpp
++#define Navi44CoreValidation_hpp
++#include <stdint.h>
++#include <stddef.h>
++#include "../src/asicprofile.hpp"
++namespace NaviCore {
++enum class Error : uint8_t { None, Bounds, Format, Unsupported, Mismatch, Missing, Budget, Protocol };
++struct Result {
++    Error code; const char *detail; uint64_t offset;
++    constexpr bool ok() const { return code == Error::None; }
++};
++constexpr Result success() { return {Error::None,nullptr,0}; }
++constexpr Result failure(const char *s, Error e=Error::Format,uint64_t p=0) { return {e,s,p}; }
++struct View {
++    const uint8_t *data; size_t size;
++    bool inside(uint64_t off,uint64_t count) const { return (data || !size) && off<=size && count<=size-off; }
++    Result slice(uint64_t off,uint64_t count,View &out) const {
++        out={nullptr,0};
++        if (!inside(off,count)) return failure("out_of_bounds",Error::Bounds,off);
++        out={count?data+off:nullptr,size_t(count)};return success();
++    }
++};
++enum class Kind : uint8_t { Number, String, Map, Array };
++struct Node {
++    Kind kind; uint16_t child, next, count; uint64_t number; View text;
++};
++struct Scratch { Node *nodes; size_t capacity, used; };
++// Scratch and immutable input are caller-owned and must outlive the call.
++// No borrowed Node/View is returned. Failure resets scratch.used to zero.
++Result elf(View,Asic::Target,Scratch&,View kernelName={nullptr,0});
++Result firmware(View,uint16_t,uint16_t,View component);
++Result deviceInfo(View,Asic::Profile&);
++struct PackagePart { uint32_t type,version; View payload; };
++struct Package { PackagePart parts[13]; uint32_t count; bool signatureVerified; };
++Result pspPackage(View,Package&);
++constexpr bool hardwareAllowed() { return false; }
++static_assert(sizeof(uint64_t)==8,"fixed-width types required");
++static_assert(sizeof(Asic::Target)==1,"target layout");
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/host/navi44.py b/development/AMDRadeonRDNA4-Navi44/host/navi44.py
+--- a/development/AMDRadeonRDNA4-Navi44/host/navi44.py
++++ b/development/AMDRadeonRDNA4-Navi44/host/navi44.py
+@@ -95,13 +95,17 @@
+     count = 6 if major == 1 else read(data, 12, "<H")[0]
+     if not 1 <= count <= 6:
+         raise Invalid("table_count")
++    if major == 2 and read(data, 14, '<H')[0]:
++        raise Invalid('binary_reserved')
+     bounded(size, start, count * 8)
+     if sum(data[10:size]) & 0xFFFF != checksum:
+         raise Invalid("binary_checksum")
+     tables = []
+     occupied = []
+     for index in range(count):
+-        off, check, length, _ = read(data, start + 8 * index, "<HHHH")
++        off, check, length, reserved = read(data, start + 8 * index, "<HHHH")
++        if reserved:
++            raise Invalid('table_reserved')
+         if off == length == check == 0:
+             tables.append(None)
+             continue
+@@ -244,12 +248,17 @@
+     return True
+ 
+ 
+-def decode_metadata(data):
++def decode_metadata(data, node_budget=512):
+     """Bounded MsgPack subset; unsupported encodings explicitly rejected."""
++    used = 0
+     def parse(p, depth=0):
++        nonlocal used
+         if depth > 16:
+             raise Invalid("metadata_depth")
+         bounded(len(data), p, 1)
++        if used >= node_budget:
++            raise Invalid('metadata_budget')
++        used += 1
+         tag, p = data[p], p + 1
+         if tag < 0x80:
+             return tag, p
+@@ -308,7 +317,7 @@
+     return value
+ 
+ 
+-def validate_elf(data, target):
++def validate_elf(data, target, node_budget=512):
+     """Strict offline ELF envelope; not AMD metadata/shader execution proof."""
+     if target not in (Target.GFX1200, Target.GFX1201):
+         raise Invalid("unknown_target")
+@@ -333,6 +342,20 @@
+         if read(data, p + 4, '<I')[0] != 8:
+             off, size = read(data, p + 24, '<QQ')
+             bounded(len(data), off, size)
++    for i in range(shnum):
++        s=shoff+i*shsize;kind=read(data,s+4,'<I')[0];size=read(data,s+32,'<Q')[0]
++        link=read(data,s+40,'<I')[0];stride=read(data,s+56,'<Q')[0]
++        if kind in (2,11) and size:
++            if stride<24 or size%stride or link>=shnum or read(data,shoff+link*shsize+4,'<I')[0]!=3: raise Invalid('elf_symbols_invalid')
++        if kind in (4,9) and size:
++            expected=24 if kind==4 else 16
++            if stride!=expected or size%stride or link>=shnum or read(data,s+44,'<I')[0]>=shnum: raise Invalid('elf_relocations_invalid')
++            sym=shoff+link*shsize;stype=read(data,sym+4,'<I')[0];sstride=read(data,sym+56,'<Q')[0];ssize=read(data,sym+32,'<Q')[0]
++            if stype not in (2,11) or sstride<24 or ssize%sstride: raise Invalid('elf_relocations_invalid')
++            off=read(data,s+24,'<Q')[0]
++            for p in range(0,size,stride):
++                if read(data,off+p+8,'<Q')[0]>>32>=ssize//sstride: raise Invalid('elf_relocations_invalid')
++            if read(data,s+8,'<Q')[0]&2: raise Invalid('elf_relocations_unsupported')
+     loads, metadata = 0, False
+     for i in range(phnum):
+         p = phoff + i * phsize
+@@ -365,7 +388,7 @@
+                 if data[name:name + namesz] == b"AMDGPU\0" and note_type == 32 and descsz:
+                     if metadata:
+                         raise Invalid("elf_duplicate_metadata")
+-                    decode_metadata(bytes(data[desc:desc+descsz]))
++                    decode_metadata(bytes(data[desc:desc+descsz]),node_budget=node_budget)
+                     metadata = True
+                 n = nxt
+     if not loads or not metadata:
+@@ -498,3 +521,53 @@
+     if target != p.target.value or (not valid and rev):
+         raise Invalid("abi_target_or_revision")
+     return p
++
++
++def parse_psp_package(data):
++    """Structural PSP v2.0/v2.1(aux=0), never signature/load validation."""
++    if len(data) < 36: raise Invalid('firmware_package_bounds')
++    size,header,major,minor,_ia,_ib,_uc,length,payload,crc=read(data,0,'<IIHHHHIIII')
++    if major != 2 or minor > 1: raise Invalid('firmware_package_version')
++    base=40 if minor==1 else 36
++    if size!=len(data) or header<base or header>size or payload<header or not length or payload>size or length>size-payload:
++        raise Invalid('firmware_package_bounds')
++    if crc: raise Invalid('firmware_crc_unverified')
++    count=read(data,32,'<I')[0]
++    if not 1<=count<=12 or base+count*16>len(data) or header<base+count*16: raise Invalid('firmware_package_count')
++    if minor==1 and read(data,36,'<I')[0]: raise Invalid('firmware_package_aux_unverified')
++    parts={}
++    for i in range(count):
++        kind,version,off,n=read(data,base+i*16,'<IIII')
++        if not 1<=kind<=12 or not n: raise Invalid('firmware_package_component')
++        if kind in parts: raise Invalid('firmware_package_duplicate')
++        if off>length or n>length-off: raise Invalid('firmware_package_bounds')
++        if any(off<x['offset']+x['size'] and x['offset']<off+n for x in parts.values()): raise Invalid('firmware_package_overlap')
++        parts[kind]={'version':version,'offset':off,'size':n}
++    if 1 not in parts or 2 not in parts: raise Invalid('firmware_package_required_missing')
++    return {'parts':parts,'signature_verified':False}
++
++
++def decode_device_info_v2(data):
++    if len(data)!=96: raise Invalid('abi_v2_size')
++    if data[:4]!=b'N44I' or read(data,4,'<HH')!=(2,96) or data[13]>1 or read(data,20,'<I')[0] or data[27] or read(data,64,'<I')[0]!=1:
++        raise Invalid('abi_v2_header')
++    if any(data[68:]): raise Invalid('abi_v2_reserved')
++    vendor,device=read(data,8,'<HH')
++    try: p=identify(vendor,device,data[12] if data[13] else None)
++    except Invalid: raise Invalid('abi_v2_identity') from None
++    if read(data,14,'<H')[0]!=p.target.value or (not data[13] and data[12]): raise Invalid('abi_v2_identity')
++    present=read(data,16,'<I')[0]
++    if present&~7: raise Invalid('abi_v2_presence')
++    gc=tuple(data[24:27])
++    if present&1:
++        if gc!=p.expected_gc: raise Invalid('abi_v2_gc')
++    elif any(gc): raise Invalid('abi_v2_unknown_gc')
++    topology=read(data,28,'<IIIII')
++    if present&2:
++        if not all(topology): raise Invalid('abi_v2_topology')
++    elif any(topology): raise Invalid('abi_v2_unknown_topology')
++    memory=read(data,48,'<QQ')
++    if present&4:
++        if not all(memory) or memory[1]>memory[0]: raise Invalid('abi_v2_memory')
++    elif any(memory): raise Invalid('abi_v2_unknown_memory')
++    return {'target':p.target.value,'present':present,'gc':gc,'topology':topology,'memory':memory,'capabilities':0}
+diff --git a/development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp b/development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp
+@@ -0,0 +1,24 @@
++// Host Mock uses a fixed caller-owned CPU array, never a device or allocator API.
++#ifndef Navi44HostPlatformMock_hpp
++#define Navi44HostPlatformMock_hpp
++#include "../platform/contract.hpp"
++namespace NaviHost {
++struct PlatformMock {
++    alignas(NaviCore::Node) uint8_t arena[512*sizeof(NaviCore::Node)]{};
++    NaviCore::View snapshot{nullptr,0};
++    unsigned allocations{0},releases{0},logs{0};bool busy{false},deny{false};
++    static void*allocate(void*ctx,size_t n,size_t alignment){
++        auto&m=*static_cast<PlatformMock*>(ctx);
++        if(m.deny||m.busy||n>sizeof(m.arena)||alignment>alignof(NaviCore::Node))return nullptr;
++        m.busy=true;++m.allocations;return m.arena;
++    }
++    static void release(void*ctx,void*,size_t){auto&m=*static_cast<PlatformMock*>(ctx);m.busy=false;++m.releases;}
++    static void log(void*ctx,NaviCore::Result){++static_cast<PlatformMock*>(ctx)->logs;}
++    static NaviCore::Result borrow(void*ctx,NaviPlatform::SnapshotKind,NaviCore::View&out){
++        auto&m=*static_cast<PlatformMock*>(ctx);out=m.snapshot;
++        if(!out.data)return NaviCore::failure("snapshot_unavailable",NaviCore::Error::Missing);return NaviCore::success();
++    }
++    NaviPlatform::Contract contract(){return {{this,allocate,release},{this,log},{this,borrow}};}
++};
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/host/validation_adapter.hpp b/development/AMDRadeonRDNA4-Navi44/host/validation_adapter.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/host/validation_adapter.hpp
+@@ -0,0 +1,18 @@
++// Host-only bounded scratch convenience. Core owns no heap or OS resources.
++#ifndef Navi44HostValidationAdapter_hpp
++#define Navi44HostValidationAdapter_hpp
++#include "../core/validation.hpp"
++namespace NaviHost {
++struct MetadataBuffer {
++    NaviCore::Node nodes[512];
++    NaviCore::Scratch scratch {nodes,512,0};
++};
++inline NaviCore::View text(const char*s) {
++    if(!s)return {nullptr,0};size_t n=0;
++    // Legacy C-string contract; future Core callers use length-qualified View.
++    while(n<128&&s[n])++n;
++    return {reinterpret_cast<const uint8_t*>(s),n};
++}
++inline bool result(NaviCore::Result r,const char**why){if(why)*why=r.detail;return r.ok();}
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp b/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp
+@@ -0,0 +1,43 @@
++// Pure CPU platform contract; no PCI/MMIO/IOKit entry points. BSD-3-Clause.
++#ifndef Navi44PlatformContract_hpp
++#define Navi44PlatformContract_hpp
++#include "../core/validation.hpp"
++namespace NaviPlatform {
++struct MemoryOps {
++    void*context;
++    void*(*allocate)(void*,size_t,size_t);
++    void(*release)(void*,void*,size_t);
++};
++struct LogOps { void*context;void(*record)(void*,NaviCore::Result); };
++enum class SnapshotKind:uint8_t { DiscoveryFile, ElfFile, FirmwareFile };
++struct SnapshotOps { void*context;NaviCore::Result(*borrow)(void*,SnapshotKind,NaviCore::View&); };
++struct Contract { MemoryOps memory;LogOps log;SnapshotOps snapshots; };
++class Lease {
++    MemoryOps ops;void*pointer{nullptr};size_t bytes{0};
++public:
++    explicit Lease(MemoryOps m):ops(m){}
++    Lease(const Lease&)=delete;Lease&operator=(const Lease&)=delete;
++    ~Lease(){close();}
++    bool open(size_t n,size_t alignment){
++        if(pointer||!n||!alignment||(alignment&(alignment-1))||!ops.allocate||!ops.release)return false;
++        void*p=ops.allocate(ops.context,n,alignment);if(!p)return false;
++        if(reinterpret_cast<uintptr_t>(p)%alignment){ops.release(ops.context,p,n);return false;}
++        pointer=p;bytes=n;return true;
++    }
++    void close(){if(pointer){ops.release(ops.context,pointer,bytes);pointer=nullptr;bytes=0;}}
++    void*data()const{return pointer;}
++    NaviCore::View view()const{return {static_cast<const uint8_t*>(pointer),bytes};}
++};
++inline NaviCore::Result validateSnapshot(Contract c,Asic::Target target){
++    using namespace NaviCore;View input{nullptr,0};
++    if(!c.snapshots.borrow)return failure("snapshot_unavailable",Error::Missing);
++    Result r=c.snapshots.borrow(c.snapshots.context,SnapshotKind::ElfFile,input);
++    if(r.ok()){
++        Lease scratch(c.memory);
++        if(!scratch.open(512*sizeof(Node),alignof(Node)))r=failure("platform_allocation_failed",Error::Budget);
++        else {Scratch arena{static_cast<Node*>(scratch.data()),512,0};r=elf(input,target,arena);}
++    }
++    if(c.log.record)c.log.record(c.log.context,r);return r;
++}
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_contract.hpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_contract.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_contract.hpp
+@@ -0,0 +1,15 @@
++// FUTURE DARWIN BUILD interface; no counterfeit Apple SDK/types or hardware.
++#ifndef Navi44DarwinContract_hpp
++#define Navi44DarwinContract_hpp
++#include "contract.hpp"
++namespace NaviDarwin {
++// Future macOS-only implementation must pair actual IOMalloc/IOFree and IOLog,
++// respect kext lifetime, and provide stable CPU snapshots. No implementation here.
++struct AdapterDraft {
++    NaviPlatform::Contract callbacks;
++    bool appleSdkValidated{false};
++    bool hardwareInitializationAllowed()const{return false;}
++};
++static_assert(sizeof(uintptr_t)==8,"future x86_64 build model");
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp
+@@ -0,0 +1,32 @@
++// Static integration draft: NOT COMPILED on macOS, NOT linked or executed on Windows.
++// Actual IOKit interfaces only; no PCI/device/service/MMIO/DMA methods. BSD-3-Clause.
++#include "darwin_native.hpp"
++#include <IOKit/IOLib.h>
++namespace NaviDarwin {
++namespace {
++void*allocate(void*,size_t bytes,size_t alignment){
++    // Parsing scratch only. Must run in thread context, outside simple locks.
++    if(!bytes||bytes>65536||!alignment||alignment>4096||(alignment&(alignment-1)))return nullptr;
++    static_assert(sizeof(vm_size_t)>=sizeof(size_t),"check narrowing for target Kernel SDK");
++    return IOMallocAligned(static_cast<vm_size_t>(bytes),static_cast<vm_offset_t>(alignment));
++}
++void release(void*,void*p,size_t bytes){if(p)IOFreeAligned(p,static_cast<vm_size_t>(bytes));}
++void record(void*,NaviCore::Result r){
++    // Only internal static diagnostic tokens. Do not log addresses or input payloads.
++    IOLog("N44Core code=%u offset=%llu detail=%s\n",static_cast<unsigned>(r.code),
++          static_cast<unsigned long long>(r.offset),r.detail?r.detail:"none");
++}
++}
++NaviPlatform::MemoryOps nativeMemoryOps(){return {nullptr,allocate,release};}
++NaviPlatform::LogOps nativeLogOps(){return {nullptr,record};}
++IOReturn nativeError(NaviCore::Result r){
++    using NaviCore::Error;
++    switch(r.code){
++        case Error::None:return kIOReturnSuccess;
++        case Error::Budget:return kIOReturnNoMemory;
++        case Error::Unsupported:return kIOReturnUnsupported;
++        case Error::Missing:return kIOReturnNotFound;
++        default:return kIOReturnBadArgument;
++    }
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp
+@@ -0,0 +1,14 @@
++// Future real Kernel SDK only. Not part of any Windows build. BSD-3-Clause.
++#ifndef Navi44DarwinNative_hpp
++#define Navi44DarwinNative_hpp
++#if !defined(__APPLE__) || !defined(KERNEL)
++#error Requires a separately authorized genuine Darwin kernel build
++#endif
++#include "contract.hpp"
++#include <IOKit/IOReturn.h>
++namespace NaviDarwin {
++NaviPlatform::MemoryOps nativeMemoryOps();
++NaviPlatform::LogOps nativeLogOps();
++IOReturn nativeError(NaviCore::Result);
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp b/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp
+--- a/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp
+@@ -68,12 +68,14 @@
+     if (majorVersion == 2 && !inside(available, 12, 2)) return fail("out_of_bounds");
+     const uint16_t count = majorVersion == 1 ? 6 : u16(d + 12);
+     if (!count || count > 6) return fail("table_count");
++    if (majorVersion == 2 && u16(d + 14)) return fail("binary_reserved");
+     if (!inside(n, start, size_t(count) * 8)) return fail("out_of_bounds");
+     if (sum(d + 10, n - 10) != u16(d + 8)) return fail("binary_checksum");
+     uint16_t offsets[6] {}, lengths[6] {};
+     for (uint16_t i = 0; i < count; ++i) {
+         const uint8_t *t = d + start + i * 8;
+         const uint16_t off = u16(t), checksum = u16(t + 2), length = u16(t + 4);
++        if (u16(t + 6)) return fail("table_reserved");
+         if (!off && !checksum && !length) continue;
+         if (!off || !length || off < start + count * 8) return fail("table_range");
+         if (!inside(n, off, length)) return fail("out_of_bounds");
+diff --git a/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp b/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp
+--- a/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp
+@@ -1,255 +1,22 @@
+-// New BSD-3-Clause host layer. STL used only here; not a kernel ABI claim.
++// M7 compatibility adapter, BSD-3-Clause. No STL/throw/RTTI.
+ #include "offlinevalidation.hpp"
+-#include "codeobj.hpp"
+-#include <map>
+-#include <string>
+-#include <vector>
+-#include <stdexcept>
+-#include <cstring>
+-
+-namespace {
+-struct Invalid { const char *why; };
+-void range(uint64_t n, uint64_t off, uint64_t count) {
+-    if (off > n || count > n - off) throw Invalid {"out_of_bounds"};
++#include "../host/validation_adapter.hpp"
++bool Offline::elf(const uint8_t*d,size_t n,Asic::Target t,const char**why){
++    NaviHost::MetadataBuffer storage;
++    return NaviHost::result(NaviCore::elf({d,n},t,storage.scratch),why);
+ }
+-uint16_t u16(const uint8_t *p) { return uint16_t(p[0]) | uint16_t(p[1]) << 8; }
+-uint32_t u32(const uint8_t *p) { return uint32_t(u16(p)) | uint32_t(u16(p + 2)) << 16; }
+-uint64_t u64(const uint8_t *p) { return uint64_t(u32(p)) | uint64_t(u32(p + 4)) << 32; }
+-struct Value {
+-    enum Kind { Number, String, Map, Array } kind;
+-    uint64_t number {0}; std::string string;
+-    std::map<std::string, Value> map;
+-    std::vector<Value> array;
+-    explicit Value(Kind k) : kind(k) {}
+-};
+-bool utf8(const std::string &s) {
+-    for (size_t i = 0; i < s.size();) {
+-        uint32_t c = static_cast<uint8_t>(s[i++]);
+-        if (c < 0x80) continue;
+-        unsigned following; uint32_t minimum;
+-        if (c >= 0xc2 && c <= 0xdf) { following = 1; minimum = 0x80; c &= 31; }
+-        else if (c >= 0xe0 && c <= 0xef) { following = 2; minimum = 0x800; c &= 15; }
+-        else if (c >= 0xf0 && c <= 0xf4) { following = 3; minimum = 0x10000; c &= 7; }
+-        else return false;
+-        if (following > s.size() - i) return false;
+-        while (following--) { uint8_t b = uint8_t(s[i++]); if ((b & 0xc0) != 0x80) return false; c = (c << 6) | (b & 63); }
+-        if (c < minimum || c > 0x10ffff || (c >= 0xd800 && c <= 0xdfff)) return false;
+-    }
+-    return true;
++bool Offline::elfKernel(const uint8_t*d,size_t n,Asic::Target t,const char*name,const char**why){
++    if(!name||!*name){if(why)*why="elf_kernel_metadata_missing";return false;}
++    NaviHost::MetadataBuffer storage;
++    return NaviHost::result(NaviCore::elf({d,n},t,storage.scratch,NaviHost::text(name)),why);
+ }
+-class Metadata {
+-    const uint8_t *d; size_t n, pos {0};
+-    uint64_t big(unsigned width) {
+-        range(n, pos, width); uint64_t x = 0;
+-        while (width--) x = (x << 8) | d[pos++];
+-        return x;
+-    }
+-    Value parse(unsigned depth) {
+-        if (depth > 16) throw Invalid {"metadata_depth"};
+-        range(n, pos, 1); const uint8_t tag = d[pos++];
+-        if (tag < 0x80) { Value v(Value::Number); v.number = tag; return v; }
+-        if ((tag >= 0xa0 && tag <= 0xbf) || tag == 0xd9 || tag == 0xda || tag == 0xdb) {
+-            const uint64_t count = tag <= 0xbf ? tag & 31 : big(tag == 0xd9 ? 1 : tag == 0xda ? 2 : 4);
+-            range(n, pos, count); Value v(Value::String);
+-            v.string.assign(reinterpret_cast<const char *>(d + pos), size_t(count)); pos += size_t(count);
+-            if (!utf8(v.string)) throw Invalid {"metadata_utf8"};
+-            return v;
+-        }
+-        const bool map = (tag >= 0x80 && tag <= 0x8f) || tag == 0xde || tag == 0xdf;
+-        const bool array = (tag >= 0x90 && tag <= 0x9f) || tag == 0xdc || tag == 0xdd;
+-        if (map || array) {
+-            const uint64_t count = tag < 0xa0 ? tag & 15 : big(tag == 0xdc || tag == 0xde ? 2 : 4);
+-            if (count > 4096) throw Invalid {"metadata_count"};
+-            Value v(map ? Value::Map : Value::Array);
+-            for (uint64_t i = 0; i < count; ++i) {
+-                Value x = parse(depth + 1);
+-                if (map) {
+-                    if (x.kind != Value::String || v.map.count(x.string)) throw Invalid {"metadata_key"};
+-                    v.map.emplace(x.string, parse(depth + 1));
+-                } else v.array.emplace_back(std::move(x));
+-            }
+-            return v;
+-        }
+-        if (tag >= 0xcc && tag <= 0xcf) { Value v(Value::Number); v.number = big(1u << (tag - 0xcc)); return v; }
+-        throw Invalid {"metadata_encoding_unsupported"};
+-    }
+-public:
+-    Metadata(const uint8_t *input, size_t length) : d(input), n(length) {}
+-    Value validate() {
+-        Value v = parse(0);
+-        if (pos != n || v.kind != Value::Map) throw Invalid {"metadata_envelope"};
+-        const auto version = v.map.find("amdhsa.version"), kernels = v.map.find("amdhsa.kernels");
+-        if (version == v.map.end() || version->second.kind != Value::Array || version->second.array.size() != 2 ||
+-            version->second.array[0].kind != Value::Number || version->second.array[1].kind != Value::Number)
+-            throw Invalid {"metadata_version_missing"};
+-        if (version->second.array[0].number != 1 || version->second.array[1].number > 2)
+-            throw Invalid {"metadata_version_unsupported"};
+-        if (kernels == v.map.end() || kernels->second.kind != Value::Array || kernels->second.array.empty())
+-            throw Invalid {"metadata_kernels_missing"};
+-        for (const Value &kernel : kernels->second.array) {
+-            if (kernel.kind != Value::Map) throw Invalid {"metadata_kernel_identity_missing"};
+-            for (const char *key : {".name", ".symbol"}) {
+-                const auto it = kernel.map.find(key);
+-                if (it == kernel.map.end() || it->second.kind != Value::String || it->second.string.empty())
+-                    throw Invalid {"metadata_kernel_identity_missing"};
+-            }
+-            const auto size = kernel.map.find(".kernarg_segment_size");
+-            if (size == kernel.map.end() || size->second.kind != Value::Number || size->second.number > UINT32_MAX)
+-                throw Invalid {"metadata_kernarg_missing"};
+-        }
+-        return v;
+-    }
+-};
+-
+-bool validateElf(const uint8_t *d, size_t n, Asic::Target target, const char *kernelName = nullptr) {
+-    if (target != Asic::Target::Gfx1200 && target != Asic::Target::Gfx1201) throw Invalid {"unknown_target"};
+-    if (!d) throw Invalid {"out_of_bounds"};
+-    range(n, 0, 64);
+-    const uint8_t ident[] = {0x7f, 'E', 'L', 'F', 2, 1, 1};
+-    if (std::memcmp(d, ident, sizeof(ident))) throw Invalid {"elf_ident"};
+-    if (u16(d + 16) != 3 || u16(d + 18) != 224 || u32(d + 20) != 1)
+-        throw Invalid {"elf_type_machine_version"};
+-    if ((u32(d + 48) & 255) != uint32_t(target)) throw Invalid {"elf_target_mismatch"};
+-    const uint16_t phSize = u16(d + 54), phCount = u16(d + 56), shSize = u16(d + 58), shCount = u16(d + 60);
+-    const uint64_t phOff = u64(d + 32), shOff = u64(d + 40);
+-    if (u16(d + 52) != 64 || phSize != 56 || shSize != 64 || !phCount || !shCount)
+-        throw Invalid {"elf_tables_missing"};
+-    range(n, phOff, uint64_t(phSize) * phCount); range(n, shOff, uint64_t(shSize) * shCount);
+-    // Complete section validation must precede metadata -> descriptor lookup.
+-    // Otherwise a corrupt later string table is diagnosed only after traversal.
+-    for (unsigned i = 0; i < shCount; ++i) {
+-        const uint8_t *s = d + shOff + uint64_t(i) * shSize;
+-        if (u32(s + 4) != 8) range(n, u64(s + 24), u64(s + 32));
+-    }
+-    unsigned loads = 0; bool metadata = false;
+-    for (unsigned i = 0; i < phCount; ++i) {
+-        const uint8_t *p = d + phOff + uint64_t(i) * phSize;
+-        if (u32(p) != 1) continue;
+-        const uint64_t off = u64(p + 8), va = u64(p + 16), file = u64(p + 32), mem = u64(p + 40);
+-        range(n, off, file); range(16u << 20, va, mem);
+-        if (!file || file > mem) throw Invalid {"elf_load_size"};
+-        ++loads;
+-    }
+-    for (unsigned i = 0; i < shCount; ++i) {
+-        const uint8_t *s = d + shOff + uint64_t(i) * shSize;
+-        const uint32_t type = u32(s + 4); const uint64_t off = u64(s + 24), size = u64(s + 32);
+-        // Validate every file-backed section, not only SHT_NOTE.
+-        if (type != 8) range(n, off, size);
+-        if (type != 7) continue;
+-        const uint64_t end = off + size; uint64_t p = off;
+-        while (p < end) {
+-            range(end, p, 12);
+-            const uint64_t names = u32(d + p), descs = u32(d + p + 4);
+-            const uint32_t noteType = u32(d + p + 8);
+-            const uint64_t name = p + 12, desc = name + ((names + 3) & ~uint64_t(3));
+-            const uint64_t next = desc + ((descs + 3) & ~uint64_t(3));
+-            range(end, name, names); range(end, desc, descs); range(end, p, next - p);
+-            if (names == 7 && !std::memcmp(d + name, "AMDGPU\0", 7) && noteType == 32 && descs) {
+-                if (metadata) throw Invalid {"elf_duplicate_metadata"};
+-                Value decoded = Metadata(d + desc, size_t(descs)).validate(); metadata = true;
+-                if (kernelName) {
+-                    bool found = false;
+-                    for (const auto &k : decoded.map.at("amdhsa.kernels").array) {
+-                        if (k.map.at(".name").string != kernelName) continue;
+-                        if (found) throw Invalid {"elf_kernel_metadata_duplicate"};
+-                        found = true;
+-                        if (k.map.at(".symbol").string != std::string(kernelName) + ".kd")
+-                            throw Invalid {"elf_kernel_symbol_mismatch"};
+-                        CodeObj::Kernel kernel {}; const char *detail = nullptr;
+-                        if (!CodeObj::findKernel(d, n, kernelName, kernel, &detail, target))
+-                            throw Invalid {"elf_descriptor_invalid"};
+-                        if (k.map.at(".kernarg_segment_size").number != kernel.kernargSize)
+-                            throw Invalid {"elf_descriptor_mismatch"};
+-                        for (auto pair : {std::make_pair(".group_segment_fixed_size",kernel.groupSegmentSize),
+-                                          std::make_pair(".private_segment_fixed_size",kernel.privateSegmentSize)}) {
+-                            const auto it = k.map.find(pair.first);
+-                            if (it != k.map.end() && (it->second.kind != Value::Number || it->second.number != pair.second))
+-                                throw Invalid {"elf_descriptor_mismatch"};
+-                        }
+-                    }
+-                    if (!found) throw Invalid {"elf_kernel_metadata_missing"};
+-                }
+-            }
+-            p = next;
+-        }
+-    }
+-    if (!loads || !metadata) throw Invalid {"elf_load_or_metadata_missing"};
+-    return true;
++bool Offline::firmware(const uint8_t*d,size_t n,uint16_t a,uint16_t b,const char*c,const char**why){
++    return NaviHost::result(NaviCore::firmware({d,n},a,b,NaviHost::text(c)),why);
+ }
++bool Offline::deviceInfo(const uint8_t*d,size_t n,Asic::Profile&out,const char**why){
++    return NaviHost::result(NaviCore::deviceInfo({d,n},out),why);
+ }
+-
+-bool Offline::elf(const uint8_t *d, size_t n, Asic::Target target, const char **why) {
+-    try { validateElf(d, n, target); if (why) *why = nullptr; return true; }
+-    catch (const Invalid &e) { if (why) *why = e.why; return false; }
++bool Offline::firmwareRequirements(const Asic::Profile&p,const IpDiscovery&d,
++                                  FirmwareRequirement (&out)[16],size_t&count,const char**why){
++    return NaviHost::result(NaviCore::firmwareRequirements(p,d,out,count),why);
+ }
+-bool Offline::elfKernel(const uint8_t *d, size_t n, Asic::Target target, const char *name, const char **why) {
+-    try {
+-        if (!name || !*name) throw Invalid {"elf_kernel_metadata_missing"};
+-        validateElf(d, n, target, name); if (why) *why = nullptr; return true;
+-    } catch (const Invalid &e) { if (why) *why = e.why; return false; }
+-}
+-
+-bool Offline::firmware(const uint8_t *d, size_t n, uint16_t major, uint16_t minor,
+-                       const char *component, const char **why) {
+-    try {
+-        if (!d) throw Invalid {"out_of_bounds"};
+-        range(n, 0, 32);
+-        if (u16(d + 8) != 1 || u16(d + 10) != 0) throw Invalid {"firmware_header_version"};
+-        const uint32_t size = u32(d), header = u32(d + 4), count = u32(d + 20), off = u32(d + 24);
+-        if (size != n || header < 32 || header > size || off < header || !count) throw Invalid {"firmware_size"};
+-        range(size, off, count);
+-        if (u16(d + 12) != major || u16(d + 14) != minor) throw Invalid {"firmware_ip_mismatch"};
+-        bool supported = false;
+-        for (const char *s : {"pfp","me","mec","rlc","imu","mes","mes1","sos","ta","smu","sdma","dmub"})
+-            if (component && !std::strcmp(s, component)) supported = true;
+-        if (!supported) throw Invalid {"firmware_component_unsupported"};
+-        // Common header does not encode component ID or revision. Sidecar isn't proof.
+-        if (u32(d + 28)) throw Invalid {"firmware_crc_unverified"};
+-        if (why) *why = nullptr; return true;
+-    } catch (const Invalid &e) { if (why) *why = e.why; return false; }
+-}
+-
+-bool Offline::deviceInfo(const uint8_t *d, size_t n, Asic::Profile &out, const char **why) {
+-    out = Asic::identify(0, 0);
+-    try {
+-        if (!d || n != 32) throw Invalid {"abi_size"};
+-        if (std::memcmp(d, "N44I", 4) || u16(d + 4) != 1 || u16(d + 6) != 32 ||
+-            d[13] > 1 || u64(d + 16) || u64(d + 24)) throw Invalid {"abi_header_or_capabilities"};
+-        if (u16(d + 8) != 0x1002) throw Invalid {"unknown_vendor"};
+-        auto p = Asic::identify(u16(d + 8), u16(d + 10), d[12], d[13] != 0);
+-        if (p.family == Asic::Family::Unknown) throw Invalid {"unknown_device"};
+-        if (u16(d + 14) != uint16_t(p.target) || (!d[13] && d[12])) throw Invalid {"abi_target_or_revision"};
+-        out = p; if (why) *why = nullptr; return true;
+-    } catch (const Invalid &e) { if (why) *why = e.why; return false; }
+-}
+-
+-bool Offline::firmwareRequirements(const Asic::Profile &p, const IpDiscovery &discovery,
+-                                  FirmwareRequirement (&out)[16], size_t &count, const char **why) {
+-    count = 0;
+-    auto fail = [&](const char *w) { count = 0; if (why) *why = w; return false; };
+-    const auto expected = Asic::identify(p.vendor, p.device, p.revision, p.revisionKnown);
+-    if (expected.family == Asic::Family::Unknown || p.family != expected.family || p.target != expected.target || p.capabilities)
+-        return fail("profile_tampered");
+-    IpDiscovery::IpEntry64 gc;
+-    if (!discovery.findIp64(11,0,gc) || gc.major != expected.expectedGc.major ||
+-        gc.minor != expected.expectedGc.minor || gc.revision != expected.expectedGc.revision) return fail("gc_profile_mismatch");
+-    uint32_t se = 0, rb = 0;
+-    if (!discovery.gcInfo(se,rb)) return fail("topology_unknown");
+-    struct Part { uint16_t hw; const char *block; const char *component; };
+-    const Part parts[] = {{11,"gc","pfp"},{11,"gc","me"},{11,"gc","mec"},{11,"gc","rlc"},
+-        {11,"gc","imu"},{11,"gc","mes"},{11,"gc","mes1"},{255,"psp","sos"},{255,"psp","ta"},
+-        {1,"smu","smu"},{42,"sdma","sdma"},{271,"dcn","dmub"}};
+-    for (const auto &part : parts) {
+-        IpDiscovery::IpEntry64 ip;
+-        if (!discovery.findIp64(part.hw,0,ip)) {
+-            if (part.hw == 255) return fail("required_ip_missing:psp");
+-            if (part.hw == 1) return fail("required_ip_missing:smu");
+-            if (part.hw == 42) return fail("required_ip_missing:sdma");
+-            if (part.hw == 271) return fail("required_ip_missing:dcn");
+-            return fail("required_ip_missing:gc");
+-        }
+-        out[count++] = {part.block,part.component,{ip.major,ip.minor,ip.revision,true}};
+-    }
+-    if (why) *why = nullptr;
+-    return true; // Advisory structural requirements; no firmware signature/load.
+-}
+diff --git a/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.hpp b/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.hpp
+--- a/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.hpp
+@@ -5,26 +5,17 @@
+ #include <stdint.h>
+ #include "asicprofile.hpp"
+ #include "ipdiscovery.hpp"
++#include "../core/model.hpp"
+ namespace Offline {
+ bool firmware(const uint8_t *, size_t, uint16_t ipMajor, uint16_t ipMinor,
+               const char *component, const char **error);
+ bool elf(const uint8_t *, size_t, Asic::Target, const char **error);
+ bool elfKernel(const uint8_t *, size_t, Asic::Target, const char *kernelName, const char **error);
+ bool deviceInfo(const uint8_t *, size_t, Asic::Profile &, const char **error);
+-struct FirmwareRequirement { const char *block, *component; Asic::IpVersion ip; };
++using FirmwareRequirement = NaviCore::FirmwareRequirement;
+ bool firmwareRequirements(const Asic::Profile &, const IpDiscovery &,
+                           FirmwareRequirement (&out)[16], size_t &count, const char **error);
+-enum class State { Unknown, PciMatched, ProfileValidated, DiscoveryValidated,
+-                   FirmwareRequirementsValidated, OfflineReady, Failed };
+-class Session {
+-public:
+-    State state { State::Unknown };
+-    bool advance(State next) {
+-        if (state == State::Failed || state == State::OfflineReady) return false;
+-        if (next == State::Failed) { state = next; return true; }
+-        if (static_cast<int>(next) != static_cast<int>(state) + 1) { state = State::Failed; return false; }
+-        state = next; return true;
+-    }
+-};
++using State = NaviCore::State;
++using Session = NaviCore::Session;
+ }
+ #endif
+diff --git a/docs/cobalt-abi-readiness.md b/docs/cobalt-abi-readiness.md
+new file mode 100644
+--- /dev/null
++++ b/docs/cobalt-abi-readiness.md
+@@ -0,0 +1,46 @@
++# M7 Cobalt / RADV 数据接口准备
++
++## 本轮实际增量
++
++N44I v1 32B 保留。N44I v2 96B 增加版本化 presence、GC/topology、VRAM/BAR 大小、
++固定 owner-policy 与保留字段；C++ encode/decode、Python decode、差分与错误拒绝测试已运行。
++不是 N48N 生产协议，也没有 selector、IOUserClient、连接、队列或句柄。
++
++| 字节 offset | 意义 |
++|---|---|
++| 0..7 | N44I、版本 2、长度 96 |
++| 8..15 | vendor/device、revision/revisionKnown、gfx target |
++| 16..19 | presence：1 GC、2 topology、4 memory；其余拒绝 |
++| 20..23 | capabilities，必须为 0 |
++| 24..27 | GC 三字节、reserved=0 |
++| 28..47 | SE / CU / RB / TCC / GB_ADDR_CONFIG |
++| 48..63 | 64位 VRAM bytes / visible BAR bytes |
++| 64..67 | owner-policy=1：未来单所有者要求；不代表已实现资源所有权 |
++| 68..95 | reserved=0 |
++
++presence 只证明输入携带字段；不证明来自本机或硬件验证。profile.topology.verified 仍 false。
++不存在实际 BAR 基址或任意物理地址。未知字段必须保持零，不生成 canned Navi48 能力。
++GC/profile 不匹配、能力非零、reserved、尺寸、version、target 或范围不合法均拒绝并清空结果。
++
++## 已阅读的具体上游位置
++
++固定 AMDRadeonRDNA4 的 vulkan/navi48_native_abi.h：
++N48N_SEL_QUERYINFO、n48n_info（192B）、GB_ADDR_CONFIG、GC、内存 pool、VMID、fence/VA 字段。
++此头的 ABI minor 为 9，但 Cobalt 的 patch2 中内嵌头是较早协议；不能直接同名替换。
++
++固定 Cobalt64 的 mesa-patches/0002-radv-Darwin-native-backend-Mesa-half-of-the-Navi48-k.patch：
++src/amd/common/darwin/ac_darwin_{drm,iokit,kext,mock,sync}.c、
++acd_native_handshake()、radv_physical_device.c 与 amdgpu winsys 修改位置。
++这些是 patch 内真实路径；完整 Mesa checkout 当前不在项目中。
++patch7 的 acd_native_handshake() 从 QueryInfo 取 GB_ADDR_CONFIG，但仍校验
++ACD_GB_ADDR_CONFIG_GFX1201，并保留 ReadRegs fallback。Navi44 不能使用 override 让错误布局通过。
++tools/native/navi48metal 与 src/xlat12 为 gfx1201 / Metal 实验参考，本轮不执行。
++
++## 下一步（仍可 CPU-only）
++
++建立 N44I → 候选查询结构的显式字段映射与合法版本协商测试；
++先审核生产协议是否可包含 target/presence，而不是把 96B 直接 memcpy 到 192B。
++取消 canned gfx1201 assumptions 的设计，需要真实 gfx1200 topology/GB_ADDR_CONFIG/firmware 依据。
++未来 owner 接管 power/VM/BO/queues/display，用户态仅可受限 BO/submit/fence；
++不得让 AMDRadeonRDNA4 与 Cobalt 双重初始化同一设备。
++现在没有构造 Vulkan Device、RADV winsys 连接、Shader 执行或 Metal 能力。
+diff --git a/docs/darwin-adapter-design.md b/docs/darwin-adapter-design.md
+new file mode 100644
+--- /dev/null
++++ b/docs/darwin-adapter-design.md
+@@ -0,0 +1,38 @@
++# M7 Darwin Adapter：实际接口与未验证源码
++
++## 已有代码
++
++platform/contract.hpp：显式分配/释放、结果日志、CPU Snapshot 借用、Lease。
++host/platform_mock.hpp：固定 Node 数组、失败注入、分配/释放/日志计数；已在 Windows 运行测试。
++platform/darwin_contract.hpp：不含 IOKit 的 AdapterDraft；硬件初始化恒 false。
++platform/darwin_native.hpp/.cpp：真实 IOKit include、IOMallocAligned / IOFreeAligned、
++IOLog 与 IOReturn 映射的静态草案；Windows 构建明确排除它们。
++文件在非 Apple 或非 KERNEL 目标下显式 #error，不提供假的 Apple 类型。
++
++## Kernel 生命周期契约
++
++未来分配器最大 64 KiB、alignment 最大 4096。Lease 记录分配长度并使用匹配释放。
++必须在可阻塞线程上下文调用，不能处于中断或 simple lock 临界区。
++日志只输出内部 token / 错误码 / 输入 offset；不输出 PCI 物理地址、凭据或输入内容。
++分配失败映射预算错误，日志不能成为 panic；未知验证错误映射参数错误。
++这些映射是否符合目标 SDK 的 IOReturn、整数宽度、符号导出，需要真实编译确认。
++
++重要未完成项：真实分配器必须明确提供 Node 数组对象生命周期。
++Host Mock 自身持有活的 Node 数组；原始 IOMalloc 字节与 C++17 对象构造不能仅凭指针转换认为已解决。
++首次 macOS 集成应采用目标 Kernel SDK 支持的 placement construction/对应释放，
++或采用显式 typed-scratch 回调；同时验证错误与 teardown 路径。这是当前草案的阻碍。
++
++输入缓冲必须由实际 OSData / IOMemoryDescriptor 的 retain/释放或独立拷贝保护，
++但本轮没有实现对象包装、IOService probe/start/stop、IOPCIDevice 或 UserClient。
++CPU Snapshot 接口不能自动升级为设备资源接口。
++不新增资源探测、GPU 启动权限或安全开关。
++
++## 证据与构建边界
++
++Apple [IOLib.h](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/IOKit/IOLib.h)
++提供真实分配/释放及日志声明，并说明线程上下文限制（公开源码，2026-10-14 阅读，E1/E2）。
++Lilu 固定 [kern_util.hpp](https://github.com/acidanthera/Lilu/blob/0515f40b7f2a096adc85e832a4c6104fbd07f936/Lilu/Headers/kern_util.hpp)
++提供内核日志与 allocator 包装（E2）。本轮没有接入或调用这些第三方运行库。
++
++Darwin native compile = NOT RUN；内核 ABI、符号解析、kext 链接及加载 = NOT RUN。
++Host contract PASS 只证明纯 C++ callback 契约及模拟资源行为。
+diff --git a/docs/kernel-compatibility.md b/docs/kernel-compatibility.md
+new file mode 100644
+--- /dev/null
++++ b/docs/kernel-compatibility.md
+@@ -0,0 +1,56 @@
++# M7 内核兼容性与真实 macOS 构建路线
++
++## Windows 已验证
++
++四个 Core translation unit 用 C++17、-fno-exceptions、-fno-rtti、-ffreestanding、
++-Wall -Wextra -Werror、-Wframe-larger-than=4096 编译。
++llvm-nm 审查未定义符号，没有发现 throw/RTTI/unwind/STL/new 符号依赖。
++仍有 memcpy/memset 和内部 CodeObj / IpDiscovery 引用，未来须由 libkern/对应 Core 目标正确解析。
++freestanding flag 及单函数栈警告不证明完全 freestanding、递归总栈安全或 Apple 内核 ABI。
++Windows x86_64 PE/COFF 产物没有被当作 Mach-O kext。
++
++## 模块分类
++
++| 模块 | Windows CPU 验证 | 真 macOS 构建需求 | 实机需求 |
++|---|---|---|---|
++| ASIC / Discovery / metadata / ELF / package / N44I | 已运行 | Apple Clang 与内核头确认布局/符号 | 真实只读样本确认语义 |
++| Host adapter / Python / probe | 已运行 | 不放入 kext | 无 |
++| Platform contract / Host Mock | 已运行 | 真实分配、对象构造和输入生命周期 | 无 GPU 的适配验证先行 |
++| darwin_native | 未运行 | 合法 Kernel SDK / IOLib / IOReturn | 独立 CPU 测试后才考虑加载 |
++| plugin / device / DCN / PSP / VM / queue | 本轮未构建 | Lilu / MacKernelSDK / 目标系统 API | 必须独立授权 GPU 实验 |
++| Cobalt / RADV / Metal | 静态阅读 | Mesa、合法用户态/内核 SDK、ABI 集成 | 必须验证 gfx1200 与资源所有者 |
++
++## 固定参考
++
++AMDRadeonRDNA4 49f7f20c00dd154384418078f8a09e79c400a06a 的 Makefile 被静态阅读，未执行。
++可见 x86_64-apple-macos11.0、C++17、-mkernel、-fapple-kext、-nostdinc/-nostdlib、
++禁异常/RTTI 的构建策略；不能直接在 Windows 转换成生产构建。
++Lilu pin 0515f40b7f2a096adc85e832a4c6104fbd07f936；
++MacKernelSDK pin 05094e5e88cec7caedbfb35e8449ed0db94bf95b。
++本轮未递归获取 submodule，没有运行其构建脚本或初始化 hooks。
++
++## 未来依赖图与清单
++
++~~~mermaid
++flowchart TD
++    A[合法 Apple macOS SDK / Kernel SDK / Xcode] --> B[Apple Clang x86_64 target]
++    P[Core explicit source allowlist] --> B
++    K[审核后的 MacKernelSDK / libkern] --> B
++    B --> C[真正 Mach-O Core object check]
++    D[Darwin allocator / typed scratch / lifetime] --> C
++    C --> E[CPU-only macOS fixture runner]
++    L[审核后的 Lilu / target kext project] --> F[未来 kext link / symbol validation]
++    E --> F
++    F --> G[另行授权后才可加载或绑定硬件]
++~~~
++
++1. 在用户另外授权的真实 macOS 环境记录 Xcode、Apple Clang、合法 SDK 精确版本。
++2. 首先只编译 Core allowlist，禁异常/RTTI；以实际头文件验证布局和整数转换。
++3. 解决 C++17 Node lifetime、分配器对应释放、retain/teardown 与 kernel stack 预算。
++4. 运行 CPU fixtures；审查 Mach-O 未定义符号、libkern 引用、静态初始化与对象析构。
++5. 独立设计与审核 kext target、Info.plist、OSBundleLibraries；不复制 Windows host adapter。
++6. 单独选择 macOS 11 ABI 实验起点。Sequoia/Tahoe 等跨版本需逐版本编译/测试，当前 NOT RUN。
++7. 加载/安全策略/签名、Boot、任何 GPU 绑定均属于额外授权阶段。
++
++本轮 CMakeLists 更新只经过静态审查；实际构建使用 Python 调用便携 Clang。
++CMake configure/build = NOT RUN，MSVC 分支 = NOT RUN。OpenCore 的安装注入与版本适配未开展。
+diff --git a/docs/kernel-core-architecture.md b/docs/kernel-core-architecture.md
+new file mode 100644
+--- /dev/null
++++ b/docs/kernel-core-architecture.md
+@@ -0,0 +1,45 @@
++# M7 Core / Host / Darwin 架构
++
++## 实际分层
++
++~~~mermaid
++flowchart LR
++    W[Windows CPU tests / Python reference] --> H[Host compatibility / fixed mock]
++    H --> C[Core: views, Result, bounded metadata, package, ABI]
++    C --> P[Existing ASIC / Discovery / CodeObj pure logic]
++    F[Future genuine Darwin build] --> D[Darwin native allocator/log/error draft]
++    D --> I[Platform contract]
++    I --> C
++~~~
++
++Core 包含 core/validation.hpp/.cpp、model.hpp、device_info.hpp/.cpp，以及继续复用的
++src/asicprofile.hpp、ipdiscovery.cpp/.hpp、codeobj.cpp/.hpp。没有创建第二套 Discovery 解析器。
++现有固件需求模型和状态机已移入 Core；旧 Offline::Session / State / FirmwareRequirement 是同一类型的别名。
++
++Host 包含 host/validation_adapter.hpp、platform_mock.hpp、Python 参考、probe 和 tests。
++src/offlinevalidation.cpp 是旧 API 的兼容转发层；其 MetadataBuffer 有较大的 Host 栈缓冲，未来内核不链接该文件。
++STL/异常保留在 Host probe 与测试中，Core 源码不使用这些功能。
++
++Platform contract 提供显式 MemoryOps / LogOps / SnapshotOps 与 Lease。
++SnapshotKind 仅描述 CPU 文件输入，没有 BAR、MMIO、ROM、GPU queue 或 DMA API。
++Darwin contract 可由 Host Mock 编译；darwin_native.cpp/.hpp 仅供真实 Apple Kernel SDK 的未来构建。
++
++## 所有权与失败规则
++
++- View 借用不可变 CPU 缓冲；调用方保证地址可访问、真实长度正确，并在整个解析过程保持存活。
++- Scratch 使用调用方提供的 Node 数组。Core 不隐式分配，也不拥有输入。
++- metadata 字符串借用输入；elf() 不返回节点或字符串，失败令 scratch.used=0。
++- Package 的 payload View 会返回给调用方，生命周期不得超过原始输入；不是复制或固件许可。
++- Result.detail 为内部静态诊断 token，offset 是输入偏移。并非任意用户字符串或硬件地址。
++- Discovery 对象保存借用输入及条目偏移，必须与其源缓冲共同存活；旧对象布局不可视为稳定 ABI。
++- Lease 禁止复制，校验 alignment，重复释放为空操作，释放后自身 view 清空。
++  已复制出去的 View 不会自动失效；调用方不得在 close 后使用旧副本。
++- Manifest / ABI / Package 验证失败会清空输出。OfflineReady 只代表离线流程完成。
++- 输入完整性、CRC、PSP 签名和设备执行授权是不同条件。当前 capabilities 恒为 0，hardwareAllowed 恒 false。
++
++## 限额
++
++Host metadata scratch 512 节点；递归深度上限 16；容器计数上限 4096，节点索引小于 UINT16_MAX。
++ELF 当前 PT_LOAD 虚拟范围上限为 16 MiB；这是既有实验性策略，并非通用 ROCm loader。
++PSP package 最多 12 个已知类型；未知版本、重复类型、重叠、未支持 aux 和非零未验证 CRC 拒绝。
++没有 runtime ABI 直接序列化 C++ 对象。N44I 使用显式 little-endian 字节读写。
+diff --git a/docs/navi44-display-readiness.md b/docs/navi44-display-readiness.md
+new file mode 100644
+--- /dev/null
++++ b/docs/navi44-display-readiness.md
+@@ -0,0 +1,41 @@
++# M7 Navi 44 显示研发就绪度
++
++## 确认与未知
++
++用户确认 RX 9060 XT，PCI 1002:7590；现有 Asic profile 的 gfx1200 / GC 12.0.0 是家族预期。
++Navi48 对照 gfx1201 / GC 12.0.1；不可将对照 ROM、固件、CU 数和寄存器常量复制成 Navi44 实测数据。
++本轮没有读取本机 ROM、IP Discovery、PCI BAR、MMIO、EDID 或硬件电源状态。
++所有当前自动化样本是合成数据；non-GC IP 版本和 topology 是刻意构造的测试值。
++
++## 可复用源码位置（仅静态阅读）
++
++src/ipdiscovery.cpp：版本、校验和、IP 与寄存器段地址解析；没有实际寄存器访问。
++src/edid.cpp/.hpp：已有无 IOKit 的 EDID 纯逻辑，下一轮可加入 CPU allowlist 与恶意样本回归。
++src/atombios.cpp：板卡连接器、固件表数据依赖，不能以其他板卡的样本代替本卡。
++src/dmub.hpp、dptrain.cpp、dpphy.cpp、modeset.cpp、pipe.cpp、otgtiming.cpp、
++ndrv.cpp：后续显示路径参考，当前没有编译/执行其硬件路径。
++
++## 距基础输出仍缺少的具体条件
++
++| 条件 | 当前状态 | 未来验收 |
++|---|---|---|
++| Navi44 真实 IP/拓扑与固件映射 | 缺少板卡样本 | 合法静态输入可重现解析；未知字段仍不可用 |
++| GOP framebuffer 格式/stride/地址所有权 | 未确认 | 首先审查安全继承方案，证明不覆盖正在使用的平面 |
++| EDID、连接器、DP AUX/HDMI DDC 与链路能力 | 未确认 | 先离线模式解析，再独立授权链路实验 |
++| DCN/DMUB 与支持的精确 IP 版本 | 未确认板卡值 | 对比公开 amdgpu 接口，拒绝猜寄存器值 |
++| 显存映射、firmware 状态、时钟与电源 | 未确认 | 单一资源所有者、超时、失败停止与恢复路径 |
++| IONDRVFramebuffer / WindowServer 接入 | 未构建 | 真 macOS 编译，再独立 GPU 测试 |
++
++本轮 Native adapter 只有 CPU 内存/日志接口，不能建立 framebuffer 输出。
++基础显示、模式切换、热插拔、显示休眠、多屏、Metal 和 WindowServer 都是 NOT RUN。
++
++## 1440p180 的量化边界
++
++2560×1440×4 = 14,745,600 字节/完整 32bpp 帧；
++180Hz 单次全屏写入约 2.65 GB/s（约 2.47 GiB/s），尚未计读回、alpha 合成及复制。
++180Hz 帧时间约 5.56ms。这是纯算术下限，不是 GPU/CPU 测得性能。
++有效像素约 663.6 Mpixel/s；链路还需要 blanking / encoding 与色深开销。
++扫描输出速率、窗口合成速度、实际呈现帧率分别验收；解析通过不能证明任一项。
++
++未来若丢失显示、DMUB 无响应、时钟/链路不一致或超时，立即停止后续初始化与提交，
++不得循环重试猜测寄存器。软件恢复无法承诺恢复唯一显卡的黑屏，需额外人工恢复方案。
+diff --git a/finalize_m7.py b/finalize_m7.py
+new file mode 100644
+--- /dev/null
++++ b/finalize_m7.py
+@@ -0,0 +1,669 @@
++"""Checked documentation, manifests, incremental patch and CPU-only patch replay.
++No build/install/GPU/network operation. All output paths checked against Lab.
++"""
++from pathlib import Path
++import difflib,hashlib,json,os,subprocess,sys,zipfile
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++ROOT=safe.ROOT
++OUT=ROOT/'reports/m7'
++baseline=json.loads((OUT/'baseline-sha256.json').read_text())
++results=json.loads((OUT/'test-results.json').read_text())
++if results['status']!='PASS':raise SystemExit('Refusing final PASS report without passing execution')
++commands=json.loads((OUT/'commands.json').read_text())
++docs={
++'docs/kernel-core-architecture.md':'''# M7 Core / Host / Darwin 架构
++
++## 实际分层
++
++~~~mermaid
++flowchart LR
++    W[Windows CPU tests / Python reference] --> H[Host compatibility / fixed mock]
++    H --> C[Core: views, Result, bounded metadata, package, ABI]
++    C --> P[Existing ASIC / Discovery / CodeObj pure logic]
++    F[Future genuine Darwin build] --> D[Darwin native allocator/log/error draft]
++    D --> I[Platform contract]
++    I --> C
++~~~
++
++Core 包含 core/validation.hpp/.cpp、model.hpp、device_info.hpp/.cpp，以及继续复用的
++src/asicprofile.hpp、ipdiscovery.cpp/.hpp、codeobj.cpp/.hpp。没有创建第二套 Discovery 解析器。
++现有固件需求模型和状态机已移入 Core；旧 Offline::Session / State / FirmwareRequirement 是同一类型的别名。
++
++Host 包含 host/validation_adapter.hpp、platform_mock.hpp、Python 参考、probe 和 tests。
++src/offlinevalidation.cpp 是旧 API 的兼容转发层；其 MetadataBuffer 有较大的 Host 栈缓冲，未来内核不链接该文件。
++STL/异常保留在 Host probe 与测试中，Core 源码不使用这些功能。
++
++Platform contract 提供显式 MemoryOps / LogOps / SnapshotOps 与 Lease。
++SnapshotKind 仅描述 CPU 文件输入，没有 BAR、MMIO、ROM、GPU queue 或 DMA API。
++Darwin contract 可由 Host Mock 编译；darwin_native.cpp/.hpp 仅供真实 Apple Kernel SDK 的未来构建。
++
++## 所有权与失败规则
++
++- View 借用不可变 CPU 缓冲；调用方保证地址可访问、真实长度正确，并在整个解析过程保持存活。
++- Scratch 使用调用方提供的 Node 数组。Core 不隐式分配，也不拥有输入。
++- metadata 字符串借用输入；elf() 不返回节点或字符串，失败令 scratch.used=0。
++- Package 的 payload View 会返回给调用方，生命周期不得超过原始输入；不是复制或固件许可。
++- Result.detail 为内部静态诊断 token，offset 是输入偏移。并非任意用户字符串或硬件地址。
++- Discovery 对象保存借用输入及条目偏移，必须与其源缓冲共同存活；旧对象布局不可视为稳定 ABI。
++- Lease 禁止复制，校验 alignment，重复释放为空操作，释放后自身 view 清空。
++  已复制出去的 View 不会自动失效；调用方不得在 close 后使用旧副本。
++- Manifest / ABI / Package 验证失败会清空输出。OfflineReady 只代表离线流程完成。
++- 输入完整性、CRC、PSP 签名和设备执行授权是不同条件。当前 capabilities 恒为 0，hardwareAllowed 恒 false。
++
++## 限额
++
++Host metadata scratch 512 节点；递归深度上限 16；容器计数上限 4096，节点索引小于 UINT16_MAX。
++ELF 当前 PT_LOAD 虚拟范围上限为 16 MiB；这是既有实验性策略，并非通用 ROCm loader。
++PSP package 最多 12 个已知类型；未知版本、重复类型、重叠、未支持 aux 和非零未验证 CRC 拒绝。
++没有 runtime ABI 直接序列化 C++ 对象。N44I 使用显式 little-endian 字节读写。
++''',
++'docs/darwin-adapter-design.md':'''# M7 Darwin Adapter：实际接口与未验证源码
++
++## 已有代码
++
++platform/contract.hpp：显式分配/释放、结果日志、CPU Snapshot 借用、Lease。
++host/platform_mock.hpp：固定 Node 数组、失败注入、分配/释放/日志计数；已在 Windows 运行测试。
++platform/darwin_contract.hpp：不含 IOKit 的 AdapterDraft；硬件初始化恒 false。
++platform/darwin_native.hpp/.cpp：真实 IOKit include、IOMallocAligned / IOFreeAligned、
++IOLog 与 IOReturn 映射的静态草案；Windows 构建明确排除它们。
++文件在非 Apple 或非 KERNEL 目标下显式 #error，不提供假的 Apple 类型。
++
++## Kernel 生命周期契约
++
++未来分配器最大 64 KiB、alignment 最大 4096。Lease 记录分配长度并使用匹配释放。
++必须在可阻塞线程上下文调用，不能处于中断或 simple lock 临界区。
++日志只输出内部 token / 错误码 / 输入 offset；不输出 PCI 物理地址、凭据或输入内容。
++分配失败映射预算错误，日志不能成为 panic；未知验证错误映射参数错误。
++这些映射是否符合目标 SDK 的 IOReturn、整数宽度、符号导出，需要真实编译确认。
++
++重要未完成项：真实分配器必须明确提供 Node 数组对象生命周期。
++Host Mock 自身持有活的 Node 数组；原始 IOMalloc 字节与 C++17 对象构造不能仅凭指针转换认为已解决。
++首次 macOS 集成应采用目标 Kernel SDK 支持的 placement construction/对应释放，
++或采用显式 typed-scratch 回调；同时验证错误与 teardown 路径。这是当前草案的阻碍。
++
++输入缓冲必须由实际 OSData / IOMemoryDescriptor 的 retain/释放或独立拷贝保护，
++但本轮没有实现对象包装、IOService probe/start/stop、IOPCIDevice 或 UserClient。
++CPU Snapshot 接口不能自动升级为设备资源接口。
++不新增资源探测、GPU 启动权限或安全开关。
++
++## 证据与构建边界
++
++Apple [IOLib.h](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/IOKit/IOLib.h)
++提供真实分配/释放及日志声明，并说明线程上下文限制（公开源码，2026-10-14 阅读，E1/E2）。
++Lilu 固定 [kern_util.hpp](https://github.com/acidanthera/Lilu/blob/0515f40b7f2a096adc85e832a4c6104fbd07f936/Lilu/Headers/kern_util.hpp)
++提供内核日志与 allocator 包装（E2）。本轮没有接入或调用这些第三方运行库。
++
++Darwin native compile = NOT RUN；内核 ABI、符号解析、kext 链接及加载 = NOT RUN。
++Host contract PASS 只证明纯 C++ callback 契约及模拟资源行为。
++''',
++'docs/kernel-compatibility.md':'''# M7 内核兼容性与真实 macOS 构建路线
++
++## Windows 已验证
++
++四个 Core translation unit 用 C++17、-fno-exceptions、-fno-rtti、-ffreestanding、
++-Wall -Wextra -Werror、-Wframe-larger-than=4096 编译。
++llvm-nm 审查未定义符号，没有发现 throw/RTTI/unwind/STL/new 符号依赖。
++仍有 memcpy/memset 和内部 CodeObj / IpDiscovery 引用，未来须由 libkern/对应 Core 目标正确解析。
++freestanding flag 及单函数栈警告不证明完全 freestanding、递归总栈安全或 Apple 内核 ABI。
++Windows x86_64 PE/COFF 产物没有被当作 Mach-O kext。
++
++## 模块分类
++
++| 模块 | Windows CPU 验证 | 真 macOS 构建需求 | 实机需求 |
++|---|---|---|---|
++| ASIC / Discovery / metadata / ELF / package / N44I | 已运行 | Apple Clang 与内核头确认布局/符号 | 真实只读样本确认语义 |
++| Host adapter / Python / probe | 已运行 | 不放入 kext | 无 |
++| Platform contract / Host Mock | 已运行 | 真实分配、对象构造和输入生命周期 | 无 GPU 的适配验证先行 |
++| darwin_native | 未运行 | 合法 Kernel SDK / IOLib / IOReturn | 独立 CPU 测试后才考虑加载 |
++| plugin / device / DCN / PSP / VM / queue | 本轮未构建 | Lilu / MacKernelSDK / 目标系统 API | 必须独立授权 GPU 实验 |
++| Cobalt / RADV / Metal | 静态阅读 | Mesa、合法用户态/内核 SDK、ABI 集成 | 必须验证 gfx1200 与资源所有者 |
++
++## 固定参考
++
++AMDRadeonRDNA4 49f7f20c00dd154384418078f8a09e79c400a06a 的 Makefile 被静态阅读，未执行。
++可见 x86_64-apple-macos11.0、C++17、-mkernel、-fapple-kext、-nostdinc/-nostdlib、
++禁异常/RTTI 的构建策略；不能直接在 Windows 转换成生产构建。
++Lilu pin 0515f40b7f2a096adc85e832a4c6104fbd07f936；
++MacKernelSDK pin 05094e5e88cec7caedbfb35e8449ed0db94bf95b。
++本轮未递归获取 submodule，没有运行其构建脚本或初始化 hooks。
++
++## 未来依赖图与清单
++
++~~~mermaid
++flowchart TD
++    A[合法 Apple macOS SDK / Kernel SDK / Xcode] --> B[Apple Clang x86_64 target]
++    P[Core explicit source allowlist] --> B
++    K[审核后的 MacKernelSDK / libkern] --> B
++    B --> C[真正 Mach-O Core object check]
++    D[Darwin allocator / typed scratch / lifetime] --> C
++    C --> E[CPU-only macOS fixture runner]
++    L[审核后的 Lilu / target kext project] --> F[未来 kext link / symbol validation]
++    E --> F
++    F --> G[另行授权后才可加载或绑定硬件]
++~~~
++
++1. 在用户另外授权的真实 macOS 环境记录 Xcode、Apple Clang、合法 SDK 精确版本。
++2. 首先只编译 Core allowlist，禁异常/RTTI；以实际头文件验证布局和整数转换。
++3. 解决 C++17 Node lifetime、分配器对应释放、retain/teardown 与 kernel stack 预算。
++4. 运行 CPU fixtures；审查 Mach-O 未定义符号、libkern 引用、静态初始化与对象析构。
++5. 独立设计与审核 kext target、Info.plist、OSBundleLibraries；不复制 Windows host adapter。
++6. 单独选择 macOS 11 ABI 实验起点。Sequoia/Tahoe 等跨版本需逐版本编译/测试，当前 NOT RUN。
++7. 加载/安全策略/签名、Boot、任何 GPU 绑定均属于额外授权阶段。
++
++本轮 CMakeLists 更新只经过静态审查；实际构建使用 Python 调用便携 Clang。
++CMake configure/build = NOT RUN，MSVC 分支 = NOT RUN。OpenCore 的安装注入与版本适配未开展。
++''',
++'docs/navi44-display-readiness.md':'''# M7 Navi 44 显示研发就绪度
++
++## 确认与未知
++
++用户确认 RX 9060 XT，PCI 1002:7590；现有 Asic profile 的 gfx1200 / GC 12.0.0 是家族预期。
++Navi48 对照 gfx1201 / GC 12.0.1；不可将对照 ROM、固件、CU 数和寄存器常量复制成 Navi44 实测数据。
++本轮没有读取本机 ROM、IP Discovery、PCI BAR、MMIO、EDID 或硬件电源状态。
++所有当前自动化样本是合成数据；non-GC IP 版本和 topology 是刻意构造的测试值。
++
++## 可复用源码位置（仅静态阅读）
++
++src/ipdiscovery.cpp：版本、校验和、IP 与寄存器段地址解析；没有实际寄存器访问。
++src/edid.cpp/.hpp：已有无 IOKit 的 EDID 纯逻辑，下一轮可加入 CPU allowlist 与恶意样本回归。
++src/atombios.cpp：板卡连接器、固件表数据依赖，不能以其他板卡的样本代替本卡。
++src/dmub.hpp、dptrain.cpp、dpphy.cpp、modeset.cpp、pipe.cpp、otgtiming.cpp、
++ndrv.cpp：后续显示路径参考，当前没有编译/执行其硬件路径。
++
++## 距基础输出仍缺少的具体条件
++
++| 条件 | 当前状态 | 未来验收 |
++|---|---|---|
++| Navi44 真实 IP/拓扑与固件映射 | 缺少板卡样本 | 合法静态输入可重现解析；未知字段仍不可用 |
++| GOP framebuffer 格式/stride/地址所有权 | 未确认 | 首先审查安全继承方案，证明不覆盖正在使用的平面 |
++| EDID、连接器、DP AUX/HDMI DDC 与链路能力 | 未确认 | 先离线模式解析，再独立授权链路实验 |
++| DCN/DMUB 与支持的精确 IP 版本 | 未确认板卡值 | 对比公开 amdgpu 接口，拒绝猜寄存器值 |
++| 显存映射、firmware 状态、时钟与电源 | 未确认 | 单一资源所有者、超时、失败停止与恢复路径 |
++| IONDRVFramebuffer / WindowServer 接入 | 未构建 | 真 macOS 编译，再独立 GPU 测试 |
++
++本轮 Native adapter 只有 CPU 内存/日志接口，不能建立 framebuffer 输出。
++基础显示、模式切换、热插拔、显示休眠、多屏、Metal 和 WindowServer 都是 NOT RUN。
++
++## 1440p180 的量化边界
++
++2560×1440×4 = 14,745,600 字节/完整 32bpp 帧；
++180Hz 单次全屏写入约 2.65 GB/s（约 2.47 GiB/s），尚未计读回、alpha 合成及复制。
++180Hz 帧时间约 5.56ms。这是纯算术下限，不是 GPU/CPU 测得性能。
++有效像素约 663.6 Mpixel/s；链路还需要 blanking / encoding 与色深开销。
++扫描输出速率、窗口合成速度、实际呈现帧率分别验收；解析通过不能证明任一项。
++
++未来若丢失显示、DMUB 无响应、时钟/链路不一致或超时，立即停止后续初始化与提交，
++不得循环重试猜测寄存器。软件恢复无法承诺恢复唯一显卡的黑屏，需额外人工恢复方案。
++''',
++'docs/cobalt-abi-readiness.md':'''# M7 Cobalt / RADV 数据接口准备
++
++## 本轮实际增量
++
++N44I v1 32B 保留。N44I v2 96B 增加版本化 presence、GC/topology、VRAM/BAR 大小、
++固定 owner-policy 与保留字段；C++ encode/decode、Python decode、差分与错误拒绝测试已运行。
++不是 N48N 生产协议，也没有 selector、IOUserClient、连接、队列或句柄。
++
++| 字节 offset | 意义 |
++|---|---|
++| 0..7 | N44I、版本 2、长度 96 |
++| 8..15 | vendor/device、revision/revisionKnown、gfx target |
++| 16..19 | presence：1 GC、2 topology、4 memory；其余拒绝 |
++| 20..23 | capabilities，必须为 0 |
++| 24..27 | GC 三字节、reserved=0 |
++| 28..47 | SE / CU / RB / TCC / GB_ADDR_CONFIG |
++| 48..63 | 64位 VRAM bytes / visible BAR bytes |
++| 64..67 | owner-policy=1：未来单所有者要求；不代表已实现资源所有权 |
++| 68..95 | reserved=0 |
++
++presence 只证明输入携带字段；不证明来自本机或硬件验证。profile.topology.verified 仍 false。
++不存在实际 BAR 基址或任意物理地址。未知字段必须保持零，不生成 canned Navi48 能力。
++GC/profile 不匹配、能力非零、reserved、尺寸、version、target 或范围不合法均拒绝并清空结果。
++
++## 已阅读的具体上游位置
++
++固定 AMDRadeonRDNA4 的 vulkan/navi48_native_abi.h：
++N48N_SEL_QUERYINFO、n48n_info（192B）、GB_ADDR_CONFIG、GC、内存 pool、VMID、fence/VA 字段。
++此头的 ABI minor 为 9，但 Cobalt 的 patch2 中内嵌头是较早协议；不能直接同名替换。
++
++固定 Cobalt64 的 mesa-patches/0002-radv-Darwin-native-backend-Mesa-half-of-the-Navi48-k.patch：
++src/amd/common/darwin/ac_darwin_{drm,iokit,kext,mock,sync}.c、
++acd_native_handshake()、radv_physical_device.c 与 amdgpu winsys 修改位置。
++这些是 patch 内真实路径；完整 Mesa checkout 当前不在项目中。
++patch7 的 acd_native_handshake() 从 QueryInfo 取 GB_ADDR_CONFIG，但仍校验
++ACD_GB_ADDR_CONFIG_GFX1201，并保留 ReadRegs fallback。Navi44 不能使用 override 让错误布局通过。
++tools/native/navi48metal 与 src/xlat12 为 gfx1201 / Metal 实验参考，本轮不执行。
++
++## 下一步（仍可 CPU-only）
++
++建立 N44I → 候选查询结构的显式字段映射与合法版本协商测试；
++先审核生产协议是否可包含 target/presence，而不是把 96B 直接 memcpy 到 192B。
++取消 canned gfx1201 assumptions 的设计，需要真实 gfx1200 topology/GB_ADDR_CONFIG/firmware 依据。
++未来 owner 接管 power/VM/BO/queues/display，用户态仅可受限 BO/submit/fence；
++不得让 AMDRadeonRDNA4 与 Cobalt 双重初始化同一设备。
++现在没有构造 Vulkan Device、RADV winsys 连接、Shader 执行或 Metal 能力。
++'''}
++for path,text in docs.items():safe.write(path,text)
++safe.write('README.md','''# Hackintosh-Navi44-Lab
++
++RX 9060 XT / Navi44 的 CPU-only 跨平台驱动研发实验室。
++M7 已形成无 STL/异常的 Core、兼容 Host、Platform Mock 与 Darwin 静态接口；没有可部署驱动。
++
++## 当前交付
++
++- [M7 完整开发与测试报告](reports/m7/development-report.md)
++- [M7 测试数据](reports/m7/test-results.json)
++- [M7 真实命令与退出码](reports/m7/commands.json)
++- [M7 安全审查](reports/m7/safety-audit.md)
++- [M7 未解决事项](reports/m7/remaining-blockers.md)
++- [Core 架构](docs/kernel-core-architecture.md)
++- [Darwin 接口](docs/darwin-adapter-design.md)
++- [内核构建边界](docs/kernel-compatibility.md)
++- [显示就绪度](docs/navi44-display-readiness.md)
++- [Cobalt ABI](docs/cobalt-abi-readiness.md)
++- [M6.5→M7 源码与文档补丁](patches/m7-from-m65.patch)
++
++## 当前 CPU-only 入口
++
++仅在本项目根目录运行：
++
++~~~powershell
++& 'D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe' -I -B -X utf8 run_m7_offline_tests.py
++~~~
++
++复用项目中的便携 LLVM-MinGW；不改变 PATH、不安装依赖、不需要管理员。
++日志 reports/m7/execution，构建 build/m7/execution，临时目录 tmp；单进程 30/40秒超时，测试串行。
++M7 path guard 检查授权目录、reparse/link/hardlink 与父目录逃逸；不能代替 OS 沙箱或防止并发 TOCTOU。
++Sanitizer canary 故意触发本项目 CPU 进程错误，非零退出用于证明检测器生效。
++
++## 历史
++
++[M6.5 报告](reports/m65-development-report.md)、reports/m65 与 M6 产物保留。
++M7 改动前快照在 reports/m7/history，M7 基线复现在 reports/m7/baseline。
++旧 run_all_offline_tests.py 主程序会写 M6.5 报告，不是 M7 入口，不应再执行。
++M7 只复用其已审核的 helper 定义且重定向输出；不执行其 main。
++m7_prepare.py / m7_refactor.py / core_model_m7.py 是一次性转换记录，非日常测试入口。
++旧 docs/next-stage-readiness.md 等保留为 M6.5 状态，当前事实以 M7 文档为准。
++
++Navi44 match / device init / Makefile 历史安全门禁保持原样，所有 GPU 能力保持关闭。
++Darwin native / kext / GPU / Vulkan / Metal / EFI / 分区 / macOS 部署未执行。
++''')
++
++# Read-only Git evidence; no global config or hooks, no optional index locking.
++env=os.environ.copy();env.update(GIT_OPTIONAL_LOCKS='0',GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL='NUL',
++                               TMP=str(ROOT/'tmp'),TEMP=str(ROOT/'tmp'))
++git=Path('D:/RuntimeEnvironment/Git/cmd/git.exe')
++git_results=[]
++for folder in (ROOT,ROOT/'upstream/AMDRadeonRDNA4',ROOT/'upstream/Cobalt64'):
++    args=[str(git),'-c','safe.directory='+str(folder),'-C',str(folder),'status','--short']
++    p=subprocess.run(args,
++                     env=env,capture_output=True,text=True,encoding='utf-8',timeout=15)
++    git_results.append({'cwd':str(folder),'argv':args,'exit':p.returncode,
++                        'stdout':p.stdout,'stderr':p.stderr})
++safe.write(OUT/'git-status.json',json.dumps(git_results,ensure_ascii=False,indent=2))
++
++# History artifacts stay byte-identical, irrespective of changed current source.
++integrity={}
++for rel,digest in baseline.items():
++    original=ROOT/'reports/m7/history'/rel
++    if hashlib.sha256(original.read_bytes()).hexdigest()!=digest:raise SystemExit('Snapshot altered: '+rel)
++    if rel.startswith('reports/') and not rel.startswith('reports/m7/'):
++        integrity[rel]=hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()==digest
++if not all(integrity.values()):raise SystemExit('Historical artifact changed')
++safe.write(OUT/'history-integrity.json',json.dumps({'status':'PASS','snapshot_files':len(baseline),
++                                                'historical_reports':integrity},indent=2))
++
++# Verify actual executable bytes against the already verified archive, without extracting.
++toolchain=ROOT/'tools/toolchains/llvm/llvm-mingw-20261006-ucrt-x86_64'
++archive=ROOT/'tools/toolchains/llvm-mingw-20261006-ucrt-x86_64.zip'
++tool_hashes={}
++with zipfile.ZipFile(archive) as z:
++    for name in ('clang++.exe','llvm-nm.exe','llvm-symbolizer.exe','libclang_rt.asan_dynamic-x86_64.dll',
++                 'libc++.dll','libunwind.dll','libwinpthread-1.dll'):
++        actual=safe.checked(toolchain/'bin'/name)
++        member='llvm-mingw-20261006-ucrt-x86_64/bin/'+name
++        with z.open(member) as stream:expected=hashlib.file_digest(stream,'sha256').hexdigest()
++        with actual.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
++        if expected!=digest:raise SystemExit('Extracted toolchain differs: '+name)
++        tool_hashes[name]=digest
++safe.write(OUT/'toolchain-integrity.json',json.dumps({'status':'PASS','comparison':'existing verified ZIP; no extraction',
++                                                 'sha256':tool_hashes},indent=2))
++
++builds=[c for c in commands if c['name'].startswith(('compile-','link-','symbols-','analyze-'))]
++safe.write(OUT/'build-results.json',json.dumps({'status':'PASS','compiler':(OUT/'execution/compiler-version.log').read_text(),
++               'commands':builds,'windows_objects':'PE/COFF','Darwin_native':'NOT RUN','Kext':'NOT RUN',
++               'CMake':'NOT RUN: static review only','MSVC':'NOT RUN','core_undefined':['memcpy','memset','internal Core references']},
++               ensure_ascii=False,indent=2))
++safe.write(OUT/'safety-audit.md','''# M7 安全审查与边界
++
++## 授权及执行
++
++唯一主动写入目录：D:/CodexWorkSpace/黑苹果研究/Hackintosh-Navi44-Lab。
++使用现有 workspace-write 沙箱；沙箱允许范围比 Lab 更广，Lab 约束另由路径检查和固定 allowlist 执行。
++没有请求 Full Access / 管理员 / require_escalated 或扩大权限。
++路径检查拒绝 ..、越界 resolve、符号链接、NTFS reparse 与多硬链接；写入前核对现有父路径。
++这不是独立 OS 审计，也不能证明竞态环境下绝对防逃逸。
++
++本轮执行的进程：既有 Python、项目内已核对归档的 portable Clang / llvm-nm / symbolizer、
++本项目 CPU-only exe、只读 Git status、工作区副本 Git apply 检查/重放。
++网络仅使用网页阅读，不执行或克隆远程代码；上游脚本只读。
++TMP/TEMP/CLANG_MODULE_CACHE_PATH 和 sanitizer log_path 指向 Lab；-B 禁止 Python pycache。
++编译串行，测试进程有超时，固定 2400 次输入变异，不使用无限 fuzz 或 GPU benchmark。
++运行前审查 source allowlist；Core/Host 不链接 device.cpp/plugin.cpp/IOKit。
++宿主模型没有 PCI/BAR/MMIO/ROM/DMA/GPU Queue 方法。
++Darwin native 文件从所有 Windows 编译入口排除，没有下载 Apple SDK 或构造替代头文件。
++
++## 构建入口审查
++
++CMake 只有显式 CPU source targets，未新增 install/FetchContent/ExternalProject/custom/pre/post build。
++实际 runner 使用 subprocess argv，shell=False；没有远程脚本、包管理器、服务、驱动加载。
++M7 重用本项目旧测试 helper，校验明确截断边界，不执行旧 main，不运行 git hook。
++历史 fixture 必须存在，避免隐式重新生成。所有 M7 输出独立保存，重跑日志/失败 JSON 有 attempts 副本。
++一次性源码转换脚本保留用于追溯，并在已转换/结构不符时拒绝再次应用。
++
++## 执行记录声明
++
++| 类别 | 本代理本轮执行记录 |
++|---|---|
++| 主动工作区外写入 | 未执行；没有独立系统级审计 |
++| Windows 文件/注册表/服务/驱动/全局 PATH 修改 | 未执行 |
++| EFI/BCD/BIOS/UEFI/Secure Boot/TPM/BitLocker 修改 | 未执行 |
++| 磁盘分区或 Intel 256GB SSD 内容访问 | 未执行 |
++| 真 GPU 访问、硬件 API、ROM/MMIO/BAR/固件/提交 | 未执行 |
++| kext/SYS 加载与部署 | 未执行 |
++| 管理员权限提升或未授权外部代码执行 | 未执行 |
++| Git push / remote branch / PR / Release | 未执行 |
++| CPU-only sanitizer canary | 已执行，仅故意使本项目子进程报告内存/整数错误 |
++
++操作系统、运行库和 Codex 工具可能生成缓存、错误报告或日志，未做独立系统级观测，
++因此不声称物理零写入或绝对零副作用。没有主动结束其他用户进程、重启或改变显示配置。
++''')
++safe.write(OUT/'remaining-blockers.md','''# M7 剩余阻碍
++
++1. Darwin native 未编译；必须合法 Apple 编译环境。原始字节分配后的 Node 对象生命周期仍需实现和验证。
++2. Windows Core flags 不等于 Darwin ABI；memcpy/memset 导出、递归总栈、SDK类型/符号与对象析构需核验。
++3. CRC 非零仍拒绝；PSP signature 未验证，即使 package 结构 PASS 也不是可用固件。aux 非零不支持。
++4. Manifest 是静态建议组件模型，不是完整生产固件 loader；Navi44 真实 non-GC IP、固件版本和板卡拓扑未知。
++5. ELF relocation 只有结构检查，ALLOC relocation 拒绝；没有 relocation application、GPU ISA 验证或代码加载。
++6. 真实编译产生的 gfx1200 ELF 缺失，便携编译器无 AMDGPU 后端；相关验证仍 SKIP。
++7. N44I v2 presence 不是可信硬件有效位，capabilities 恒0。未接入生产 N48N、IOUserClient、BO/VM/fence。
++8. DCN/DMUB/AUX/HDMI/GOP/显示恢复没有本机数据，也未进行 macOS framebuffer / WindowServer 测试。
++9. RADV gfx1200 与 Cobalt gfx1201 假设不能直接互换；生产 ABI/资源所有者和 Metal 系统接入未实现。
++10. Sanitizer 无报错只覆盖有限样本，Windows leak detection 未验证；非 coverage-guided fuzz，无并发/硬件稳定性证据。
++
++没有因上述阻碍扩大权限。本轮开发停止在 CPU-only 工程交付。
++''')
++
++summary=f'''# M7 完整开发报告：RX 9060 XT / Navi 44
++
++报告日期：2026-10-14，Asia/Shanghai。项目：Hackintosh-Navi44-Lab。
++范围：Windows CPU-only 实际源码开发、离线编译验证和未来 Darwin 静态准备。
++
++## 1. 核心结论
++
++M7 已完成现有项目接管和 M6.5 基线复现，在原解析实现上形成 Core / Host / Platform / Darwin 草案分层。
++Core 的 metadata 树已替换 STL 容器/异常为调用方有界 scratch、借用 View 和 Result；
++新增 PSP package 结构解析、ELF symbol/relocation 结构检查、N44I v2 编解码及 Host Mock。
++原有安全门禁保持关闭，未开发或运行真实 GPU backend。
++
++本轮完成的是跨平台底层纯逻辑工程化。Darwin native 已有可审查源码，但未构建；
++Kext/GPU/显示/Vulkan/Metal/WindowServer/macOS 安装与双盘部署均 NOT RUN。
++基础显示、完整加速和日常 macOS 的本机可用性没有被证实。
++
++## 2. 接管、快照与基线
++
++读取 README、CMake、旧 runner、development/src/host、tests、M6.5 报告和就绪文档。
++修改前核对 M6.5 source/deliverable SHA-256，并保存 reports/m7/history 与 baseline-sha256.json。
++基线只在 reports/m7/baseline 和 build/m7/baseline 复现，原 reports/m65 未覆盖。
++M7 基线：旧 C++ 34 PASS、差分 537 零差异、种子759065 变异2400、
++Sanitizer corpus2937及两类canary通过。它们属于基线回归，不算M7新增成果。
++
++历史完整性结果见 history-integrity.json，Git只读状态见 git-status.json。
++如目录没有 .git，status 非零表示无仓库，不能将此目录宣称为干净 Git checkout。
++上游源码只读，未运行构建、脚本、submodule 或 hooks。
++
++## 3. 实际源码与分层
++
++| 文件/模块 | 实际改动及作用 |
++|---|---|
++| core/validation.hpp/.cpp | 无堆/无STL的 Result/View/Scratch、metadata、ELF、firmware、legacy ABI、PSP package |
++| core/model.hpp | 现有离线状态机/firmware requirement 类型移入 Core，Host 别名保持兼容 |
++| core/device_info.hpp/.cpp | N44I v2 96B数据编码/解码，presence与能力分离，未知能力拒绝 |
++| host/validation_adapter.hpp | 旧 bool/error API 转发、Host 固定512节点 scratch |
++| src/offlinevalidation.cpp/.hpp | 旧接口委托 Core；旧 State/Session 同一类型，不新增重复逻辑 |
++| src/ipdiscovery.cpp | binary v2/table reserved字段校验；沿用原32/64位Parser |
++| host/navi44.py | budget/package/ABI2/ELF符号重定位与Discovery语义同步 |
++| platform/contract.hpp | CPU Snapshot / Memory / Log / Lease，显式所有权 |
++| host/platform_mock.hpp | 固定CPU内存与失败注入，释放/日志行为可测试 |
++| platform/darwin_contract.hpp | 可离线编译的通用Darwin契约，无Apple SDK伪造 |
++| platform/darwin_native.cpp/.hpp | 真实Apple API静态草案，所有Windows构建排除，NOT RUN |
++| tests/unit/m7_unit.cpp、tests/test_m7.py、m65_probe.cpp | 新行为测试和跨语言CPU数据protocol扩展 |
++| run_m7_offline_tests.py / m7_safety.py / CMakeLists.txt | 新独立测试入口、路径检查和Core编译选项 |
++
++完整改动列表与前后hash见 changed-files.json；增量源码/文档补丁见 patches/m7-from-m65.patch。
++所有一次性转换脚本保留用于追溯，不是再次执行的研发入口。
++
++## 4. Kernel-Friendly 规则与限制
++
++固定宽度整数、显式长度View、减法式边界检查避免off+size溢出。
++Scratch由调用方提供，Core不new/malloc；metadata节点、字符串只在解析期借用，不向外返回。
++Package返回的payload View仍借用原输入，其寿命明确由调用方保证。
++错误不是异常；失败清空scratch used和输出模型。未知版本/target/IP/能力均拒绝。
++
++4个Core translation unit均实际以C++17、禁exceptions/RTTI、freestanding、严格警告、
++4096字节单函数栈警告编译；对象符号检查未发现STL/new/unwind/throw/RTTI依赖。
++仍有memcpy/memset与内部Core引用。没有完整总栈分析或Apple内核ABI保证。
++Host兼容层大scratch与probe中的STL/exception保持Host-only，不能进入未来kext。
++
++## 5. Discovery / Firmware
++
++既有binary/IPDS版本、checksum、32/64位base、GC_INFO、多表、重复IP、范围与溢出拒绝保持。
++M7新增reserved字段校验和Python同步；不是另一套Parser。
++Firmware需求模型沿用GC/PSP/SMU/SDMA/DCN派生；失败清空全部条目，避免残留数据。
++它是建议组件清单，不证明精确版本或真实Navi44固件可用。
++
++新增PSP v2.0/v2.1 package读取真实公开header结构：
++长度/descriptor范围、组件编号1..12、重复/overlap、SOS+SYS_DRV缺失检查。
++v2.1非零aux和非零CRC仍拒绝；signatureVerified恒false。
++Common v1.0仍保持严格规则，未知header/version/component拒绝。
++CRC实现及PSP签名没有被宣称完成；本轮没有下载或上传真实固件。
++
++## 6. ELF / Shader metadata
++
++沿用ELF64 little-endian、EM_AMDGPU=224、gfx1200=0x48 / gfx1201=0x4e、段/section范围、
++metadata版本、kernarg、kernel descriptor与group/private一致性验证。
++M7新增符号表stride/link、REL/RELA stride/count/link/info及symbol index检查。
++ALLOC relocation显式Unsupported，不应用重定位。不是通用GPU代码loader或shader ISA validator。
++新增定向测试覆盖合法非ALLOC结构、错误symbol/stride/link及ALLOC拒绝。
++真实gfx1200编译产物缺失，仍SKIP；没有人为改ELF Machine冒充编译成功。
++
++## 7. Windows工具链及实际构建
++
++现有LLVM-MinGW 20261006 / Clang 23.1.3，target x86_64-w64-windows-gnu；
++LLVM commit 0d261d1ca552c95a8f007e061c787ac7132fbcbc。
++既有ZIP SHA-256：
++317492c456aa27ee607a5919f1d2d38dcdc1112516a24d0bf4b00d078f52d17a。
++本轮重新核对归档及实际compiler/runtime与ZIP成员一致性；未下载或安装工具。
++
++统一执行命令：
++
++~~~powershell
++& 'D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe' -I -B -X utf8 run_m7_offline_tests.py
++~~~
++
++所有实际argv、退出码、持续时间见 commands.json；build-results.json筛选compile/link/nm/analyze。
++Core分translation unit编译再链接Host；不链接device/plugin/IOKit。
++普通编译、链接、单元/差分/变异/分析进程退出码0；sanitizer canary的非零退出为预期检测。
++CMake configure/build、MSVC、macOS native adapter及kext编译均NOT RUN。
++
++## 8. 本阶段自动化测试结果
++
++| 类别 | 本轮最后一次实际结果 |
++|---|---|
++| 原Python test_offline | 58项：56 PASS、2 SKIP；56内含4静态源码检查 |
++| M6.5 Python回归 | 11 PASS |
++| 新M7 Python | {results['python']['test_m7.py']['PASS']} PASS |
++| 原C++回归 | {results['cpp_regression']} PASS |
++| 新M7 C++ | {results['cpp_m7']} PASS |
++| 差分 corpus | {results['differential']}组，0差异 |
++| 确定性变异 | {results['fuzz']['inputs']}组，seed {results['fuzz']['seed']}，0差异 |
++| ASan+UBSan | 新C++单元及{results['sanitizers']['inputs']}组差分+变异；未发现诊断 |
++| 检测器canary | heap-buffer-overflow / signed integer overflow均实际检测 |
++| Clang静态分析 | 4个Core文件、0警告，非形式化正确性证明 |
++| Core禁异常/RTTI与nm | PASS，编译flags及符号日志可复核 |
++| Apple Kernel ABI / kext | NOT RUN |
++| 真gfx1200 ELF | SKIP |
++| 真GPU/显示/Vulkan/Metal | NOT RUN |
++
++总Python 91项：89 PASS（含4静态检查）、2 SKIP；这些分类不重复计入行为测试。
++C++共65项；差分和fuzz按输入计数，不与单元测试合成一个“总PASS”数字。
++不统计历史M6.5结果为新增测试；不统计canary预期崩溃为普通测试失败。
++数据均是合成/模拟，不能作为本机GPU实测E3。
++
++测试串行、单进程30/40秒超时，输入有界，没有持续压力测试。
++Sanitizer leak detection NOT VERIFIED；变异不是coverage-guided fuzz，不能证明穷尽恶意输入。
++
++## 9. 保留的失败与修复记录
++
++1. M7 runner wrapper漏掉stdin的第三位置参数，在差分入口TypeError。
++   修正run(args,name,data=None,...)并改为显式safe日志写入；没有改解析器或测试期望。
++2. 新合成ELF的额外section header覆盖旧NOTE布局，合法结构定向测试报out_of_bounds。
++   将fixture NOTE移到文件尾，保持严格解析器检查与测试断言。
++3. Manifest移入Core时，namespace外定义的Result返回类型未限定。
++   修正为NaviCore::Result；严格编译门禁保持开启。
++
++失败test-results/commands和编译、Python日志保存在execution/attempts。
++没有关闭Sanitizer、降低检查或删失败路径。最终完整流水线已重新运行通过。
++
++## 10. Darwin静态集成准备
++
++实际Memory/Log/Snapshot契约与Host Mock已通过CPU行为测试。
++native草案使用真实IOKit allocator/log/IOReturn接口，没有fake SDK；
++guard只允许Apple KERNEL目标，且未加入Windowssource allowlist。
++macOS build=NOT RUN，Node对象构造、输入retain、线程上下文、kernel栈和SDK符号仍为阻碍。
++没有IOService/PCI probe/Bar mapping/device start；无驱动安装器或可加载产物。
++详细生命周期和真实构建路线见docs/darwin-adapter-design.md、kernel-compatibility.md。
++
++## 11. Cobalt/RADV/Metal准备增量
++
++N44I v2 96B实际编解码、presence/保留字段/能力拒绝新增验证，不只是重复路线图。
++它是CPU模拟协议：数据存在不等于硬件验证，capabilities=0、资源owner只记录政策。
++静态阅读固定N48N QueryInfo 192B及Cobalt patch2/patch7实际函数与路径，
++发现协议minor/内嵌头版本及canned gfx1201/GB_ADDR_CONFIG假设需要独立处理。
++未应用Mesa patch、未连接IOUserClient、没有生产资源所有者或gfx1200 winsys。
++更未建立Metal shader/AIR转换、资源/同步/呈现或WindowServer接入。
++Metal-on-Vulkan与Vulkan-on-Metal不是同一方向；数据ABI不是任何一种加速实现。
++
++## 12. 显示就绪度
++
++当前只推进了CPU解析与软件接口。真实Navi44 Discovery/连接器/EDID/GOP/DMUB/DCN状态仍缺失。
++已有edid.cpp纯逻辑可在下一轮CPU测试；硬件mode set、AUX、HDMI、VRAM/clock不能本轮运行。
++2560×1440×4×180约2.65GB/s全屏单次写带宽，5.56ms帧时间，仅算术，不是性能实测。
++模式扫描、合成性能和实际present帧率需分别验收，不能把显示画面当Metal兼容。
++
++## 13. 安全记录
++
++本代理所有主动文件输出限制在Lab；未执行Windows系统、EFI/BIOS/分区/SSD内容访问、
++真实GPU、驱动加载、管理员提升、全局环境修改、远程代码推送或第三方部署脚本。
++没有修改唯一RX9060XT的显示配置或硬件状态。
++现有沙箱授权范围比Lab更广；Lab限制由路径校验、allowlist及人工审查补充。
++未做独立系统级审计，不承诺OS缓存/日志或崩溃报告绝对零副作用。
++详细审查见safety-audit.md，未解决边界见remaining-blockers.md。
++
++## 14. 下一阶段与授权边界
++
++| 类别 | 任务 | 所需额外条件与风险 |
++|---|---|---|
++| A Windows CPU-only | EDID/Atom表回归、CRC规范/格式扩展、metadata预算/性能、生产ABI候选映射、typed scratch接口 | 后续单独任务授权，仍只写Lab、不接设备；恶意输入资源受限 |
++| B 真macOS构建 | Core Mach-O、native接口、SDK/符号/对象生命周期、合法gfx1200 code object、CPU测试 | 单独授权Mac工作区/编译；不等于允许加载、改安全策略或联网上传 |
++| C 真GPU实验 | 本卡Discovery/连接器、GOP继承、DCN/DMUB、时钟/显存、输出恢复、VM/queue | 必须独立硬件授权与人工恢复；当前唯一显示GPU，黑屏/卡死风险高 |
++
++生产驱动顺序：纯逻辑与合法样本 → 真macOS CPU编译 → 单所有者/生命周期 →
++安全基础显示 → 显存/固件/队列隔离与恢复 → gfx1200命令 → RADV → Metal/系统合成。
++本轮不自动进入任何下一阶段。未涉及macOS许可授权或为Apple Account生成身份。
++
++## 15. 主要证据
++
++E1官方规格/API；E2可审查源码；E3离线CPU运行日志（仅其测试范围）；E4作者自述；E5工程推断。
++本文CPU结果为本轮真实进程输出，不是RX9060XT/macOS/GPU E3。
++
++- [AMDRadeonRDNA4固定提交](https://github.com/RX4Darwin/AMDRadeonRDNA4.kext/tree/49f7f20c00dd154384418078f8a09e79c400a06a)：本地固定源码再次阅读，BSD-3-Clause，E2。
++- [Cobalt64固定提交](https://github.com/Almosst-DEV/Cobalt64/tree/d6c9aedf8e6526a39e349b5886cbc8c7ddf77f65)：本地patch/N48N/Metal路径只读，许可证按文件，E2。
++- [Linux firmware header](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/amdgpu/amdgpu_ucode.h)：2026-10-14网页读取，用于package结构交叉检查；master非固定快照，E2。
++- [Apple XNU IOLib](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/IOKit/IOLib.h)：2026-10-14读取真实接口，main非固定快照，E1/E2。
++- [Lilu固定接口](https://github.com/acidanthera/Lilu/blob/0515f40b7f2a096adc85e832a4c6104fbd07f936/Lilu/Headers/kern_util.hpp)：2026-10-14网页读取，E2。
++- [MacKernelSDK](https://github.com/acidanthera/MacKernelSDK)：真实内核头依赖参考；本轮未获取/构建pin，E2/NOT RUN。
++- [LLVM ELF.h固定来源](https://github.com/llvm/llvm-project/blob/87f0227cb60147a26a1eeb4fb06e3b505e9c7261/llvm/include/llvm/BinaryFormat/ELF.h)：现有本地target枚举参考，E2。
++- [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw/releases/tag/20261006)：既有工具归档；本轮只离线完整性验证。
++
++GitHub精确raw URL部分抓取失败；固定仓库结论以已存在的本地pin源码为依据。
++没有宣称追踪了最新主分支或证明所有社区功能可用于本卡。
++
++## 16. 交付索引与最终状态
++
++development-report.md：完整报告；baseline-results.json：独立基线；
++test-results.json：本轮结果；build-results.json：编译细节；
++commands.json：所有真实流水线argv/exit；execution/：原始日志与失败attempts；
++changed-files.json：实际改动；deliverable-sha256.json：关键文件hash；
++history-integrity.json：历史保留；toolchain-integrity.json：工具与已知归档一致；
++delivery-verification.json：补丁校验/重放结果；patches/m7-from-m65.patch：增量代码与文档。
++
++M7 CPU-only工程目标已完成。真实kext、显示、Vulkan与Metal仍未执行和验证。
++未来工作等待独立授权，本轮交付后停止。
++'''
++safe.write(OUT/'development-report.md',summary)
++
++# Incremental text patch: existing baseline source/docs + newly authored source/docs.
++# Never include historical snapshots, firmware, executables or sanitizer output as code patch.
++existing=[rel for rel in baseline if not rel.startswith('reports/') and (ROOT/rel).is_file()]
++new=[]
++for folder in ('development/AMDRadeonRDNA4-Navi44/core','development/AMDRadeonRDNA4-Navi44/platform'):
++    new += [p.relative_to(ROOT).as_posix() for p in (ROOT/folder).rglob('*') if p.is_file()]
++new += ['development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp',
++        'development/AMDRadeonRDNA4-Navi44/host/validation_adapter.hpp','tests/unit/m7_unit.cpp','tests/test_m7.py',
++        'run_m7_offline_tests.py','m7_safety.py','m7_prepare.py','m7_refactor.py','core_model_m7.py','finalize_m7.py',
++        *docs,'reports/m7/development-report.md','reports/m7/safety-audit.md','reports/m7/remaining-blockers.md']
++changed=[]
++pieces=[]
++for rel in sorted(set(existing+new)):
++    current=safe.checked(rel);data=current.read_bytes()
++    old_path=ROOT/'reports/m7/history'/rel;before=old_path.read_bytes() if rel in baseline else b''
++    if data==before:continue
++    old_text=before.decode('utf-8').splitlines(keepends=True);new_text=data.decode('utf-8').splitlines(keepends=True)
++    pieces.append('diff --git a/'+rel+' b/'+rel+'\n')
++    if not before:pieces.append('new file mode 100644\n')
++    pieces.extend(difflib.unified_diff(old_text,new_text,fromfile='a/'+rel if before else '/dev/null',tofile='b/'+rel))
++    changed.append({'path':rel,'kind':'modified' if rel in baseline else 'added',
++                    'before_sha256':hashlib.sha256(before).hexdigest() if before else None,
++                    'after_sha256':hashlib.sha256(data).hexdigest()})
++safe.write(OUT/'changed-files.json',json.dumps(changed,ensure_ascii=False,indent=2))
++patch=safe.write('patches/m7-from-m65.patch',''.join(pieces))
++
++# Replay patch solely into a fresh project-internal copy; never current source.
++parent=safe.mkdir('build/m7/patch-replay');attempt=len(list(parent.iterdir()))+1
++replay=safe.mkdir(parent/str(attempt))
++for row in changed:
++    if row['kind']=='modified':safe.write(replay/row['path'],(ROOT/'reports/m7/history'/row['path']).read_bytes())
++checks=[]
++for options in (['--check'],[]):
++    # A fresh Lab-internal directory; no Git init, hooks or current-source mutation.
++    args=[str(git),'-c','core.autocrlf=false','-c','core.whitespace=cr-at-eol','apply',*options,
++          '--whitespace=nowarn',str(patch)]
++    p=subprocess.run(args,cwd=replay,env=env,capture_output=True,text=True,encoding='utf-8',timeout=30)
++    record={'argv':args,'cwd':str(replay),'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr}
++    checks.append(record);safe.write(OUT/('patch-'+('check' if options else 'replay')+'.log'),p.stdout+p.stderr)
++    if p.returncode:raise SystemExit('Patch verification failed: '+p.stderr)
++for row in changed:
++    if hashlib.sha256(safe.checked(replay/row['path']).read_bytes()).hexdigest()!=row['after_sha256']:
++        raise SystemExit('Patch replay byte mismatch: '+row['path'])
++safe.write(OUT/'delivery-verification.json',json.dumps({'status':'PASS','changed_files':len(changed),
++    'patch_sha256':hashlib.sha256(patch.read_bytes()).hexdigest(),'git_commands':checks,
++    'replay_hashes':'all changed files match byte-for-byte','history':'PASS'},ensure_ascii=False,indent=2))
++manifest={}
++targets=[ROOT/row['path'] for row in changed]+[patch]+list(OUT.glob('*.json'))+list((ROOT/'build/m7/execution').glob('*.exe'))
++for p in targets:
++    if p.name=='deliverable-sha256.json':continue
++    with p.open('rb') as stream:manifest[p.relative_to(ROOT).as_posix()]=hashlib.file_digest(stream,'sha256').hexdigest()
++safe.write(OUT/'deliverable-sha256.json',json.dumps(manifest,ensure_ascii=False,indent=2))
++print(json.dumps({'status':'PASS','changed_files':len(changed),'patch_sha256':hashlib.sha256(patch.read_bytes()).hexdigest(),
++                  'history_files':len(baseline),'manifest_files':len(manifest),'report':str(OUT/'development-report.md')},ensure_ascii=False))
+diff --git a/m7_prepare.py b/m7_prepare.py
+new file mode 100644
+--- /dev/null
++++ b/m7_prepare.py
+@@ -0,0 +1,39 @@
++"""Checked project-only snapshots and redirected M6.5 baseline reproduction."""
++from pathlib import Path
++import hashlib, json, os, subprocess, sys
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++ROOT=safe.ROOT
++H=ROOT/'reports/m7/history'
++if H.exists(): raise SystemExit('M7 history exists; refusing replacement')
++safe.mkdir(H)
++old=json.loads((ROOT/'reports/m65/results.json').read_text(encoding='utf-8'))
++for rel,expected in old['source_sha256'].items():
++    if hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()!=expected: raise SystemExit('M6.5 source hash mismatch: '+rel)
++for rel,expected in json.loads((ROOT/'reports/m65/deliverable-sha256.json').read_text()).items():
++    if hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()!=expected: raise SystemExit('M6.5 artifact mismatch: '+rel)
++files=[ROOT/x for x in ('README.md','CMakeLists.txt','run_all_offline_tests.py','run_offline.py','build_offline.ps1')]
++for directory in ('development/AMDRadeonRDNA4-Navi44/src','development/AMDRadeonRDNA4-Navi44/host','tests','docs','reports/m65'):
++    files += [p for p in (ROOT/directory).rglob('*') if p.is_file()]
++files += list((ROOT/'reports').glob('m65-*.md'))
++hashes={}
++for p in files:
++    safe.checked(p);rel=p.relative_to(ROOT);data=p.read_bytes()
++    safe.write(H/rel,data);hashes[rel.as_posix()]=hashlib.sha256(data).hexdigest()
++safe.write(ROOT/'reports/m7/baseline-sha256.json',json.dumps(hashes,indent=2))
++# Keep ROOT pointing at this existing lab; route ALL results/runtime logs/builds
++# to M7, while reading the already verified M6.5 toolchain provenance.
++text=(ROOT/'run_all_offline_tests.py').read_text(encoding='utf-8')
++text=text.replace("OUT=ROOT/'reports/m65'; BUILD=ROOT/'build/m65'","OUT=ROOT/'reports/m7/baseline'; BUILD=ROOT/'build/m7/baseline'")
++text=text.replace("OUT/'toolchain-provenance.json'","ROOT/'reports/m65/toolchain-provenance.json'")
++text=text.replace('log_path=reports/m65/','log_path=reports/m7/baseline/')
++safe.preflight(['reports/m7/baseline','build/m7/baseline','tmp'])
++script=ROOT/'reports/m7/baseline-runner.py'
++safe.write(script,text.replace("ROOT=Path(__file__).resolve().parent","ROOT=Path("+repr(str(ROOT))+")"))
++env=os.environ.copy();env.update(TMP=str(ROOT/'tmp'),TEMP=str(ROOT/'tmp'))
++p=subprocess.run([sys.executable,'-I','-B','-X','utf8',str(script)],cwd=ROOT,env=env,capture_output=True,encoding='utf-8',timeout=90)
++safe.write(ROOT/'reports/m7/baseline-reproduction.log',p.stdout+p.stderr)
++if p.returncode: raise SystemExit('Baseline failure; see baseline-reproduction.log')
++result=json.loads((ROOT/'reports/m7/baseline/results.json').read_text())
++safe.write(ROOT/'reports/m7/baseline-results.json',json.dumps({'status':'PASS','scope':'M7 rerun of M6.5, not new functionality','result':result},indent=2))
++print(json.dumps({k:result[k] for k in ('python','cpp_unit','differential','fuzz','sanitizers')},indent=2))
+diff --git a/m7_refactor.py b/m7_refactor.py
+new file mode 100644
+--- /dev/null
++++ b/m7_refactor.py
+@@ -0,0 +1,31 @@
++"""Checked local refactor, preserving M6.5 requirements logic and API."""
++from pathlib import Path
++import sys
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++p=safe.checked('development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp')
++old=p.read_text(encoding='utf-8')
++if '#include <vector>' not in old or 'struct Part' not in old:
++    raise SystemExit('Refactor already applied or source differs; refusing replacement')
++tail=old[old.index('bool Offline::firmwareRequirements'):]
++replacement='''// M7 compatibility adapter, BSD-3-Clause. No STL/throw/RTTI.
++#include "offlinevalidation.hpp"
++#include "../host/validation_adapter.hpp"
++bool Offline::elf(const uint8_t*d,size_t n,Asic::Target t,const char**why){
++    NaviHost::MetadataBuffer storage;
++    return NaviHost::result(NaviCore::elf({d,n},t,storage.scratch),why);
++}
++bool Offline::elfKernel(const uint8_t*d,size_t n,Asic::Target t,const char*name,const char**why){
++    if(!name||!*name){if(why)*why="elf_kernel_metadata_missing";return false;}
++    NaviHost::MetadataBuffer storage;
++    return NaviHost::result(NaviCore::elf({d,n},t,storage.scratch,NaviHost::text(name)),why);
++}
++bool Offline::firmware(const uint8_t*d,size_t n,uint16_t a,uint16_t b,const char*c,const char**why){
++    return NaviHost::result(NaviCore::firmware({d,n},a,b,NaviHost::text(c)),why);
++}
++bool Offline::deviceInfo(const uint8_t*d,size_t n,Asic::Profile&out,const char**why){
++    return NaviHost::result(NaviCore::deviceInfo({d,n},out),why);
++}
++'''
++safe.write(p,replacement+tail)
++print('Replaced STL/exception validation with Core + compatibility adapter')
+diff --git a/m7_safety.py b/m7_safety.py
+new file mode 100644
+--- /dev/null
++++ b/m7_safety.py
+@@ -0,0 +1,35 @@
++"""Project path checks; not a replacement for an OS sandbox or TOCTOU proof."""
++from pathlib import Path
++import os
++
++ROOT = Path(__file__).absolute().parent
++
++def checked(path):
++    path = Path(path)
++    if '..' in path.parts:
++        raise ValueError('Parent traversal refused')
++    if not path.is_absolute(): path = ROOT/path
++    path = path.absolute()
++    if not path.is_relative_to(ROOT): raise ValueError('Outside authorized project')
++    # Reject reparse points in every existing parent, including above ROOT.
++    for item in [path, *path.parents]:
++        if item.exists() or item.is_symlink():
++            state = item.lstat()
++            if item.is_symlink() or getattr(state,'st_file_attributes',0) & 0x400:
++                raise ValueError('Reparse/symlink refused: '+str(item))
++            if item.is_file() and state.st_nlink != 1:
++                raise ValueError('Hard-linked file refused: '+str(item))
++    if not path.resolve().is_relative_to(ROOT.resolve()): raise ValueError('Resolved escape')
++    return path
++
++def mkdir(path):
++    path = checked(path); path.mkdir(parents=True,exist_ok=True); return checked(path)
++
++def write(path, data):
++    path = checked(path); mkdir(path.parent)
++    if isinstance(data,str): path.write_text(data,encoding='utf-8',newline='\n')
++    else: path.write_bytes(data)
++    return checked(path)
++
++def preflight(paths):
++    return [str(checked(p)) for p in paths]
+diff --git a/reports/m7/development-report.md b/reports/m7/development-report.md
+new file mode 100644
+--- /dev/null
++++ b/reports/m7/development-report.md
+@@ -0,0 +1,216 @@
++# M7 完整开发报告：RX 9060 XT / Navi 44
++
++报告日期：2026-10-14，Asia/Shanghai。项目：Hackintosh-Navi44-Lab。
++范围：Windows CPU-only 实际源码开发、离线编译验证和未来 Darwin 静态准备。
++
++## 1. 核心结论
++
++M7 已完成现有项目接管和 M6.5 基线复现，在原解析实现上形成 Core / Host / Platform / Darwin 草案分层。
++Core 的 metadata 树已替换 STL 容器/异常为调用方有界 scratch、借用 View 和 Result；
++新增 PSP package 结构解析、ELF symbol/relocation 结构检查、N44I v2 编解码及 Host Mock。
++原有安全门禁保持关闭，未开发或运行真实 GPU backend。
++
++本轮完成的是跨平台底层纯逻辑工程化。Darwin native 已有可审查源码，但未构建；
++Kext/GPU/显示/Vulkan/Metal/WindowServer/macOS 安装与双盘部署均 NOT RUN。
++基础显示、完整加速和日常 macOS 的本机可用性没有被证实。
++
++## 2. 接管、快照与基线
++
++读取 README、CMake、旧 runner、development/src/host、tests、M6.5 报告和就绪文档。
++修改前核对 M6.5 source/deliverable SHA-256，并保存 reports/m7/history 与 baseline-sha256.json。
++基线只在 reports/m7/baseline 和 build/m7/baseline 复现，原 reports/m65 未覆盖。
++M7 基线：旧 C++ 34 PASS、差分 537 零差异、种子759065 变异2400、
++Sanitizer corpus2937及两类canary通过。它们属于基线回归，不算M7新增成果。
++
++历史完整性结果见 history-integrity.json，Git只读状态见 git-status.json。
++如目录没有 .git，status 非零表示无仓库，不能将此目录宣称为干净 Git checkout。
++上游源码只读，未运行构建、脚本、submodule 或 hooks。
++
++## 3. 实际源码与分层
++
++| 文件/模块 | 实际改动及作用 |
++|---|---|
++| core/validation.hpp/.cpp | 无堆/无STL的 Result/View/Scratch、metadata、ELF、firmware、legacy ABI、PSP package |
++| core/model.hpp | 现有离线状态机/firmware requirement 类型移入 Core，Host 别名保持兼容 |
++| core/device_info.hpp/.cpp | N44I v2 96B数据编码/解码，presence与能力分离，未知能力拒绝 |
++| host/validation_adapter.hpp | 旧 bool/error API 转发、Host 固定512节点 scratch |
++| src/offlinevalidation.cpp/.hpp | 旧接口委托 Core；旧 State/Session 同一类型，不新增重复逻辑 |
++| src/ipdiscovery.cpp | binary v2/table reserved字段校验；沿用原32/64位Parser |
++| host/navi44.py | budget/package/ABI2/ELF符号重定位与Discovery语义同步 |
++| platform/contract.hpp | CPU Snapshot / Memory / Log / Lease，显式所有权 |
++| host/platform_mock.hpp | 固定CPU内存与失败注入，释放/日志行为可测试 |
++| platform/darwin_contract.hpp | 可离线编译的通用Darwin契约，无Apple SDK伪造 |
++| platform/darwin_native.cpp/.hpp | 真实Apple API静态草案，所有Windows构建排除，NOT RUN |
++| tests/unit/m7_unit.cpp、tests/test_m7.py、m65_probe.cpp | 新行为测试和跨语言CPU数据protocol扩展 |
++| run_m7_offline_tests.py / m7_safety.py / CMakeLists.txt | 新独立测试入口、路径检查和Core编译选项 |
++
++完整改动列表与前后hash见 changed-files.json；增量源码/文档补丁见 patches/m7-from-m65.patch。
++所有一次性转换脚本保留用于追溯，不是再次执行的研发入口。
++
++## 4. Kernel-Friendly 规则与限制
++
++固定宽度整数、显式长度View、减法式边界检查避免off+size溢出。
++Scratch由调用方提供，Core不new/malloc；metadata节点、字符串只在解析期借用，不向外返回。
++Package返回的payload View仍借用原输入，其寿命明确由调用方保证。
++错误不是异常；失败清空scratch used和输出模型。未知版本/target/IP/能力均拒绝。
++
++4个Core translation unit均实际以C++17、禁exceptions/RTTI、freestanding、严格警告、
++4096字节单函数栈警告编译；对象符号检查未发现STL/new/unwind/throw/RTTI依赖。
++仍有memcpy/memset与内部Core引用。没有完整总栈分析或Apple内核ABI保证。
++Host兼容层大scratch与probe中的STL/exception保持Host-only，不能进入未来kext。
++
++## 5. Discovery / Firmware
++
++既有binary/IPDS版本、checksum、32/64位base、GC_INFO、多表、重复IP、范围与溢出拒绝保持。
++M7新增reserved字段校验和Python同步；不是另一套Parser。
++Firmware需求模型沿用GC/PSP/SMU/SDMA/DCN派生；失败清空全部条目，避免残留数据。
++它是建议组件清单，不证明精确版本或真实Navi44固件可用。
++
++新增PSP v2.0/v2.1 package读取真实公开header结构：
++长度/descriptor范围、组件编号1..12、重复/overlap、SOS+SYS_DRV缺失检查。
++v2.1非零aux和非零CRC仍拒绝；signatureVerified恒false。
++Common v1.0仍保持严格规则，未知header/version/component拒绝。
++CRC实现及PSP签名没有被宣称完成；本轮没有下载或上传真实固件。
++
++## 6. ELF / Shader metadata
++
++沿用ELF64 little-endian、EM_AMDGPU=224、gfx1200=0x48 / gfx1201=0x4e、段/section范围、
++metadata版本、kernarg、kernel descriptor与group/private一致性验证。
++M7新增符号表stride/link、REL/RELA stride/count/link/info及symbol index检查。
++ALLOC relocation显式Unsupported，不应用重定位。不是通用GPU代码loader或shader ISA validator。
++新增定向测试覆盖合法非ALLOC结构、错误symbol/stride/link及ALLOC拒绝。
++真实gfx1200编译产物缺失，仍SKIP；没有人为改ELF Machine冒充编译成功。
++
++## 7. Windows工具链及实际构建
++
++现有LLVM-MinGW 20261006 / Clang 23.1.3，target x86_64-w64-windows-gnu；
++LLVM commit 0d261d1ca552c95a8f007e061c787ac7132fbcbc。
++既有ZIP SHA-256：
++317492c456aa27ee607a5919f1d2d38dcdc1112516a24d0bf4b00d078f52d17a。
++本轮重新核对归档及实际compiler/runtime与ZIP成员一致性；未下载或安装工具。
++
++统一执行命令：
++
++~~~powershell
++& 'D:\RuntimeEnvironment\mise\mise\data\installs\python\3.12.13\python.exe' -I -B -X utf8 run_m7_offline_tests.py
++~~~
++
++所有实际argv、退出码、持续时间见 commands.json；build-results.json筛选compile/link/nm/analyze。
++Core分translation unit编译再链接Host；不链接device/plugin/IOKit。
++普通编译、链接、单元/差分/变异/分析进程退出码0；sanitizer canary的非零退出为预期检测。
++CMake configure/build、MSVC、macOS native adapter及kext编译均NOT RUN。
++
++## 8. 本阶段自动化测试结果
++
++| 类别 | 本轮最后一次实际结果 |
++|---|---|
++| 原Python test_offline | 58项：56 PASS、2 SKIP；56内含4静态源码检查 |
++| M6.5 Python回归 | 11 PASS |
++| 新M7 Python | 22 PASS |
++| 原C++回归 | 34 PASS |
++| 新M7 C++ | 31 PASS |
++| 差分 corpus | 743组，0差异 |
++| 确定性变异 | 2400组，seed 759070，0差异 |
++| ASan+UBSan | 新C++单元及3143组差分+变异；未发现诊断 |
++| 检测器canary | heap-buffer-overflow / signed integer overflow均实际检测 |
++| Clang静态分析 | 4个Core文件、0警告，非形式化正确性证明 |
++| Core禁异常/RTTI与nm | PASS，编译flags及符号日志可复核 |
++| Apple Kernel ABI / kext | NOT RUN |
++| 真gfx1200 ELF | SKIP |
++| 真GPU/显示/Vulkan/Metal | NOT RUN |
++
++总Python 91项：89 PASS（含4静态检查）、2 SKIP；这些分类不重复计入行为测试。
++C++共65项；差分和fuzz按输入计数，不与单元测试合成一个“总PASS”数字。
++不统计历史M6.5结果为新增测试；不统计canary预期崩溃为普通测试失败。
++数据均是合成/模拟，不能作为本机GPU实测E3。
++
++测试串行、单进程30/40秒超时，输入有界，没有持续压力测试。
++Sanitizer leak detection NOT VERIFIED；变异不是coverage-guided fuzz，不能证明穷尽恶意输入。
++
++## 9. 保留的失败与修复记录
++
++1. M7 runner wrapper漏掉stdin的第三位置参数，在差分入口TypeError。
++   修正run(args,name,data=None,...)并改为显式safe日志写入；没有改解析器或测试期望。
++2. 新合成ELF的额外section header覆盖旧NOTE布局，合法结构定向测试报out_of_bounds。
++   将fixture NOTE移到文件尾，保持严格解析器检查与测试断言。
++3. Manifest移入Core时，namespace外定义的Result返回类型未限定。
++   修正为NaviCore::Result；严格编译门禁保持开启。
++
++失败test-results/commands和编译、Python日志保存在execution/attempts。
++没有关闭Sanitizer、降低检查或删失败路径。最终完整流水线已重新运行通过。
++
++## 10. Darwin静态集成准备
++
++实际Memory/Log/Snapshot契约与Host Mock已通过CPU行为测试。
++native草案使用真实IOKit allocator/log/IOReturn接口，没有fake SDK；
++guard只允许Apple KERNEL目标，且未加入Windowssource allowlist。
++macOS build=NOT RUN，Node对象构造、输入retain、线程上下文、kernel栈和SDK符号仍为阻碍。
++没有IOService/PCI probe/Bar mapping/device start；无驱动安装器或可加载产物。
++详细生命周期和真实构建路线见docs/darwin-adapter-design.md、kernel-compatibility.md。
++
++## 11. Cobalt/RADV/Metal准备增量
++
++N44I v2 96B实际编解码、presence/保留字段/能力拒绝新增验证，不只是重复路线图。
++它是CPU模拟协议：数据存在不等于硬件验证，capabilities=0、资源owner只记录政策。
++静态阅读固定N48N QueryInfo 192B及Cobalt patch2/patch7实际函数与路径，
++发现协议minor/内嵌头版本及canned gfx1201/GB_ADDR_CONFIG假设需要独立处理。
++未应用Mesa patch、未连接IOUserClient、没有生产资源所有者或gfx1200 winsys。
++更未建立Metal shader/AIR转换、资源/同步/呈现或WindowServer接入。
++Metal-on-Vulkan与Vulkan-on-Metal不是同一方向；数据ABI不是任何一种加速实现。
++
++## 12. 显示就绪度
++
++当前只推进了CPU解析与软件接口。真实Navi44 Discovery/连接器/EDID/GOP/DMUB/DCN状态仍缺失。
++已有edid.cpp纯逻辑可在下一轮CPU测试；硬件mode set、AUX、HDMI、VRAM/clock不能本轮运行。
++2560×1440×4×180约2.65GB/s全屏单次写带宽，5.56ms帧时间，仅算术，不是性能实测。
++模式扫描、合成性能和实际present帧率需分别验收，不能把显示画面当Metal兼容。
++
++## 13. 安全记录
++
++本代理所有主动文件输出限制在Lab；未执行Windows系统、EFI/BIOS/分区/SSD内容访问、
++真实GPU、驱动加载、管理员提升、全局环境修改、远程代码推送或第三方部署脚本。
++没有修改唯一RX9060XT的显示配置或硬件状态。
++现有沙箱授权范围比Lab更广；Lab限制由路径校验、allowlist及人工审查补充。
++未做独立系统级审计，不承诺OS缓存/日志或崩溃报告绝对零副作用。
++详细审查见safety-audit.md，未解决边界见remaining-blockers.md。
++
++## 14. 下一阶段与授权边界
++
++| 类别 | 任务 | 所需额外条件与风险 |
++|---|---|---|
++| A Windows CPU-only | EDID/Atom表回归、CRC规范/格式扩展、metadata预算/性能、生产ABI候选映射、typed scratch接口 | 后续单独任务授权，仍只写Lab、不接设备；恶意输入资源受限 |
++| B 真macOS构建 | Core Mach-O、native接口、SDK/符号/对象生命周期、合法gfx1200 code object、CPU测试 | 单独授权Mac工作区/编译；不等于允许加载、改安全策略或联网上传 |
++| C 真GPU实验 | 本卡Discovery/连接器、GOP继承、DCN/DMUB、时钟/显存、输出恢复、VM/queue | 必须独立硬件授权与人工恢复；当前唯一显示GPU，黑屏/卡死风险高 |
++
++生产驱动顺序：纯逻辑与合法样本 → 真macOS CPU编译 → 单所有者/生命周期 →
++安全基础显示 → 显存/固件/队列隔离与恢复 → gfx1200命令 → RADV → Metal/系统合成。
++本轮不自动进入任何下一阶段。未涉及macOS许可授权或为Apple Account生成身份。
++
++## 15. 主要证据
++
++E1官方规格/API；E2可审查源码；E3离线CPU运行日志（仅其测试范围）；E4作者自述；E5工程推断。
++本文CPU结果为本轮真实进程输出，不是RX9060XT/macOS/GPU E3。
++
++- [AMDRadeonRDNA4固定提交](https://github.com/RX4Darwin/AMDRadeonRDNA4.kext/tree/49f7f20c00dd154384418078f8a09e79c400a06a)：本地固定源码再次阅读，BSD-3-Clause，E2。
++- [Cobalt64固定提交](https://github.com/Almosst-DEV/Cobalt64/tree/d6c9aedf8e6526a39e349b5886cbc8c7ddf77f65)：本地patch/N48N/Metal路径只读，许可证按文件，E2。
++- [Linux firmware header](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/amdgpu/amdgpu_ucode.h)：2026-10-14网页读取，用于package结构交叉检查；master非固定快照，E2。
++- [Apple XNU IOLib](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/IOKit/IOLib.h)：2026-10-14读取真实接口，main非固定快照，E1/E2。
++- [Lilu固定接口](https://github.com/acidanthera/Lilu/blob/0515f40b7f2a096adc85e832a4c6104fbd07f936/Lilu/Headers/kern_util.hpp)：2026-10-14网页读取，E2。
++- [MacKernelSDK](https://github.com/acidanthera/MacKernelSDK)：真实内核头依赖参考；本轮未获取/构建pin，E2/NOT RUN。
++- [LLVM ELF.h固定来源](https://github.com/llvm/llvm-project/blob/87f0227cb60147a26a1eeb4fb06e3b505e9c7261/llvm/include/llvm/BinaryFormat/ELF.h)：现有本地target枚举参考，E2。
++- [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw/releases/tag/20261006)：既有工具归档；本轮只离线完整性验证。
++
++GitHub精确raw URL部分抓取失败；固定仓库结论以已存在的本地pin源码为依据。
++没有宣称追踪了最新主分支或证明所有社区功能可用于本卡。
++
++## 16. 交付索引与最终状态
++
++development-report.md：完整报告；baseline-results.json：独立基线；
++test-results.json：本轮结果；build-results.json：编译细节；
++commands.json：所有真实流水线argv/exit；execution/：原始日志与失败attempts；
++changed-files.json：实际改动；deliverable-sha256.json：关键文件hash；
++history-integrity.json：历史保留；toolchain-integrity.json：工具与已知归档一致；
++delivery-verification.json：补丁校验/重放结果；patches/m7-from-m65.patch：增量代码与文档。
++
++M7 CPU-only工程目标已完成。真实kext、显示、Vulkan与Metal仍未执行和验证。
++未来工作等待独立授权，本轮交付后停止。
+diff --git a/reports/m7/remaining-blockers.md b/reports/m7/remaining-blockers.md
+new file mode 100644
+--- /dev/null
++++ b/reports/m7/remaining-blockers.md
+@@ -0,0 +1,14 @@
++# M7 剩余阻碍
++
++1. Darwin native 未编译；必须合法 Apple 编译环境。原始字节分配后的 Node 对象生命周期仍需实现和验证。
++2. Windows Core flags 不等于 Darwin ABI；memcpy/memset 导出、递归总栈、SDK类型/符号与对象析构需核验。
++3. CRC 非零仍拒绝；PSP signature 未验证，即使 package 结构 PASS 也不是可用固件。aux 非零不支持。
++4. Manifest 是静态建议组件模型，不是完整生产固件 loader；Navi44 真实 non-GC IP、固件版本和板卡拓扑未知。
++5. ELF relocation 只有结构检查，ALLOC relocation 拒绝；没有 relocation application、GPU ISA 验证或代码加载。
++6. 真实编译产生的 gfx1200 ELF 缺失，便携编译器无 AMDGPU 后端；相关验证仍 SKIP。
++7. N44I v2 presence 不是可信硬件有效位，capabilities 恒0。未接入生产 N48N、IOUserClient、BO/VM/fence。
++8. DCN/DMUB/AUX/HDMI/GOP/显示恢复没有本机数据，也未进行 macOS framebuffer / WindowServer 测试。
++9. RADV gfx1200 与 Cobalt gfx1201 假设不能直接互换；生产 ABI/资源所有者和 Metal 系统接入未实现。
++10. Sanitizer 无报错只覆盖有限样本，Windows leak detection 未验证；非 coverage-guided fuzz，无并发/硬件稳定性证据。
++
++没有因上述阻碍扩大权限。本轮开发停止在 CPU-only 工程交付。
+diff --git a/reports/m7/safety-audit.md b/reports/m7/safety-audit.md
+new file mode 100644
+--- /dev/null
++++ b/reports/m7/safety-audit.md
+@@ -0,0 +1,43 @@
++# M7 安全审查与边界
++
++## 授权及执行
++
++唯一主动写入目录：D:/CodexWorkSpace/黑苹果研究/Hackintosh-Navi44-Lab。
++使用现有 workspace-write 沙箱；沙箱允许范围比 Lab 更广，Lab 约束另由路径检查和固定 allowlist 执行。
++没有请求 Full Access / 管理员 / require_escalated 或扩大权限。
++路径检查拒绝 ..、越界 resolve、符号链接、NTFS reparse 与多硬链接；写入前核对现有父路径。
++这不是独立 OS 审计，也不能证明竞态环境下绝对防逃逸。
++
++本轮执行的进程：既有 Python、项目内已核对归档的 portable Clang / llvm-nm / symbolizer、
++本项目 CPU-only exe、只读 Git status、工作区副本 Git apply 检查/重放。
++网络仅使用网页阅读，不执行或克隆远程代码；上游脚本只读。
++TMP/TEMP/CLANG_MODULE_CACHE_PATH 和 sanitizer log_path 指向 Lab；-B 禁止 Python pycache。
++编译串行，测试进程有超时，固定 2400 次输入变异，不使用无限 fuzz 或 GPU benchmark。
++运行前审查 source allowlist；Core/Host 不链接 device.cpp/plugin.cpp/IOKit。
++宿主模型没有 PCI/BAR/MMIO/ROM/DMA/GPU Queue 方法。
++Darwin native 文件从所有 Windows 编译入口排除，没有下载 Apple SDK 或构造替代头文件。
++
++## 构建入口审查
++
++CMake 只有显式 CPU source targets，未新增 install/FetchContent/ExternalProject/custom/pre/post build。
++实际 runner 使用 subprocess argv，shell=False；没有远程脚本、包管理器、服务、驱动加载。
++M7 重用本项目旧测试 helper，校验明确截断边界，不执行旧 main，不运行 git hook。
++历史 fixture 必须存在，避免隐式重新生成。所有 M7 输出独立保存，重跑日志/失败 JSON 有 attempts 副本。
++一次性源码转换脚本保留用于追溯，并在已转换/结构不符时拒绝再次应用。
++
++## 执行记录声明
++
++| 类别 | 本代理本轮执行记录 |
++|---|---|
++| 主动工作区外写入 | 未执行；没有独立系统级审计 |
++| Windows 文件/注册表/服务/驱动/全局 PATH 修改 | 未执行 |
++| EFI/BCD/BIOS/UEFI/Secure Boot/TPM/BitLocker 修改 | 未执行 |
++| 磁盘分区或 Intel 256GB SSD 内容访问 | 未执行 |
++| 真 GPU 访问、硬件 API、ROM/MMIO/BAR/固件/提交 | 未执行 |
++| kext/SYS 加载与部署 | 未执行 |
++| 管理员权限提升或未授权外部代码执行 | 未执行 |
++| Git push / remote branch / PR / Release | 未执行 |
++| CPU-only sanitizer canary | 已执行，仅故意使本项目子进程报告内存/整数错误 |
++
++操作系统、运行库和 Codex 工具可能生成缓存、错误报告或日志，未做独立系统级观测，
++因此不声称物理零写入或绝对零副作用。没有主动结束其他用户进程、重启或改变显示配置。
+diff --git a/run_m7_offline_tests.py b/run_m7_offline_tests.py
+new file mode 100644
+--- /dev/null
++++ b/run_m7_offline_tests.py
+@@ -0,0 +1,162 @@
++"""M7 project-checked CPU-only pipeline. No automatic downloads or hardware."""
++from pathlib import Path
++import hashlib,json,os,shutil,sys,time
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++ROOT=safe.ROOT;OUT=safe.mkdir('reports/m7/execution');BUILD=safe.mkdir('build/m7/execution')
++safe.preflight(['tmp','run_all_offline_tests.py','tests/fixtures/m65-invalid-strtab.bin'])
++# Reuse audited host test/corpus helpers, not its main/old-report writer.
++original=(ROOT/'run_all_offline_tests.py').read_text(encoding='utf-8')
++if original.count('previous_result=OUT/')!=1 or "OUT=ROOT/'reports/m65'; BUILD=ROOT/'build/m65'" not in original:
++    raise RuntimeError('Reviewed historical helper boundary changed; refusing execution')
++if not safe.checked('tests/fixtures/m65-invalid-strtab.bin').is_file():
++    raise RuntimeError('Historical regression fixture missing; refusing implicit regeneration')
++source=original.split('previous_result=OUT/')[0]
++source=source.replace("OUT=ROOT/'reports/m65'; BUILD=ROOT/'build/m65'","OUT=ROOT/'reports/m7/execution'; BUILD=ROOT/'build/m7/execution'")
++source=source.replace('log_path=reports/m65/','log_path=reports/m7/execution/')
++b={'__file__':str(ROOT/'run_all_offline_tests.py'),'__name__':'m7helpers'};exec(compile(source,'m7-reviewed-host-helpers','exec'),b)
++CPP=b['CPP'];SRC=b['SRC'];CORE=SRC.parent/'core';run_base=b['run'];old_canonical=b['canonical']
++def archive(path):
++    path=safe.checked(path)
++    if path.exists():
++        folder=safe.mkdir(OUT/'attempts')
++        index=len(list(folder.glob(path.stem+'-*.'+path.suffix.lstrip('.'))))+1
++        safe.write(folder/(path.stem+'-'+str(index)+path.suffix),path.read_bytes())
++
++def run(args,name,data=None,timeout=30,expected_failure=False,environment=None):
++    log=safe.checked(OUT/(name+'.log'));archive(log)
++    safe.checked(BUILD);safe.checked(ROOT/'tmp')
++    if '-o' in args:safe.checked(args[args.index('-o')+1])
++    start=time.monotonic()
++    try:
++        p=b['subprocess'].run([str(x) for x in args],cwd=ROOT,env=environment or b['ENV'],input=data,
++                              capture_output=True,text=True,encoding='utf-8',timeout=timeout)
++    except b['subprocess'].TimeoutExpired as exc:
++        b['commands'].append({'name':name,'argv':[str(x) for x in args],'exit':None,'status':'TIMEOUT',
++                              'seconds':round(time.monotonic()-start,3)})
++        safe.write(log,'TIMEOUT: '+str(exc));raise
++    b['commands'].append({'name':name,'argv':[str(x) for x in args],'exit':p.returncode,
++                          'seconds':round(time.monotonic()-start,3),'expected_failure':expected_failure})
++    safe.write(log,p.stdout+p.stderr)
++    if p.returncode and not expected_failure:raise RuntimeError(name+' failed; see '+str(log))
++    if not p.returncode and expected_failure:raise RuntimeError(name+' failed to detect intentional fault')
++    return p.stdout
++b['run']=run
++extra=b['load']('m7cases',ROOT/'tests/test_m7.py');n=b['n'];f=b['f']
++def canonical(mode,data,params=()):
++    try:
++        if mode=='psp':
++            p=n.parse_psp_package(data)
++            return {'ok':True,'signature_verified':False,'parts':[[k,x['version'],x['offset'],x['size']] for k,x in sorted(p['parts'].items())]}
++        if mode=='abi2':
++            p=n.decode_device_info_v2(data);return {'ok':True,**{k:list(v) if isinstance(v,tuple) else v for k,v in p.items()}}
++        if mode=='elfbudget':
++            t={72:n.Target.GFX1200,78:n.Target.GFX1201}.get(params[0],n.Target.UNKNOWN)
++            n.validate_elf(data,t,node_budget=params[1]);return {'ok':True}
++        return old_canonical(mode,data,params)
++    except n.Invalid as e:return {'ok':False,'error':str(e)}
++b['canonical']=canonical
++
++def compare(exe,cases,name):
++    output=run([exe],name,''.join(b['request'](*c) for c in cases),timeout=30).splitlines()
++    if len(output)!=len(cases):raise RuntimeError('Probe output count mismatch')
++    differences=[]
++    for i,(case,row) in enumerate(zip(cases,output)):
++        expected=canonical(*case);actual=json.loads(row)
++        if expected!=actual:
++            differences.append({'index':i,'mode':case[0],'params':case[2],'hex':bytes(case[1]).hex(),
++                                'python':expected,'cpp':actual})
++    path=OUT/(name+'-differences.json');archive(path);safe.write(path,json.dumps(differences,indent=2))
++    if differences:raise RuntimeError(name+' differences: '+str(len(differences)))
++    return len(cases)
++b['compare']=compare
++def cases():
++    result=b['corpus']()
++    result += [('psp',extra.package(m),()) for m in (0,1)]
++    result += [('psp',extra.package()[:i],()) for i in range(len(extra.package()))]
++    for offset,value,fmt in ((52,1,'<I'),(60,2,'<I'),(10,9,'<H'),(28,1,'<I'),(64,0xffff,'<I')):
++        data=extra.package();extra.struct.pack_into(fmt,data,offset,value);result.append(('psp',data,()))
++    result += [('abi2',extra.abi2(device,present),()) for device in (0x7590,0x7550) for present in (0,1,2,4,7)]
++    result += [('abi2',extra.abi2()[:i],()) for i in range(96)]
++    for offset in (13,20,27,28,68,95):
++        data=extra.abi2();data[offset]=3;result.append(('abi2',data,()))
++    result += [('elfbudget',f.elf(),(72,budget)) for budget in (0,1,128)]
++    for binary,off in ((1,18),(2,14)):
++        data=f.discovery(binary=binary);data[off]=1;f.reseal(data);result.append(('discovery',data,()))
++    result += [('elf',extra.relocation(allocated),(72,)) for allocated in (False,True)]
++    for offset,value,fmt in ((1096,3<<32,'<Q'),(192+6*64+56,8,'<Q')):
++        data=extra.relocation();extra.struct.pack_into(fmt,data,offset,value);result.append(('elf',data,(72,)))
++    for offset,value,fmt in ((192+5*64+40,1,'<I'),(192+5*64+56,8,'<Q')):
++        data=f.kernel_elf();extra.struct.pack_into(fmt,data,offset,value);result.append(('elf',data,(72,)))
++    return result
++all_cases=cases()
++def fuzz_cases(count=2400):
++    rng=b['random'].Random(759070);seeds=[x for x in all_cases if len(x[1])>=32 and x[0] not in ('profile','elfbudget')]
++    result=[]
++    for i in range(count):
++        mode,data,params=rng.choice(seeds);data=bytearray(data)
++        for _ in range(rng.randrange(1,5)):data[rng.randrange(len(data))]^=rng.randrange(1,256)
++        if mode=='discovery' and len(data)>=128 and i%2==0:
++            if len(data)==b['struct'].unpack_from('<H',data,10)[0] and b['struct'].unpack_from('<H',data,4)[0] in (1,2):f.reseal(data)
++        result.append((mode,data,params))
++    return result
++def build(test,name,sanitize=False):
++    objects=[]
++    for p in (SRC/'ipdiscovery.cpp',SRC/'codeobj.cpp',CORE/'validation.cpp',CORE/'device_info.cpp'):
++        obj=BUILD/(name+'-'+p.stem+'.o');safe.checked(obj)
++        flags=[CPP,'-std=c++17','-Wall','-Wextra','-Werror','-fno-exceptions','-fno-rtti','-ffreestanding',
++               '-Wframe-larger-than=4096','-g','-O1','-I'+str(SRC)]
++        if sanitize:flags+=['-fsanitize='+('address,undefined' if sanitize is True else sanitize),'-fno-omit-frame-pointer']
++        run(flags+['-c',p,'-o',obj],'compile-'+name+'-'+p.stem,timeout=40);objects.append(obj)
++    # Audit pure Core undefined symbols; compatibility/stdio remain Host-only.
++    forbidden=('__cxa_throw','__gxx_personality','_Unwind','__dynamic_cast','_ZSt','_Znwm','_Znam')
++    for obj in objects:
++        text=run([b['BIN']/'llvm-nm.exe','--undefined-only',obj],'symbols-'+obj.stem)
++        if any(token in text for token in forbidden):raise RuntimeError('Host runtime dependency in Core object: '+str(obj))
++    exe=BUILD/(name+'.exe');flags=[CPP,'-std=c++17','-Wall','-Wextra','-Werror','-static','-g','-O1','-I'+str(SRC)]
++    if sanitize:flags+=['-fsanitize='+('address,undefined' if sanitize is True else sanitize),'-fno-omit-frame-pointer']
++    run(flags+[ROOT/test,SRC/'offlinevalidation.cpp',*objects,'-o',exe],'link-'+name,timeout=40)
++    return exe
++def main():
++    archive=ROOT/'tools/toolchains/llvm-mingw-20261006-ucrt-x86_64.zip'
++    expected=json.loads((ROOT/'reports/m65/toolchain-provenance.json').read_text())['expected_sha256']
++    with archive.open('rb') as stream:
++        if hashlib.file_digest(stream,'sha256').hexdigest()!=expected:raise RuntimeError('Archive integrity failure')
++    run([CPP,'--version'],'compiler-version')
++    python={}
++    for file in ('test_offline.py','test_m65.py','test_m7.py'):
++        run([sys.executable,'-I','-B','-X','utf8',ROOT/'tests'/file],'python-'+file)
++        python[file]=b['unittest_counts']((OUT/('python-'+file+'.log')).read_text())
++    old=build('tests/unit/m65_unit.cpp','regression-unit');new=build('tests/unit/m7_unit.cpp','m7-unit');probe=build('tests/unit/m65_probe.cpp','probe')
++    old_log=run([old],'regression-unit');new_log=run([new],'m7-unit')
++    diff=b['compare'](probe,all_cases,'differential');fuzz=fuzz_cases();fuzz_count=b['compare'](probe,fuzz,'fuzz')
++    sanitized=build('tests/unit/m7_unit.cpp','m7-sanitized',True);sp=build('tests/unit/m65_probe.cpp','probe-sanitized',True)
++    for file in ('libclang_rt.asan_dynamic-x86_64.dll','libc++.dll','libunwind.dll','libwinpthread-1.dll'):
++        safe.write(BUILD/file,(b['BIN']/file).read_bytes())
++    run([sanitized],'sanitized-m7-unit');b['compare'](sp,all_cases+fuzz,'sanitized-corpus')
++    canaries={}
++    for kind,diagnostic in (('address','heap-buffer-overflow'),('undefined','signed integer overflow')):
++        exe=build('tests/unit/sanitizer_canary.cpp','canary-'+kind,kind);mode='asan' if kind=='address' else 'ubsan'
++        env=b['ENV'].copy();env.pop('UBSAN_OPTIONS' if mode=='asan' else 'ASAN_OPTIONS',None)
++        env['ASAN_OPTIONS' if mode=='asan' else 'UBSAN_OPTIONS']='halt_on_error=1:log_path=reports/m7/execution/'+mode+'-canary'
++        before=set(OUT.glob(mode+'-canary.*'));run([exe,mode],'canary-'+mode,expected_failure=True,environment=env)
++        evidence=(OUT/('canary-'+mode+'.log')).read_text()+'\n'.join(p.read_text(errors='replace') for p in set(OUT.glob(mode+'-canary.*'))-before)
++        if diagnostic not in evidence:raise RuntimeError('Canary failed: '+mode)
++        canaries[mode]='PASS'
++    analysis=[]
++    for file in (CORE/'validation.cpp',CORE/'device_info.cpp',SRC/'ipdiscovery.cpp',SRC/'codeobj.cpp'):
++        run([CPP,'--analyze','-std=c++17','-fno-exceptions','-fno-rtti','-I'+str(SRC),file,'-o',BUILD/(file.stem+'.plist')],'analyze-'+file.stem,timeout=30)
++        text=(OUT/('analyze-'+file.stem+'.log')).read_text();analysis.append({'source':file.name,'warnings':text.count('warning:')})
++    result={'stage':'M7','status':'PASS','completed_at':b['datetime'].now(b['timezone'](b['timedelta'](hours=8))).isoformat(),
++            'python':python,'cpp_regression':old_log.count('PASS '),'cpp_m7':new_log.count('PASS '),
++            'differential':diff,'fuzz':{'seed':759070,'inputs':fuzz_count,'coverage_guided':False},
++            'core_compile':'PASS: no-exceptions/no-rtti/freestanding + object symbol audit',
++            'sanitizers':{'status':'PASS','inputs':len(all_cases)+len(fuzz),'canaries':canaries,'leak_detection':'NOT VERIFIED'},
++            'static_analysis':analysis,'kext':'NOT RUN','GPU':'NOT RUN','real_gfx1200_ELF':'SKIP'}
++    safe.write('reports/m7/test-results.json',json.dumps(result,indent=2));print(json.dumps(result,indent=2))
++for prior in ('test-results.json','commands.json'):
++    archive(ROOT/'reports/m7'/prior)
++try:main()
++except Exception as exc:
++    safe.write('reports/m7/test-results.json',json.dumps({'stage':'M7','status':'FAIL','error':str(exc)},indent=2));raise
++finally:safe.write('reports/m7/commands.json',json.dumps(b['commands'],ensure_ascii=False,indent=2))
+diff --git a/tests/test_m7.py b/tests/test_m7.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_m7.py
+@@ -0,0 +1,87 @@
++"""M7 Python behavior regressions; all fixtures synthetic, CPU-only."""
++import importlib.util,pathlib,sys,struct,unittest
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++def load(name,path):
++    s=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(s);sys.modules[name]=m;s.loader.exec_module(m);return m
++n=load('m7n',ROOT/'development/AMDRadeonRDNA4-Navi44/host/navi44.py')
++f=load('m7f',ROOT/'tests/fixtures/synthetic.py')
++def package(minor=0):
++    base=40 if minor else 36;header=base+32;data=bytearray(header+8)
++    struct.pack_into('<IIHHHHIIII',data,0,len(data),header,2,minor,14,0,0,8,header,0)
++    struct.pack_into('<I',data,32,2)
++    struct.pack_into('<IIII',data,base,1,1,0,4);struct.pack_into('<IIII',data,base+16,2,1,4,4)
++    data[header:]=b'TESTDATA';return data
++def abi2(device=0x7590,present=0):
++    data=bytearray(96);data[:4]=b'N44I';struct.pack_into('<HHHH',data,4,2,96,0x1002,device)
++    struct.pack_into('<H',data,14,0x48 if device==0x7590 else 0x4e);struct.pack_into('<I',data,16,present)
++    struct.pack_into('<I',data,64,1)
++    if present&1:data[24:27]=bytes((12,0,0 if device==0x7590 else 1))
++    if present&2:struct.pack_into('<IIIII',data,28,2,4,2,2,0x100) # synthetic only
++    if present&4:struct.pack_into('<QQ',data,48,1024,512) # synthetic byte capacities
++    return data
++
++def relocation(allocated=False):
++    """Non-executed synthetic ELF with an extra RELA table; never real shader code."""
++    data=f.kernel_elf()
++    # New section-header slot 6 overlaps the old NOTE placement at 608.
++    # Relocate that NOTE before adding the header; do not relax parser bounds.
++    length=struct.unpack_from('<Q',data,192+64+32)[0]
++    data.extend(data[608:608+length]);struct.pack_into('<Q',data,192+64+24,1200)
++    struct.pack_into('<H',data,60,7)
++    struct.pack_into('<IIQQQQIIQQ',data,192+6*64,0,4,int(allocated)*2,0,1088,24,5,2,8,24)
++    struct.pack_into('<QQq',data,1088,0,1<<32,0)
++    return data
++class M7(unittest.TestCase):
++    def test_package20(self):self.assertFalse(n.parse_psp_package(package())['signature_verified'])
++    def test_package21(self):self.assertEqual(len(n.parse_psp_package(package(1))['parts']),2)
++    def test_package_duplicate(self):
++        d=package();struct.pack_into('<I',d,52,1)
++        with self.assertRaisesRegex(n.Invalid,'duplicate'):n.parse_psp_package(d)
++    def test_package_overlap(self):
++        d=package();struct.pack_into('<I',d,60,2)
++        with self.assertRaisesRegex(n.Invalid,'overlap'):n.parse_psp_package(d)
++    def test_package_unknown_version(self):
++        d=package();struct.pack_into('<H',d,10,9)
++        with self.assertRaisesRegex(n.Invalid,'version'):n.parse_psp_package(d)
++    def test_package_aux_unverified(self):
++        d=package(1);struct.pack_into('<I',d,36,1)
++        with self.assertRaisesRegex(n.Invalid,'aux'):n.parse_psp_package(d)
++    def test_package_crc_unverified(self):
++        d=package();struct.pack_into('<I',d,28,1)
++        with self.assertRaisesRegex(n.Invalid,'crc'):n.parse_psp_package(d)
++    def test_abi2_unknown(self):self.assertEqual(n.decode_device_info_v2(abi2())['present'],0)
++    def test_abi2_present_not_verified(self):self.assertEqual(n.decode_device_info_v2(abi2(present=7))['capabilities'],0)
++    def test_abi2_navi48(self):self.assertEqual(n.decode_device_info_v2(abi2(0x7550,1))['target'],0x4e)
++    def test_abi2_reserved(self):
++        d=abi2();d[95]=1
++        with self.assertRaisesRegex(n.Invalid,'reserved'):n.decode_device_info_v2(d)
++    def test_abi2_false_capability(self):
++        d=abi2();d[20]=1
++        with self.assertRaisesRegex(n.Invalid,'header'):n.decode_device_info_v2(d)
++    def test_abi2_unknown_topology(self):
++        d=abi2();d[28]=1
++        with self.assertRaisesRegex(n.Invalid,'unknown_topology'):n.decode_device_info_v2(d)
++    def test_discovery_table_reserved(self):
++        d=f.discovery();d[18]=1;f.reseal(d)
++        with self.assertRaisesRegex(n.Invalid,'table_reserved'):n.parse_discovery(d)
++    def test_discovery_binary_reserved(self):
++        d=f.discovery(binary=2);d[14]=1;f.reseal(d)
++        with self.assertRaisesRegex(n.Invalid,'binary_reserved'):n.parse_discovery(d)
++    def test_metadata_caller_budget(self):
++        with self.assertRaisesRegex(n.Invalid,'budget'):n.decode_metadata(f.msgpack({'x':1}),node_budget=1)
++    def test_elf_nonalloc_relocation_structure(self):n.validate_elf(relocation(),n.Target.GFX1200)
++    def test_elf_alloc_relocation_rejected(self):
++        with self.assertRaisesRegex(n.Invalid,'relocations_unsupported'):n.validate_elf(relocation(True),n.Target.GFX1200)
++    def test_elf_relocation_symbol_index(self):
++        data=relocation();struct.pack_into('<Q',data,1096,3<<32)
++        with self.assertRaisesRegex(n.Invalid,'relocations_invalid'):n.validate_elf(data,n.Target.GFX1200)
++    def test_elf_relocation_entry_size(self):
++        data=relocation();struct.pack_into('<Q',data,192+6*64+56,8)
++        with self.assertRaisesRegex(n.Invalid,'relocations_invalid'):n.validate_elf(data,n.Target.GFX1200)
++    def test_elf_symbol_link(self):
++        data=f.kernel_elf();struct.pack_into('<I',data,192+5*64+40,1)
++        with self.assertRaisesRegex(n.Invalid,'symbols_invalid'):n.validate_elf(data,n.Target.GFX1200)
++    def test_elf_symbol_stride(self):
++        data=f.kernel_elf();struct.pack_into('<Q',data,192+5*64+56,8)
++        with self.assertRaisesRegex(n.Invalid,'symbols_invalid'):n.validate_elf(data,n.Target.GFX1200)
++if __name__=='__main__':unittest.main(verbosity=2)
+diff --git a/tests/unit/m65_probe.cpp b/tests/unit/m65_probe.cpp
+--- a/tests/unit/m65_probe.cpp
++++ b/tests/unit/m65_probe.cpp
+@@ -1,6 +1,8 @@
+ // CPU-only stdin protocol. BSD-3-Clause. Never loads a device or driver.
+ #include "ipdiscovery.hpp"
+ #include "offlinevalidation.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/core/validation.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/core/device_info.hpp"
+ #include <iostream>
+ #include <sstream>
+ #include <string>
+@@ -29,6 +31,7 @@
+             std::istringstream in(line); std::string mode, hex; in >> mode;
+             unsigned a = 0, b = 0; std::string component;
+             if (mode == "elf" || mode == "kernel" || mode == "manifest") in >> a;
++            if (mode == "elfbudget") in >> a >> b;
+             if (mode == "firmware") in >> a >> b >> component;
+             if (mode == "profile") {
+                 unsigned revision = 257; in >> a >> b >> revision;
+@@ -44,7 +47,26 @@
+             }
+             in >> hex; auto bytes = unhex(hex);
+             const char *error = nullptr;
+-            if (mode == "manifest") {
++            if(mode=="elfbudget") {
++                NaviCore::Node nodes[512];NaviCore::Scratch scratch{nodes,b>512?512:b,0};
++                auto result=NaviCore::elf({bytes.data(),bytes.size()},Asic::Target(a),scratch);
++                if(result.ok())success();else failure(result.detail);
++            } else if (mode == "psp") {
++                NaviCore::Package package{};
++                auto result=NaviCore::pspPackage({bytes.data(),bytes.size()},package);
++                if(!result.ok()){failure(result.detail);continue;}
++                std::cout<<"{\"ok\":true,\"signature_verified\":false,\"parts\":[";bool comma=false;
++                for(unsigned i=1;i<=12;++i)if(package.parts[i].payload.size){auto p=package.parts[i];if(comma)std::cout<<',';comma=true;
++                    std::cout<<'['<<i<<','<<p.version<<','<<p.payload.data-bytes.data()-uint32_t(bytes[24]|uint32_t(bytes[25])<<8|uint32_t(bytes[26])<<16|uint32_t(bytes[27])<<24)<<','<<p.payload.size<<']';}
++                std::cout<<"]}\n";
++            } else if(mode=="abi2") {
++                NaviCore::DeviceInfo info{};auto result=NaviCore::decodeDeviceInfo({bytes.data(),bytes.size()},info);
++                if(!result.ok()){failure(result.detail);continue;}
++                std::cout<<"{\"ok\":true,\"target\":"<<unsigned(info.profile.target)<<",\"present\":"<<info.present
++                         <<",\"gc\":["<<unsigned(info.gcMajor)<<','<<unsigned(info.gcMinor)<<','<<unsigned(info.gcRevision)
++                         <<"],\"topology\":["<<info.se<<','<<info.cu<<','<<info.rb<<','<<info.tcc<<','<<info.gbAddrConfig
++                         <<"],\"memory\":["<<info.vramBytes<<','<<info.visibleBarBytes<<"],\"capabilities\":0}\n";
++            } else if (mode == "manifest") {
+                 IpDiscovery parser;
+                 if (!parser.initBinary(bytes.data(),bytes.size())) { failure(parser.error()); continue; }
+                 const auto profile = Asic::identify(0x1002,uint16_t(a));
+diff --git a/tests/unit/m7_unit.cpp b/tests/unit/m7_unit.cpp
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/m7_unit.cpp
+@@ -0,0 +1,52 @@
++// New M7 CPU behavior tests; no GPU/OS/kernel calls. BSD-3-Clause.
++#include "../../development/AMDRadeonRDNA4-Navi44/core/validation.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/core/device_info.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/core/model.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/darwin_contract.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp"
++#include <iostream>
++#include <type_traits>
++int main(){
++    unsigned pass=0,fail=0;auto check=[&](const char*n,bool ok){std::cout<<(ok?"PASS ":"FAIL ")<<n<<'\n';ok?++pass:++fail;};
++    using namespace NaviCore;
++    uint8_t bytes[8]{};View view{bytes,sizeof(bytes)},out{nullptr,0};
++    check("view_full",view.slice(0,8,out).ok()&&out.data==bytes&&out.size==8);
++    check("view_empty_boundary",view.slice(8,0,out).ok()&&!out.data&&out.size==0);
++    check("view_overflow",!view.slice(UINT64_MAX,4,out).ok()&&out.size==0);
++    check("view_null_length",!View{nullptr,8}.inside(0,1));
++    check("error_fixed_width",sizeof(Error)==1&&std::is_standard_layout<View>::value);
++    check("core_never_authorizes_hardware",!hardwareAllowed());
++    Session state;check("core_failed_state_terminal",!state.advance(State::OfflineReady)&&state.state==State::Failed&&!state.advance(State::PciMatched));
++    IpDiscovery absent;FirmwareRequirement needs[16]{};needs[0].component="stale";size_t count=8;
++    check("core_manifest_failure_clears",!firmwareRequirements(Asic::identify(0x1002,0x7590),absent,needs,count).ok()&&!count&&!needs[0].component);
++    NaviHost::PlatformMock mock;
++    {NaviPlatform::Lease lease(mock.contract().memory);check("lease_allocate",lease.open(32,8));
++     check("lease_view",lease.view().size==32);check("lease_reopen_reject",!lease.open(32,8));
++     lease.close();check("lease_view_invalidated",!lease.view().data&&!lease.view().size);lease.close();}
++    check("lease_single_release",mock.allocations==1&&mock.releases==1&&!mock.busy);
++    check("no_snapshot_no_allocation",!NaviPlatform::validateSnapshot(mock.contract(),Asic::Target::Gfx1200).ok()&&mock.allocations==1);
++    mock.snapshot={bytes,sizeof(bytes)};
++    auto r=NaviPlatform::validateSnapshot(mock.contract(),Asic::Target::Gfx1200);
++    check("parser_failure_releases",!r.ok()&&mock.allocations==2&&mock.releases==2);
++    mock.deny=true;r=NaviPlatform::validateSnapshot(mock.contract(),Asic::Target::Gfx1200);
++    check("allocation_failure_explicit",r.code==Error::Budget&&mock.allocations==2);
++    check("mock_logs",mock.logs==3);
++    NaviDarwin::AdapterDraft draft{mock.contract(),false};check("darwin_draft_no_hardware",!draft.appleSdkValidated&&!draft.hardwareInitializationAllowed());
++    Node nodes[2]{};Scratch scratch{nodes,2,1};r=elf({bytes,8},Asic::Target::Gfx1200,scratch);
++    check("failure_scratch_reset",!r.ok()&&scratch.used==0);
++    uint8_t wire[96]{};DeviceInfo info{};info.profile=Asic::identify(0x1002,0x7590);
++    check("abi_v2_unknown_roundtrip",encodeDeviceInfo(info,wire,sizeof(wire)).ok());
++    DeviceInfo decoded{};check("abi_v2_decode",decodeDeviceInfo({wire,96},decoded).ok()&&decoded.profile.target==Asic::Target::Gfx1200&&decoded.present==0);
++    wire[20]=1;check("abi_v2_capabilities_rejected",!decodeDeviceInfo({wire,96},decoded).ok()&&decoded.present==0);wire[20]=0;
++    wire[80]=1;check("abi_v2_reserved_rejected",!decodeDeviceInfo({wire,96},decoded).ok());wire[80]=0;
++    info.present=1;info.gcMajor=12;check("abi_v2_gc",encodeDeviceInfo(info,wire,96).ok());
++    info.gcRevision=1;check("abi_v2_gc_mismatch",!encodeDeviceInfo(info,wire,96).ok());info.gcRevision=0;
++    info.present=0;check("abi_v2_unknown_gc_rejected",!encodeDeviceInfo(info,wire,96).ok());info.gcMajor=0;
++    info.profile.revisionVerified=true;check("abi_v2_fake_verified_rejected",!encodeDeviceInfo(info,wire,96).ok());info.profile.revisionVerified=false;
++    info.present=4;info.vramBytes=1024;info.visibleBarBytes=2048;check("abi_v2_bar_range",!encodeDeviceInfo(info,wire,96).ok());
++    info.visibleBarBytes=512;check("abi_v2_memory_present_not_capable",encodeDeviceInfo(info,wire,96).ok()&&decodeDeviceInfo({wire,96},decoded).ok()&&decoded.profile.capabilities==0&&!decoded.profile.topology.verified);
++    info.profile=Asic::identify(0x1002,0x7550);info.present=1;info.gcMajor=12;info.gcRevision=1;info.vramBytes=info.visibleBarBytes=0;
++    check("abi_v2_navi48",encodeDeviceInfo(info,wire,96).ok());
++    Package package{};r=pspPackage({bytes,8},package);check("package_failure_zeroed",!r.ok()&&package.count==0&&!package.signatureVerified);
++    std::cout<<"SUMMARY "<<pass<<' '<<fail<<'\n';return fail?1:0;
++}

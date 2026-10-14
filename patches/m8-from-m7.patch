@@ -1,0 +1,2949 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -4,6 +4,7 @@
+ set(DIR "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/src")
+ set(CORE "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/core")
+ set(CORE_SOURCES "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp" "${CORE}/validation.cpp" "${CORE}/device_info.cpp")
++set(M8_SOURCES "${DIR}/edid.cpp" "${DIR}/atombios.cpp" "${CORE}/display.cpp" "${CORE}/integrity.cpp" "${CORE}/query_candidate.cpp")
+ add_executable(navi44_host_tests tests/unit/m65_unit.cpp "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp" "${DIR}/offlinevalidation.cpp" "${CORE}/validation.cpp" "${CORE}/device_info.cpp")
+ target_include_directories(navi44_host_tests PRIVATE "${DIR}")
+ target_compile_features(navi44_host_tests PRIVATE cxx_std_17)
+@@ -21,13 +22,23 @@
+ target_include_directories(navi44_m7_tests PRIVATE "${DIR}")
+ target_compile_features(navi44_m7_tests PRIVATE cxx_std_17)
+ add_test(NAME m7_cpu_only COMMAND navi44_m7_tests)
++add_executable(navi44_m8_tests tests/unit/m8_unit.cpp ${CORE_SOURCES} ${M8_SOURCES})
++add_executable(navi44_m8_fuzz tests/unit/m8_fuzz.cpp ${CORE_SOURCES} ${M8_SOURCES})
++foreach(target navi44_m8_tests navi44_m8_fuzz)
++  target_include_directories(${target} PRIVATE "${DIR}")
++  target_compile_features(${target} PRIVATE cxx_std_17)
++endforeach()
++add_test(NAME m8_cpu_only COMMAND navi44_m8_tests)
++add_test(NAME m8_bounded_mutation COMMAND navi44_m8_fuzz)
++set_tests_properties(cpu_only m7_cpu_only m8_cpu_only m8_bounded_mutation
++  PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
+ # Only Core translation units use these flags; Host probe retains its STL/exception API.
+ if(MSVC)
+-  set_source_files_properties(${CORE_SOURCES} PROPERTIES COMPILE_OPTIONS "/GR-;/EHs-c-")
++  set_source_files_properties(${CORE_SOURCES} ${M8_SOURCES} PROPERTIES COMPILE_OPTIONS "/GR-;/EHs-c-")
+ else()
+-  set_source_files_properties(${CORE_SOURCES} PROPERTIES COMPILE_OPTIONS
++  set_source_files_properties(${CORE_SOURCES} ${M8_SOURCES} PROPERTIES COMPILE_OPTIONS
+     "-fno-exceptions;-fno-rtti;-ffreestanding;-Wframe-larger-than=4096")
+-  foreach(target navi44_probe navi44_m7_tests)
++  foreach(target navi44_probe navi44_m7_tests navi44_m8_tests navi44_m8_fuzz)
+     target_compile_options(${target} PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+   endforeach()
+ endif()
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1,43 +1,39 @@
+ # Hackintosh-Navi44-Lab
+ 
+-RX 9060 XT / Navi44 的 CPU-only 跨平台驱动研发实验室。
+-M7 已形成无 STL/异常的 Core、兼容 Host、Platform Mock 与 Darwin 静态接口；没有可部署驱动。
++RX 9060 XT / Navi44 的 CPU-only 驱动研发工作区；当前阶段 M8。
++已形成 EDID / AtomBIOS 静态解析与显示预算模型，没有可部署驱动或真实显示输出。
+ 
+ ## 当前交付
+ 
+-- [M7 完整开发与测试报告](reports/m7/development-report.md)
+-- [M7 测试数据](reports/m7/test-results.json)
+-- [M7 真实命令与退出码](reports/m7/commands.json)
+-- [M7 安全审查](reports/m7/safety-audit.md)
+-- [M7 未解决事项](reports/m7/remaining-blockers.md)
+-- [Core 架构](docs/kernel-core-architecture.md)
+-- [Darwin 接口](docs/darwin-adapter-design.md)
+-- [内核构建边界](docs/kernel-compatibility.md)
+-- [显示就绪度](docs/navi44-display-readiness.md)
+-- [Cobalt ABI](docs/cobalt-abi-readiness.md)
+-- [M6.5→M7 源码与文档补丁](patches/m7-from-m65.patch)
++- [M8完整报告](reports/m8/development-report.md)
++- [测试结果](reports/m8/test-results.json)
++- [真实命令/退出码](reports/m8/commands.json)
++- [安全审查](reports/m8/safety-audit.md)
++- [剩余阻碍](reports/m8/remaining-blockers.md)
++- [增量源码补丁](patches/m8-from-m7.patch)
++- [EDID设计](docs/edid-parser-design.md)
++- [AtomBIOS设计](docs/atombios-parser-design.md)
++- [Display模型](docs/navi44-display-capability.md)
++- [Darwin契约](docs/darwin-adapter-m8.md)
++- [Cobalt候选ABI](docs/cobalt-production-abi.md)
++- [真正macOS构建路线](docs/macos-build-readiness.md)
+ 
+-## 当前 CPU-only 入口
++## CPU-only测试入口
+ 
+-仅在本项目根目录运行：
++仅在本项目目录运行：
+ 
+ ~~~powershell
+-& 'D:\RuntimeEnvironment\mise\mise\data\installs\python\3.12.13\python.exe' -I -B -X utf8 run_m7_offline_tests.py
++& 'D:\RuntimeEnvironment\mise\mise\data\installs\python\3.12.13\python.exe' -I -B -X utf8 run_m8_offline_tests.py
+ ~~~
+ 
+-复用项目中的便携 LLVM-MinGW；不改变 PATH、不安装依赖、不需要管理员。
+-日志 reports/m7/execution，构建 build/m7/execution，临时目录 tmp；单进程 30/40秒超时，测试串行。
+-M7 path guard 检查授权目录、reparse/link/hardlink 与父目录逃逸；不能代替 OS 沙箱或防止并发 TOCTOU。
+-Sanitizer canary 故意触发本项目 CPU 进程错误，非零退出用于证明检测器生效。
++使用已有便携Clang，无系统安装/管理员/全局PATH修改。
++reports/m8/regression/execution存日志，build/m8存产物，tmp存临时文件。
++串行有限测试；子进程30/40秒超时。canary是仅项目子进程的预期CPU错误。
++CMake已更新显式CPU目标与超时，但本轮未configure/build，不应写到Lab外。
+ 
+-## 历史
+-
+-[M6.5 报告](reports/m65-development-report.md)、reports/m65 与 M6 产物保留。
+-M7 改动前快照在 reports/m7/history，M7 基线复现在 reports/m7/baseline。
+-旧 run_all_offline_tests.py 主程序会写 M6.5 报告，不是 M7 入口，不应再执行。
+-M7 只复用其已审核的 helper 定义且重定向输出；不执行其 main。
+-m7_prepare.py / m7_refactor.py / core_model_m7.py 是一次性转换记录，非日常测试入口。
+-旧 docs/next-stage-readiness.md 等保留为 M6.5 状态，当前事实以 M7 文档为准。
+-
+-Navi44 match / device init / Makefile 历史安全门禁保持原样，所有 GPU 能力保持关闭。
+-Darwin native / kext / GPU / Vulkan / Metal / EFI / 分区 / macOS 部署未执行。
++M8改动前关键快照reports/m8/history，独立M7基线reports/m8/baseline。
++M7/M6.5/M6历史报告与补丁保留，不再运行旧stage主入口或finalizer覆盖历史记录。
++M8只读旧helper定义并重定向输出；m8_prepare/harden/baseline_retry为一次性追溯脚本。
++平台path guard不是独立OS沙箱，实际沙箱授权更宽；每次写入仍限制在Lab。
++GPU match/init/Makefile禁用，Host不链接device/plugin/native IOKit。
++没有实际GPU、Vulkan/Metal、WindowServer、kext、EFI、SSD或macOS部署。
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/display.cpp b/development/AMDRadeonRDNA4-Navi44/core/display.cpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/display.cpp
+@@ -0,0 +1,143 @@
++#include "display.hpp"
++namespace NaviDisplay {
++using namespace NaviCore;
++namespace {
++uint64_t gcd(uint64_t a,uint64_t b){while(b){uint64_t t=a%b;a=b;b=t;}return a;}
++bool originValid(Origin o){return o==Origin::Unknown||o==Origin::Synthetic||o==Origin::StaticReference;}
++Result add(const Edid::DetailedTiming&t,uint32_t source,Monitor&m,Mode*out,size_t cap){
++    Mode candidate{};Result r=timing(t,candidate);if(!r.ok())return r;
++    candidate.sources=source;candidate.sinkDeclared=true;
++    for(size_t i=0;i<m.modeCount;++i){
++        if(Edid::sameTiming(t,out[i].timing)){out[i].sources|=source;++m.duplicates;return success();}
++        if(t.hActive==out[i].timing.hActive&&t.vActive==out[i].timing.vActive&&
++           candidate.refresh.numerator==out[i].refresh.numerator&&candidate.refresh.denominator==out[i].refresh.denominator){
++            out[i].sameRateAlternative=true;candidate.sameRateAlternative=true;
++        }
++    }
++    if(m.modeCount==cap)return failure("display_mode_budget",Error::Budget);
++    out[m.modeCount++]=candidate;return success();
++}
++Result parseEdid(View v,Origin origin,Monitor&m,Mode*out,size_t cap,ExtensionPolicy policy){
++    if(!originValid(origin))return failure("display_origin");
++    if(!v.data||v.size<128||v.size>Edid::MaxBlocks*128)return failure("edid_bounds",Error::Bounds);
++    if(v.data[18]!=1||(v.data[19]!=3&&v.data[19]!=4))return failure("edid_version",Error::Unsupported);
++    const size_t blocks=size_t(v.data[126])+1;
++    if(blocks>Edid::MaxBlocks||v.size!=blocks*128)return failure("edid_extension_length",Error::Bounds);
++    Edid::BaseInfo base{};if(!Edid::parseBaseBlock(v.data,128,base))return failure("edid_base");
++    const uint16_t manufacturer=uint16_t(v.data[8])<<8|v.data[9];
++    if(manufacturer&0x8000)return failure("edid_manufacturer");
++    for(unsigned i=0;i<3;++i){
++        const unsigned c=(manufacturer>>(10-5*i))&31;
++        if(!c||c>26)return failure("edid_manufacturer");m.manufacturer[i]=char('A'+c-1);
++    }
++    m.product=uint16_t(v.data[10])|uint16_t(v.data[11])<<8;m.revision=base.revision;m.digital=base.digital;m.origin=origin;
++    for(unsigned i=0;i<4;++i){
++        const uint8_t*d=v.data+54+18*i;
++        if(!(d[0]|d[1]))continue;
++        // This milestone does not model stereo, borders, analog/composite sync or interlace.
++        if(d[15]||d[16]||(d[17]&0x60)||(d[17]&0x18)!=0x18)return failure("edid_dtd_signal_unsupported",Error::Unsupported);
++        Edid::DetailedTiming t{};if(!Edid::parseDetailedTiming(d,t))return failure("edid_dtd");
++        Result r=add(t,BaseDtd,m,out,cap);if(!r.ok())return r;
++    }
++    // Avoid the legacy digital=>RB heuristic for EDID 1.3. No CVT/GTF synthesis.
++    if(base.revision==3)base.reducedBlanking=false;
++    for(size_t i=0;i<Edid::EstablishedCount;++i){
++        Edid::DetailedTiming t{};
++        if(Edid::establishedTiming(base,i,t)){Result r=add(t,Established,m,out,cap);if(!r.ok())return r;}
++        else if(base.established[i/8]&(0x80>>(i%8)))++m.unresolvedTimings;
++    }
++    for(size_t i=0;i<Edid::StandardCount;++i){
++        Edid::DetailedTiming t{};
++        if(Edid::standardTiming(base,i,t)){Result r=add(t,Standard,m,out,cap);if(!r.ok())return r;}
++        else if(base.standard[i][0]>1)++m.unresolvedTimings;
++    }
++    for(size_t b=1;b<blocks;++b){
++        const uint8_t*ext=v.data+b*128;
++        if(!Edid::blockChecksumOk(ext))return failure("edid_extension_checksum");
++        if(ext[0]!=2){
++            if(policy!=ExtensionPolicy::KnownBlocksOnly)return failure("edid_extension_unsupported",Error::Unsupported);
++            m.partial=true;continue;
++        }
++        Edid::CtaCaps cta{};if(!Edid::parseCtaBlock(ext,cta))return failure("edid_cta_structure");
++        m.scdcAdvertised=m.scdcAdvertised||cta.scdcPresent;
++        uint32_t max=cta.hfMaxTmdsKHz?cta.hfMaxTmdsKHz:cta.maxTmdsKHz;
++        if(max>m.sinkMaxTmdsKHz)m.sinkMaxTmdsKHz=max;
++        for(size_t i=0;i<cta.vicCount;++i){
++            Edid::DetailedTiming t{};
++            if(Edid::vicTiming(cta.vics[i],t)){Result r=add(t,CtaVic,m,out,cap);if(!r.ok())return r;}
++            else ++m.unresolvedTimings;
++        }
++        for(size_t i=0;i<cta.dtdCount;++i){
++            const uint8_t*d=ext+ext[2]+i*18;
++            if(d[15]||d[16]||(d[17]&0x60)||(d[17]&0x18)!=0x18)return failure("edid_dtd_signal_unsupported",Error::Unsupported);
++            Result r=add(cta.dtds[i],CtaDtd,m,out,cap);if(!r.ok())return r;
++        }
++        // Unknown vendor/extended blocks are not interpreted as link or color capabilities.
++    }
++    if(!m.modeCount)return failure("edid_modes_missing",Error::Missing);
++    if(m.unresolvedTimings)m.partial=true;
++    return success();
++}
++}
++Result timing(const Edid::DetailedTiming&input,Mode&out){
++    const Edid::DetailedTiming t=input; // Safe when input aliases out.timing.
++    out={};
++    if(t.interlaced)return failure("mode_interlace_unsupported",Error::Unsupported);
++    if(!t.hActive||!t.vActive||!t.hBlank||!t.vBlank||!t.hSyncWidth||!t.vSyncWidth||
++       uint32_t(t.hSyncOffset)+t.hSyncWidth>t.hBlank||uint32_t(t.vSyncOffset)+t.vSyncWidth>t.vBlank)
++        return failure("mode_geometry");
++    if(t.pixelClockKHz<1000||t.pixelClockKHz>2500000)return failure("mode_clock");
++    const uint64_t numerator=uint64_t(t.pixelClockKHz)*1000,denominator=uint64_t(t.hTotal())*t.vTotal();
++    if(numerator<denominator||numerator>denominator*1000)return failure("mode_rate");
++    const uint64_t common=gcd(numerator,denominator);
++    out.timing=t;out.refresh={numerator/common,denominator/common};return success();
++}
++Result edid(View v,Origin o,Monitor&out,Mode*storage,size_t capacity,ExtensionPolicy policy){
++    out={};if(!storage||!capacity||capacity>MaxModes)return failure("display_storage",Error::Budget);
++    for(size_t i=0;i<capacity;++i)storage[i]={};
++    Monitor result{};Result r=parseEdid(v,o,result,storage,capacity,policy);
++    if(!r.ok()){for(size_t i=0;i<capacity;++i)storage[i]={};return r;}
++    out=result;return success();
++}
++Result connectors(View v,Origin origin,ConnectorList&out){
++    out={};if(!originValid(origin))return failure("display_origin");
++    AtomBios rom;if(!rom.init(v.data,v.size))return failure(rom.error());
++    AtomBios::DisplayPath paths[AtomBios::MaxDisplayPaths]{};
++    const size_t count=rom.getDisplayPaths(paths,AtomBios::MaxDisplayPaths);
++    if(!count)return failure(rom.error()?rom.error():"connectors_missing",Error::Missing);
++    ConnectorList result{};result.origin=origin;result.count=count;
++    for(size_t i=0;i<count;++i){
++        result.entries[i].path=paths[i];result.entries[i].type=AtomBios::connectorType(paths[i].connectorObjId);
++        if(paths[i].recordOffset&&!rom.getPathRecords(paths[i],result.entries[i].records))return failure(rom.error());
++        // Parsed ids describe board data, not verified PHY routing or live connectors.
++    }
++    out=result;return success();
++}
++Result assess(const Mode&m,const LinkBudget&link,const EngineBudget&engine,uint8_t bpp,Decision&out){
++    out={};Mode canonical{};Result r=timing(m.timing,canonical);if(!r.ok())return r;
++    if(m.refresh.numerator!=canonical.refresh.numerator||m.refresh.denominator!=canonical.refresh.denominator||m.hardwareVerified)
++        return failure("mode_unverified_or_tampered");
++    if(!originValid(link.origin)||!originValid(engine.origin)||(bpp!=24&&bpp!=30&&bpp!=36))return failure("link_format",Error::Unsupported);
++    Decision d{};d.requiredBitsPerSecond=uint64_t(m.timing.pixelClockKHz)*1000*bpp;
++    d.frameBytes=uint64_t(m.timing.hActive)*m.timing.vActive*4;
++    if(d.frameBytes>UINT64_MAX/canonical.refresh.numerator)return failure("frame_rate_overflow",Error::Bounds);
++    const uint64_t product=d.frameBytes*canonical.refresh.numerator;
++    d.fullFrameBytesPerSecond=product/canonical.refresh.denominator+(product%canonical.refresh.denominator!=0);
++    if(link.kind==LinkKind::Dp8b10b&&link.origin!=Origin::Unknown){
++        if((link.lanes!=1&&link.lanes!=2&&link.lanes!=4)||
++           (link.rateMbps!=1620&&link.rateMbps!=2700&&link.rateMbps!=5400&&link.rateMbps!=8100)||link.tmdsClockKHz)
++            return failure("dp_budget");
++        d.linkPayloadBitsPerSecond=uint64_t(link.rateMbps)*1000000*link.lanes*8/10;
++        d.link=d.requiredBitsPerSecond<=d.linkPayloadBitsPerSecond?Fit::WithinBudget:Fit::Insufficient;
++    }else if(link.kind==LinkKind::Tmds&&link.origin!=Origin::Unknown){
++        if(link.lanes||link.rateMbps||!link.tmdsClockKHz||link.tmdsClockKHz>600000)return failure("tmds_budget");
++        d.linkPayloadBitsPerSecond=uint64_t(link.tmdsClockKHz)*1000*24;
++        d.link=d.requiredBitsPerSecond<=d.linkPayloadBitsPerSecond?Fit::WithinBudget:Fit::Insufficient;
++    }else if(link.kind!=LinkKind::Unknown&&link.kind!=LinkKind::Dp8b10b&&link.kind!=LinkKind::Tmds)return failure("link_kind",Error::Unsupported);
++    if(engine.origin!=Origin::Unknown&&engine.maxPixelClockKHz){
++        if(engine.maxPixelClockKHz>2500000)return failure("engine_clock");
++        d.engine=m.timing.pixelClockKHz<=engine.maxPixelClockKHz?Fit::WithinBudget:Fit::Insufficient;
++    }
++    out=d;return success();
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/display.hpp b/development/AMDRadeonRDNA4-Navi44/core/display.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/display.hpp
+@@ -0,0 +1,52 @@
++// CPU-only display data. BSD-3-Clause; no renderer, transport or hardware access.
++#ifndef Navi44DisplayCore_hpp
++#define Navi44DisplayCore_hpp
++#include "validation.hpp"
++#include "../src/edid.hpp"
++#include "../src/atombios.hpp"
++namespace NaviDisplay {
++using NaviCore::View;using NaviCore::Result;
++enum class Origin:uint8_t { Unknown,Synthetic,StaticReference };
++enum class ExtensionPolicy:uint8_t { RejectUnknown,KnownBlocksOnly };
++enum Source:uint32_t { BaseDtd=1,CtaDtd=2,Established=4,Standard=8,CtaVic=16 };
++struct Fraction {uint64_t numerator,denominator;};
++struct Mode {
++    Edid::DetailedTiming timing{};Fraction refresh{};uint32_t sources{0};
++    bool sinkDeclared{false},hardwareVerified{false},sameRateAlternative{false};
++};
++struct Monitor {
++    char manufacturer[4]{};uint16_t product{0};uint8_t revision{0};
++    bool digital{false},partial{false},scdcAdvertised{false};Origin origin{Origin::Unknown};
++    uint32_t sinkMaxTmdsKHz{0};size_t modeCount{0},duplicates{0},unresolvedTimings{0};
++};
++constexpr size_t MaxModes=64;
++Result timing(const Edid::DetailedTiming&,Mode&);
++// Caller owns storage (capacity 1..64); exact declared EDID length, maximum 4 blocks.
++Result edid(View,Origin,Monitor&,Mode*storage,size_t capacity,
++            ExtensionPolicy=ExtensionPolicy::RejectUnknown);
++struct Connector {
++    AtomBios::DisplayPath path{};AtomBios::PathRecords records{};
++    AtomBios::ConnectorType type{AtomBios::ConnectorUnknown};
++    bool hardwareVerified{false},routingKnown{false};
++};
++struct ConnectorList {
++    Connector entries[AtomBios::MaxDisplayPaths]{};size_t count{0};
++    Origin origin{Origin::Unknown};bool boardVerified{false};
++};
++Result connectors(View,Origin,ConnectorList&);
++enum class LinkKind:uint8_t { Unknown,Dp8b10b,Tmds };
++struct LinkBudget {
++    Origin origin{Origin::Unknown};LinkKind kind{LinkKind::Unknown};
++    uint8_t lanes{0};uint32_t rateMbps{0},tmdsClockKHz{0};
++};
++struct EngineBudget {Origin origin{Origin::Unknown};uint32_t maxPixelClockKHz{0};};
++enum class Fit:uint8_t { Unknown,WithinBudget,Insufficient };
++struct Decision {
++    uint64_t requiredBitsPerSecond{0},linkPayloadBitsPerSecond{0},frameBytes{0},fullFrameBytesPerSecond{0};
++    Fit link{Fit::Unknown},engine{Fit::Unknown};
++    bool hardwareVerified{false},outputAllowed{false};
++};
++// Arithmetic preflight only; even WithinBudget cannot authorize output.
++Result assess(const Mode&,const LinkBudget&,const EngineBudget&,uint8_t bitsPerPixel,Decision&);
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/integrity.cpp b/development/AMDRadeonRDNA4-Navi44/core/integrity.cpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/integrity.cpp
+@@ -0,0 +1,12 @@
++#include "integrity.hpp"
++namespace NaviCore {
++Result payloadChecksum(View v,uint32_t expected,CrcConvention convention,Integrity&out){
++    out={};if(convention!=CrcConvention::IsoHdlc)return failure("crc_convention_unverified",Error::Unsupported);
++    if(!v.inside(0,v.size)||v.size>(16u<<20))return failure("crc_payload_budget",Error::Budget);
++    uint32_t crc=0xffffffff;
++    for(size_t i=0;i<v.size;++i){crc^=v.data[i];for(unsigned b=0;b<8;++b)crc=(crc>>1)^((crc&1)?0xedb88320u:0u);}
++    const uint32_t computed=crc^0xffffffff;
++    if(computed!=expected)return failure("crc_mismatch",Error::Mismatch);
++    out={computed,true,false,false};return success();
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/integrity.hpp b/development/AMDRadeonRDNA4-Navi44/core/integrity.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/integrity.hpp
+@@ -0,0 +1,10 @@
++// Explicit offline checksum convention; not authentication or AMD firmware loading.
++#ifndef Navi44Integrity_hpp
++#define Navi44Integrity_hpp
++#include "validation.hpp"
++namespace NaviCore {
++enum class CrcConvention:uint8_t { Unknown,IsoHdlc };
++struct Integrity {uint32_t computed;bool checksumMatched;bool signatureVerified;bool loadable;};
++Result payloadChecksum(View,uint32_t expected,CrcConvention,Integrity&);
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp b/development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp
+@@ -0,0 +1,43 @@
++#include "query_candidate.hpp"
++namespace NaviCore {
++namespace {
++uint16_t u16(const uint8_t*p){return uint16_t(p[0])|uint16_t(p[1])<<8;}
++uint32_t u32(const uint8_t*p){return uint32_t(u16(p))|uint32_t(u16(p+2))<<16;}
++uint64_t u64(const uint8_t*p){return uint64_t(u32(p))|uint64_t(u32(p+4))<<32;}
++}
++Result decodeQuery(View v,QueryCandidate&out){
++    out={};if(!v.data||v.size!=QueryCandidateSize)return failure("query_size",Error::Bounds);
++    const uint8_t*d=v.data;
++    if(d[0]!='N'||d[1]!='4'||d[2]!='4'||d[3]!='Q'||u16(d+4)!=1||u16(d+6)!=0||u16(d+8)!=128)
++        return failure("query_version",Error::Unsupported);
++    if(u16(d+10)||d[12]>2||d[13]||d[14]||d[15]||u32(d+20)||!u64(d+24))return failure("query_unverified_header");
++    QueryCandidate result{};Result r=decodeDeviceInfo({d+32,96},result.device);if(!r.ok())return r;
++    if(u32(d+16)!=result.device.present||(d[12]==0&&result.device.present))return failure("query_presence");
++    result.provenance=Provenance(d[12]);result.generation=u64(d+24);out=result;return success();
++}
++Result encodeQuery(const QueryCandidate&q,uint8_t*out,size_t length){
++    if(!out||length!=QueryCandidateSize)return failure("query_size",Error::Bounds);
++    uint8_t raw[QueryCandidateSize]{};raw[0]='N';raw[1]='4';raw[2]='4';raw[3]='Q';raw[4]=1;raw[8]=128;
++    raw[12]=uint8_t(q.provenance);
++    for(unsigned i=0;i<4;++i)raw[16+i]=uint8_t(q.device.present>>(8*i));
++    for(unsigned i=0;i<8;++i)raw[24+i]=uint8_t(q.generation>>(8*i));
++    Result r=encodeDeviceInfo(q.device,raw+32,96);if(!r.ok())return r;
++    QueryCandidate verified{};r=decodeQuery({raw,sizeof(raw)},verified);if(!r.ok())return r;
++    for(size_t i=0;i<length;++i)out[i]=raw[i];return success();
++}
++Result OfflineOwner::prepare(const QueryCandidate&q){
++    if(failed||active||leased||q.generation<=lastGeneration)return failure("owner_state",Error::Protocol);
++    uint8_t raw[QueryCandidateSize]{};Result r=encodeQuery(q,raw,sizeof(raw));
++    if(!r.ok()){failed=true;current={};return r;}
++    r=decodeQuery({raw,sizeof(raw)},current);if(!r.ok()){failed=true;return r;}
++    lastGeneration=current.generation;active=true;return success();
++}
++Result OfflineOwner::borrow(QueryCandidate&out){
++    out={};if(failed||!active||leased)return failure("owner_unavailable",Error::Protocol);
++    out=current;leased=true;return success();
++}
++Result OfflineOwner::giveBack(uint64_t generation){
++    if(!active||!leased||generation!=current.generation){failed=true;close();return failure("owner_stale_lease",Error::Protocol);}
++    leased=false;return success();
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/query_candidate.hpp b/development/AMDRadeonRDNA4-Navi44/core/query_candidate.hpp
+new file mode 100644
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/query_candidate.hpp
+@@ -0,0 +1,21 @@
++// N44Q 1.0 candidate envelope over N44I v2. NOT production N48N or hardware authority.
++#ifndef Navi44QueryCandidate_hpp
++#define Navi44QueryCandidate_hpp
++#include "device_info.hpp"
++namespace NaviCore {
++enum class Provenance:uint8_t { Unknown,Synthetic,StaticReference };
++struct QueryCandidate {DeviceInfo device{};Provenance provenance{Provenance::Unknown};uint64_t generation{0};};
++constexpr size_t QueryCandidateSize=128;
++Result decodeQuery(View,QueryCandidate&);
++Result encodeQuery(const QueryCandidate&,uint8_t*,size_t);
++class OfflineOwner {
++    QueryCandidate current{};uint64_t lastGeneration{0};bool active{false},leased{false},failed{false};
++public:
++    Result prepare(const QueryCandidate&);
++    Result borrow(QueryCandidate&);
++    Result giveBack(uint64_t generation);
++    void close(){active=false;leased=false;current={};}
++    bool canInitializeHardware()const{return false;}
++};
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/validation.cpp b/development/AMDRadeonRDNA4-Navi44/core/validation.cpp
+--- a/development/AMDRadeonRDNA4-Navi44/core/validation.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/core/validation.cpp
+@@ -107,6 +107,7 @@
+ };
+ Result elfImpl(View v,Asic::Target target,Scratch&scratch,View selected){
+     if(target!=Asic::Target::Gfx1200&&target!=Asic::Target::Gfx1201)return failure("unknown_target",Error::Unsupported);
++    if(v.size>(16u<<20))return failure("elf_input_budget",Error::Budget);
+     if(!v.inside(0,64)||!v.data)return failure("out_of_bounds",Error::Bounds);
+     const uint8_t*d=v.data;const uint8_t ident[]={0x7f,'E','L','F',2,1,1};
+     for(unsigned i=0;i<7;++i)if(d[i]!=ident[i])return failure("elf_ident");
+@@ -115,6 +116,7 @@
+     const uint16_t ps=u16(d+54),pc=u16(d+56),ss=u16(d+58),sc=u16(d+60);
+     const uint64_t po=u64(d+32),so=u64(d+40);
+     if(u16(d+52)!=64||ps!=56||ss!=64||!pc||!sc)return failure("elf_tables_missing");
++    if(uint32_t(pc)+sc>4096)return failure("elf_table_budget",Error::Budget);
+     if(!v.inside(po,uint64_t(ps)*pc)||!v.inside(so,uint64_t(ss)*sc))return failure("out_of_bounds",Error::Bounds);
+     for(unsigned i=0;i<sc;++i){const uint8_t*s=d+so+uint64_t(i)*ss;if(u32(s+4)!=8&&!v.inside(u64(s+24),u64(s+32)))return failure("out_of_bounds",Error::Bounds);}
+     for(unsigned i=0;i<sc;++i){const uint8_t*s=d+so+uint64_t(i)*ss;const uint32_t kind=u32(s+4),link=u32(s+40);const uint64_t n=u64(s+32),entry=u64(s+56);
+diff --git a/development/AMDRadeonRDNA4-Navi44/host/navi44.py b/development/AMDRadeonRDNA4-Navi44/host/navi44.py
+--- a/development/AMDRadeonRDNA4-Navi44/host/navi44.py
++++ b/development/AMDRadeonRDNA4-Navi44/host/navi44.py
+@@ -321,6 +321,7 @@
+     """Strict offline ELF envelope; not AMD metadata/shader execution proof."""
+     if target not in (Target.GFX1200, Target.GFX1201):
+         raise Invalid("unknown_target")
++    if len(data)>16<<20:raise Invalid("elf_input_budget")
+     bounded(len(data), 0, 64)
+     if data[:7] != b"\x7fELF\x02\x01\x01":
+         raise Invalid("elf_ident")
+@@ -334,6 +335,7 @@
+     phoff, shoff = read(data, 32, "<QQ")
+     if eh != 64 or phsize != 56 or shsize != 64 or not phnum or not shnum:
+         raise Invalid("elf_tables_missing")
++    if phnum+shnum>4096:raise Invalid("elf_table_budget")
+     bounded(len(data), phoff, phsize * phnum)
+     bounded(len(data), shoff, shsize * shnum)
+     # Validate the complete file envelope before any semantic metadata lookup.
+diff --git a/development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp b/development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp
+--- a/development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp
+@@ -4,9 +4,10 @@
+ #include "../platform/contract.hpp"
+ namespace NaviHost {
+ struct PlatformMock {
+-    alignas(NaviCore::Node) uint8_t arena[512*sizeof(NaviCore::Node)]{};
++    NaviCore::Node arena[512]{};
+     NaviCore::View snapshot{nullptr,0};
+-    unsigned allocations{0},releases{0},logs{0};bool busy{false},deny{false};
++    unsigned allocations{0},releases{0},logs{0},borrows{0},returns{0},enters{0},leaves{0};
++    bool busy{false},deny{false},inCall{false},wrongContext{false};
+     static void*allocate(void*ctx,size_t n,size_t alignment){
+         auto&m=*static_cast<PlatformMock*>(ctx);
+         if(m.deny||m.busy||n>sizeof(m.arena)||alignment>alignof(NaviCore::Node))return nullptr;
+@@ -16,9 +17,24 @@
+     static void log(void*ctx,NaviCore::Result){++static_cast<PlatformMock*>(ctx)->logs;}
+     static NaviCore::Result borrow(void*ctx,NaviPlatform::SnapshotKind,NaviCore::View&out){
+         auto&m=*static_cast<PlatformMock*>(ctx);out=m.snapshot;
+-        if(!out.data)return NaviCore::failure("snapshot_unavailable",NaviCore::Error::Missing);return NaviCore::success();
++        if(!out.data)return NaviCore::failure("snapshot_unavailable",NaviCore::Error::Missing);
++        ++m.borrows;return NaviCore::success();
+     }
+-    NaviPlatform::Contract contract(){return {{this,allocate,release},{this,log},{this,borrow}};}
++    static void giveBack(void*ctx,NaviCore::View){++static_cast<PlatformMock*>(ctx)->returns;}
++    static NaviCore::Node*nodes(void*ctx,size_t count){
++        if(!count||count>512)return nullptr;
++        return static_cast<NaviCore::Node*>(allocate(ctx,count*sizeof(NaviCore::Node),alignof(NaviCore::Node)));
++    }
++    static void returnNodes(void*ctx,NaviCore::Node*p,size_t count){release(ctx,p,count*sizeof(NaviCore::Node));}
++    static bool enter(void*ctx){
++        auto&m=*static_cast<PlatformMock*>(ctx);if(m.inCall||m.wrongContext)return false;
++        m.inCall=true;++m.enters;return true;
++    }
++    static void leave(void*ctx){auto&m=*static_cast<PlatformMock*>(ctx);m.inCall=false;++m.leaves;}
++    NaviPlatform::Contract contract(){
++        return {{this,allocate,release},{this,log},{this,borrow,giveBack},
++                {this,nodes,returnNodes},{this,enter,leave}};
++    }
+ };
+ }
+ #endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp b/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp
+--- a/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp
+@@ -10,8 +10,33 @@
+ };
+ struct LogOps { void*context;void(*record)(void*,NaviCore::Result); };
+ enum class SnapshotKind:uint8_t { DiscoveryFile, ElfFile, FirmwareFile };
+-struct SnapshotOps { void*context;NaviCore::Result(*borrow)(void*,SnapshotKind,NaviCore::View&); };
+-struct Contract { MemoryOps memory;LogOps log;SnapshotOps snapshots; };
++struct SnapshotOps {
++    void*context;NaviCore::Result(*borrow)(void*,SnapshotKind,NaviCore::View&);
++    void(*release)(void*,NaviCore::View){nullptr};
++};
++// The allocator must supply live Node objects, not raw bytes cast to Node*.
++struct ScratchOps {
++    void*context{nullptr};NaviCore::Node*(*acquire)(void*,size_t){nullptr};
++    void(*release)(void*,NaviCore::Node*,size_t){nullptr};
++};
++// Adapter establishes thread context and serialization. No lock primitives here.
++struct ExecutionOps {
++    void*context{nullptr};bool(*enter)(void*){nullptr};void(*leave)(void*){nullptr};
++};
++struct Contract { MemoryOps memory;LogOps log;SnapshotOps snapshots;ScratchOps scratch{};ExecutionOps execution{}; };
++class NodePool {
++    NaviCore::Node nodes[512]{};bool busy{false};
++    static NaviCore::Node*acquire(void*ctx,size_t count){
++        auto&p=*static_cast<NodePool*>(ctx);if(p.busy||!count||count>512)return nullptr;
++        p.busy=true;return p.nodes;
++    }
++    static void release(void*ctx,NaviCore::Node*,size_t){static_cast<NodePool*>(ctx)->busy=false;}
++public:
++    NodePool()=default;NodePool(const NodePool&)=delete;NodePool&operator=(const NodePool&)=delete;
++    ScratchOps contract(){return {this,acquire,release};}
++};
++// NodePool is not internally synchronized. Owner constructs it outside the
++// kernel stack and supplies ExecutionOps for thread-context serialized access.
+ class Lease {
+     MemoryOps ops;void*pointer{nullptr};size_t bytes{0};
+ public:
+@@ -29,13 +54,24 @@
+     NaviCore::View view()const{return {static_cast<const uint8_t*>(pointer),bytes};}
+ };
+ inline NaviCore::Result validateSnapshot(Contract c,Asic::Target target){
+-    using namespace NaviCore;View input{nullptr,0};
+-    if(!c.snapshots.borrow)return failure("snapshot_unavailable",Error::Missing);
+-    Result r=c.snapshots.borrow(c.snapshots.context,SnapshotKind::ElfFile,input);
++    using namespace NaviCore;Result r=failure("platform_context_unverified",Error::Protocol);
++    if(!c.execution.enter||!c.execution.leave||!c.execution.enter(c.execution.context)){
++        // No callback (including log) is safe until execution context is held.
++        return r;
++    }
++    struct Call {ExecutionOps ops;~Call(){ops.leave(ops.context);}} call{c.execution};
++    View input{nullptr,0};
++    if(!c.snapshots.borrow||!c.snapshots.release)r=failure("snapshot_unavailable",Error::Missing);
++    else r=c.snapshots.borrow(c.snapshots.context,SnapshotKind::ElfFile,input);
+     if(r.ok()){
+-        Lease scratch(c.memory);
+-        if(!scratch.open(512*sizeof(Node),alignof(Node)))r=failure("platform_allocation_failed",Error::Budget);
+-        else {Scratch arena{static_cast<Node*>(scratch.data()),512,0};r=elf(input,target,arena);}
++        struct Input {SnapshotOps ops;View v;~Input(){ops.release(ops.context,v);}} lease{c.snapshots,input};
++        Node*nodes=nullptr;
++        if(c.scratch.acquire&&c.scratch.release)nodes=c.scratch.acquire(c.scratch.context,512);
++        if(!nodes)r=failure("platform_allocation_failed",Error::Budget);
++        else {
++            struct Arena {ScratchOps ops;Node*p;~Arena(){ops.release(ops.context,p,512);}} owned{c.scratch,nodes};
++            Scratch arena{nodes,512,0};r=elf(input,target,arena);
++        }
+     }
+     if(c.log.record)c.log.record(c.log.context,r);return r;
+ }
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp
+--- a/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp
+@@ -19,6 +19,7 @@
+ }
+ NaviPlatform::MemoryOps nativeMemoryOps(){return {nullptr,allocate,release};}
+ NaviPlatform::LogOps nativeLogOps(){return {nullptr,record};}
++NaviPlatform::ScratchOps nativeScratchOps(NaviPlatform::NodePool&pool){return pool.contract();}
+ IOReturn nativeError(NaviCore::Result r){
+     using NaviCore::Error;
+     switch(r.code){
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp
+--- a/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp
+@@ -9,6 +9,8 @@
+ namespace NaviDarwin {
+ NaviPlatform::MemoryOps nativeMemoryOps();
+ NaviPlatform::LogOps nativeLogOps();
++// Caller-owned constructed pool; owner must provide serialized thread context.
++NaviPlatform::ScratchOps nativeScratchOps(NaviPlatform::NodePool&);
+ IOReturn nativeError(NaviCore::Result);
+ }
+ #endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/src/atombios.cpp b/development/AMDRadeonRDNA4-Navi44/src/atombios.cpp
+--- a/development/AMDRadeonRDNA4-Navi44/src/atombios.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/atombios.cpp
+@@ -21,19 +21,19 @@
+ static constexpr size_t kMasterDataTableOffset  = 0x20; // u16 image-relative ptr
+ 
+ bool AtomBios::readU8(size_t off, uint8_t &v) const {
+-	if (off >= size) return false;
++	if (!contains(off,1)) return false;
+ 	v = data[off];
+ 	return true;
+ }
+ 
+ bool AtomBios::readU16(size_t off, uint16_t &v) const {
+-	if (off + 2 > size) return false;
++	if (!contains(off,2)) return false;
+ 	v = static_cast<uint16_t>(data[off] | (data[off + 1] << 8));
+ 	return true;
+ }
+ 
+ bool AtomBios::readU32(size_t off, uint32_t &v) const {
+-	if (off + 4 > size) return false;
++	if (!contains(off,4)) return false;
+ 	v = static_cast<uint32_t>(data[off]) |
+ 	    (static_cast<uint32_t>(data[off + 1]) << 8) |
+ 	    (static_cast<uint32_t>(data[off + 2]) << 16) |
+@@ -42,10 +42,11 @@
+ }
+ 
+ bool AtomBios::readTableHeader(size_t absOffset, TableHeader &out) const {
+-	uint16_t tsize; uint8_t frev, crev;
++	out = {}; if (!contains(absOffset,4)) return false;
++    uint16_t tsize; uint8_t frev, crev;
+ 	if (!readU16(absOffset, tsize) || !readU8(absOffset + 2, frev) || !readU8(absOffset + 3, crev))
+ 		return false;
+-	if (tsize < 4 || absOffset + tsize > size)
++	if (tsize < 4 || !contains(absOffset,tsize))
+ 		return false;
+ 	out.size = tsize;
+ 	out.formatRev = frev;
+@@ -54,65 +55,53 @@
+ }
+ 
+ bool AtomBios::validateImage(size_t offset) {
+-	uint8_t sig0, sig1, blocks;
+-	if (!readU8(offset, sig0) || !readU8(offset + 1, sig1) || sig0 != 0x55 || sig1 != 0xAA)
+-		return false;
+-	if (!readU8(offset + kRomSizeBlocksOffset, blocks) || blocks == 0)
+-		return false;
+-
+-	size_t imgLen = static_cast<size_t>(blocks) * 512;
+-	if (offset + imgLen > size)
+-		return false;
+-
+-	// Legacy option-ROM checksum: all image bytes sum to 0 (mod 256).
+-	uint8_t sum = 0;
+-	for (size_t i = 0; i < imgLen; i++)
+-		sum = static_cast<uint8_t>(sum + data[offset + i]);
+-	if (sum != 0)
+-		return false;
+-
+-	// Follow the ATOM ROM header pointer and check the "ATOM" signature.
+-	uint16_t hdr;
+-	if (!readU16(offset + kAtomRomHeaderPointer, hdr) || hdr == 0)
+-		return false;
+-	size_t atomHdr = offset + hdr;
+-	uint8_t a, t, o, m;
+-	if (!readU8(atomHdr + kAtomSignatureOffset, a) || !readU8(atomHdr + kAtomSignatureOffset + 1, t) ||
+-	    !readU8(atomHdr + kAtomSignatureOffset + 2, o) || !readU8(atomHdr + kAtomSignatureOffset + 3, m) ||
+-	    a != 'A' || t != 'T' || o != 'O' || m != 'M')
+-		return false;
+-
+-	TableHeader th;
+-	if (!readTableHeader(atomHdr, th))
+-		return false;
+-
+-	uint16_t mdt;
+-	if (!readU16(atomHdr + kMasterDataTableOffset, mdt) || mdt == 0)
+-		return false;
+-	TableHeader mdtHdr;
+-	if (!readTableHeader(offset + mdt, mdtHdr) || mdtHdr.formatRev != 2)
+-		return false;
+-
+-	readU16(atomHdr + kSubsysVidOffset, subsysVid);
+-	readU16(atomHdr + kSubsysIdOffset, subsysId);
+-
+-	base = offset;
+-	length = imgLen;
+-	masterDataTable = offset + mdt;
+-
+-	// Master command function table (optional for us; used to plan the
+-	// SetPixelClock / transmitter-control work).
+-	uint16_t mct;
+-	masterCmdTable = 0;
+-	if (readU16(atomHdr + kMasterHwFunctionOffset, mct) && mct != 0) {
+-		TableHeader mctHdr;
+-		if (readTableHeader(offset + mct, mctHdr))
+-			masterCmdTable = offset + mct;
+-	}
+-	return true;
++    imageEnd=0;base=0;length=0;masterDataTable=masterCmdTable=0;subsysVid=subsysId=0;
++    if (!contains(offset,512) || data[offset]!=0x55 || data[offset+1]!=0xaa)
++        return fail("rom_signature");
++    const size_t bytes=size_t(data[offset+kRomSizeBlocksOffset])*512;
++    if (!bytes || !contains(offset,bytes)) return fail("rom_length");
++    uint8_t sum=0;for(size_t i=0;i<bytes;++i)sum=uint8_t(sum+data[offset+i]);
++    if(sum) return fail("rom_checksum");
++    base=offset;length=bytes;imageEnd=offset+bytes;
++    uint16_t hdr=0,mdt=0;
++    if(!readU16(base+kAtomRomHeaderPointer,hdr)||hdr<0x4a) return fail("atom_header_pointer");
++    const size_t atom=base+hdr;TableHeader h{};
++    if(!readTableHeader(atom,h)||h.size<40||h.formatRev!=2||(h.contentRev!=2&&h.contentRev!=3))
++        return fail("atom_header_version");
++    if(data[atom+kAtomSignatureOffset]!='A'||data[atom+kAtomSignatureOffset+1]!='T'||
++       data[atom+kAtomSignatureOffset+2]!='O'||data[atom+kAtomSignatureOffset+3]!='M')
++        return fail("atom_signature");
++    if(!readU16(atom+kMasterDataTableOffset,mdt)||mdt<0x4a) return fail("master_pointer");
++    TableHeader master{};masterDataTable=base+mdt;
++    if(!readTableHeader(masterDataTable,master)||master.formatRev!=2||master.contentRev!=1||master.size!=74)
++        return fail("master_version");
++    auto overlap=[](size_t a,size_t n,size_t b,size_t m){return a<b+m&&b<a+n;};
++    if(overlap(atom,h.size,masterDataTable,master.size))return fail("table_overlap");
++    size_t offsets[MaxDataTable]{},sizes[MaxDataTable]{};
++    for(size_t i=0;i<MaxDataTable;++i){
++        uint16_t rel=0;if(!readU16(masterDataTable+4+2*i,rel))return fail("table_bounds");
++        if(!rel)continue;
++        TableHeader entry{};const size_t at=base+rel;
++        if(rel<0x4a||!readTableHeader(at,entry))return fail("table_bounds");
++        if(overlap(at,entry.size,atom,h.size)||overlap(at,entry.size,masterDataTable,master.size))return fail("table_overlap");
++        for(size_t j=0;j<i;++j)if(sizes[j]&&overlap(at,entry.size,offsets[j],sizes[j]))return fail("table_overlap");
++        offsets[i]=at;sizes[i]=entry.size;
++    }
++    if(!readU16(atom+kSubsysVidOffset,subsysVid)||!readU16(atom+kSubsysIdOffset,subsysId))return fail("atom_header_bounds");
++    uint16_t mct=0;
++    if(!readU16(atom+kMasterHwFunctionOffset,mct))return fail("command_pointer");
++    if(mct){
++        TableHeader command{};const size_t at=base+mct;
++        if(mct<0x4a||!readTableHeader(at,command)||command.formatRev!=2||command.contentRev!=1)return fail("command_version");
++        if(overlap(at,command.size,atom,h.size)||overlap(at,command.size,masterDataTable,master.size))return fail("table_overlap");
++        for(size_t j=0;j<MaxDataTable;++j)if(sizes[j]&&overlap(at,command.size,offsets[j],sizes[j]))return fail("table_overlap");
++        masterCmdTable=at;
++    }
++    lastError=nullptr;return true;
+ }
+ 
+ bool AtomBios::getCommandTable(uint8_t index, CmdTableInfo &out) const {
++    out = {};
+ 	if (!valid || !masterCmdTable || index >= CmdFunctionCount)
+ 		return false;
+ 
+@@ -139,31 +128,22 @@
+ 	return true;
+ }
+ 
+-bool AtomBios::init(const uint8_t *romData, size_t romSize) {
+-	data = romData;
+-	size = romSize;
+-	valid = false;
+-	if (!data || size < 512)
+-		return false;
+-
+-	// Fast path: raw legacy image at offset 0.
+-	if (validateImage(0)) {
+-		valid = true;
+-		return true;
+-	}
+-
+-	// Unified PSP-wrapped ROM: scan 512-byte boundaries for an embedded
+-	// image (this card's primary lives at 0x40000, backup at 0x120000).
+-	for (size_t off = 512; off + 512 <= size; off += 512) {
+-		if (data[off] == 0x55 && data[off + 1] == 0xAA && validateImage(off)) {
+-			valid = true;
+-			return true;
+-		}
+-	}
+-	return false;
++bool AtomBios::init(const uint8_t *romData,size_t romSize) {
++    data=romData;size=romSize;valid=false;imageEnd=base=length=masterDataTable=masterCmdTable=0;
++    subsysVid=subsysId=0;lastError="rom_bounds";
++    // Fixed offline input budget; never scan hardware or an unbounded view.
++    if(!data||size<512||size>(4u<<20))return false;
++    for(size_t off=0;off<=size-512;off+=512){
++        if(validateImage(off)){valid=true;return true;}
++        // A signature-bearing image that fails validation is not silently bypassed.
++        if(data[off]==0x55&&data[off+1]==0xaa)break;
++    }
++    const char*why=lastError;data=nullptr;size=0;imageEnd=base=length=masterDataTable=masterCmdTable=0;
++    subsysVid=subsysId=0;lastError=why;return false;
+ }
+ 
+ size_t AtomBios::configName(char *out, size_t outLen) const {
++    if (out && outLen) out[0]='\0';
+ 	if (!valid || !out || outLen == 0)
+ 		return 0;
+ 
+@@ -188,6 +168,7 @@
+ }
+ 
+ size_t AtomBios::dataTable(DataTable table, TableHeader *header) const {
++    if (header) *header = {};
+ 	if (!valid || table >= MaxDataTable)
+ 		return 0;
+ 
+@@ -212,9 +193,10 @@
+ }
+ 
+ bool AtomBios::getFirmwareInfo(FirmwareInfo3 &out) const {
+-	TableHeader th;
++    out = {};
++    TableHeader th;
+ 	size_t off = dataTable(FirmwareInfo, &th);
+-	if (!off || th.formatRev != 3 || th.size < 20)
++	if (!off || th.formatRev != 3 || th.contentRev < 1 || th.contentRev > 5 || th.size < 20)
+ 		return false;
+ 
+ 	out.header = th;
+@@ -224,81 +206,52 @@
+ 	       readU32(off + 16, out.firmwareCapability);
+ }
+ 
+-size_t AtomBios::getDisplayPaths(DisplayPath *paths, size_t maxPaths) const {
+-	if (!paths || maxPaths == 0)
+-		return 0;
+-
+-	TableHeader th;
+-	size_t off = dataTable(DisplayObjectInfo, &th);
+-	// display_object_info_table_v1_5: header, u16 supporteddevices,
+-	// u8 number_of_path, u8 reserved, then 16-byte path entries.
+-	if (!off || th.formatRev != 1 || th.contentRev < 4 || th.size < 8)
+-		return 0;
+-
+-	uint8_t npaths;
+-	if (!readU8(off + 6, npaths))
+-		return 0;
+-	if (npaths > MaxDisplayPaths)
+-		npaths = MaxDisplayPaths;
+-
+-	size_t count = 0;
+-	for (size_t i = 0; i < npaths && count < maxPaths; i++) {
+-		size_t p = off + 8 + i * 16;
+-		if (p + 16 > off + th.size)
+-			break;
+-		DisplayPath dp {};
+-		if (!readU16(p + 0,  dp.connectorObjId) ||
+-		    !readU16(p + 2,  dp.recordOffset) ||
+-		    !readU16(p + 4,  dp.encoderObjId) ||
+-		    !readU16(p + 12, dp.deviceTag))
+-			break;
+-		if (dp.connectorObjId == 0)
+-			continue;
+-		paths[count++] = dp;
+-	}
+-	return count;
+-}
+-
+-bool AtomBios::getPathRecords(const DisplayPath &path, PathRecords &out) const {
+-	out = PathRecords {};
+-
+-	TableHeader th;
+-	size_t table = dataTable(DisplayObjectInfo, &th);
+-	if (!table || path.recordOffset == 0 || path.recordOffset >= th.size)
+-		return false;
+-
+-	// Record chain: atom_common_record_header {u8 type; u8 size;} followed by
+-	// the body; terminated by type 0/0xff. Verified types on this ROM:
+-	// I2C (1): u8 i2c_id, u8 i2c_slave_addr
+-	// HPD (2): u8 pin_id, u8 plugin_pin_state
+-	size_t p = table + path.recordOffset;
+-	size_t end = table + th.size;
+-	while (p + 2 <= end) {
+-		uint8_t rtype, rsize;
+-		if (!readU8(p, rtype) || !readU8(p + 1, rsize))
+-			return false;
+-		if (rtype == 0 || rtype == 0xFF || rsize < 2 || p + rsize > end)
+-			break;
+-
+-		if (rtype == 1 && rsize >= 4) {           // ATOM_I2C_RECORD_TYPE
+-			uint8_t id;
+-			if (readU8(p + 2, id)) {
+-				out.hasI2c = true;
+-				out.i2cId = id;
+-				out.i2cHwCapable = (id & 0x80) != 0;
+-				out.ddcLine = id & 0x0F;
+-			}
+-		} else if (rtype == 2 && rsize >= 4) {    // ATOM_HPD_INT_RECORD_TYPE
+-			uint8_t pin, state;
+-			if (readU8(p + 2, pin) && readU8(p + 3, state)) {
+-				out.hasHpd = true;
+-				out.hpdPin = pin;
+-				out.hpdPlugState = state;
+-			}
+-		}
+-		p += rsize;
+-	}
+-	return out.hasI2c || out.hasHpd;
++size_t AtomBios::getDisplayPaths(DisplayPath *paths,size_t maxPaths) const {
++    if(!paths||!maxPaths||maxPaths>MaxDisplayPaths){fail("display_storage");return 0;}
++    for(size_t i=0;i<maxPaths;++i)paths[i]={};
++    TableHeader th{};const size_t off=dataTable(DisplayObjectInfo,&th);
++    if(!off||th.formatRev!=1||th.contentRev!=5||th.size<8){fail("display_version");return 0;}
++    const uint8_t count=data[off+6];
++    if(!count||count>MaxDisplayPaths||count>maxPaths||8u+size_t(count)*16>th.size||data[off+7]){
++        fail("display_count");return 0;
++    }
++    DisplayPath candidate[MaxDisplayPaths]{};
++    for(size_t i=0;i<count;++i){
++        const size_t p=off+8+i*16;uint16_t object=0,record=0,encoder=0,tag=0;
++        readU16(p,object);readU16(p+2,record);readU16(p+4,encoder);readU16(p+12,tag);
++        uint16_t reserved=0;
++        const unsigned slots[]={6u,8u,10u,14u};for(unsigned n:slots){readU16(p+n,reserved);if(reserved){fail("display_reserved");return 0;}}
++        if(!object||((object>>12)&7)!=3||!encoder||((encoder>>12)&7)!=2||!tag||
++           (record&&(record<8+size_t(count)*16||record>th.size-2))){fail("display_path");return 0;}
++        for(size_t j=0;j<i;++j)if(candidate[j].connectorObjId==object){fail("display_duplicate");return 0;}
++        candidate[i]={object,record,encoder,tag};
++    }
++    for(size_t i=0;i<count;++i)paths[i]=candidate[i];
++    lastError=nullptr;return count;
++}
++
++bool AtomBios::getPathRecords(const DisplayPath &path,PathRecords &out) const {
++    out={};TableHeader th{};const size_t table=dataTable(DisplayObjectInfo,&th);
++    DisplayPath paths[MaxDisplayPaths]{};const size_t count=getDisplayPaths(paths,MaxDisplayPaths);bool member=false;
++    for(size_t i=0;i<count;++i)if(paths[i].connectorObjId==path.connectorObjId&&
++        paths[i].recordOffset==path.recordOffset&&paths[i].encoderObjId==path.encoderObjId&&paths[i].deviceTag==path.deviceTag)member=true;
++    if(!table||!member||!path.recordOffset)return fail("record_path");
++    size_t p=table+path.recordOffset;const size_t end=table+th.size;PathRecords result{};
++    unsigned budget=0;
++    while(p<=end&&end-p>=2&&budget++<128){
++        const uint8_t type=data[p],bytes=data[p+1];
++        if(type==0||type==0xff){out=result;lastError=nullptr;return true;}
++        if(bytes<2||bytes>end-p)return fail("record_bounds");
++        if(type==1){
++            if(bytes!=4||result.hasI2c)return fail("record_i2c");
++            result.hasI2c=true;result.i2cId=data[p+2];result.i2cHwCapable=(data[p+2]&0x80)!=0;result.ddcLine=data[p+2]&15;
++        }else if(type==2){
++            if(bytes!=4||result.hasHpd)return fail("record_hpd");
++            result.hasHpd=true;result.hpdPin=data[p+2];result.hpdPlugState=data[p+3];
++        }
++        p+=bytes;
++    }
++    return fail("record_unterminated");
+ }
+ 
+ size_t AtomBios::getGpioPins(GpioPin *pins, size_t maxPins) const {
+diff --git a/development/AMDRadeonRDNA4-Navi44/src/atombios.hpp b/development/AMDRadeonRDNA4-Navi44/src/atombios.hpp
+--- a/development/AMDRadeonRDNA4-Navi44/src/atombios.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/atombios.hpp
+@@ -39,9 +39,9 @@
+ 		DisplayObjectInfo    = 22,
+ 		IndirectIoAccess     = 23,
+ 		UmcInfo              = 24,
+-		DceInfo              = 26,
+-		VramInfo             = 27,
+-		VoltageObjectInfo    = 31,
++		DceInfo              = 27,
++		VramInfo             = 28,
++		VoltageObjectInfo    = 32,
+ 		MaxDataTable         = 35,
+ 	};
+ 
+@@ -117,6 +117,7 @@
+ 	bool init(const uint8_t *romData, size_t romSize);
+ 
+ 	bool isValid() const { return valid; }
++    const char *error() const { return lastError; }
+ 
+ 	// Offset of the VBIOS image within the buffer passed to init().
+ 	size_t   imageOffset() const { return base; }
+@@ -193,6 +194,13 @@
+ 	uint16_t subsysVid { 0 };
+ 	uint16_t subsysId  { 0 };
+ 	bool valid { false };
++    size_t imageEnd {0};
++    mutable const char *lastError {"not_initialized"};
++    bool fail(const char *why) const { lastError=why; return false; }
++    bool contains(size_t off,size_t count) const {
++        const size_t end=imageEnd?imageEnd:size;
++        return data && off<=end && count<=end-off && (!imageEnd || off>=base);
++    }
+ 
+ 	bool validateImage(size_t offset);
+ 	bool readTableHeader(size_t absOffset, TableHeader &out) const;
+diff --git a/development/AMDRadeonRDNA4-Navi44/src/edid.cpp b/development/AMDRadeonRDNA4-Navi44/src/edid.cpp
+--- a/development/AMDRadeonRDNA4-Navi44/src/edid.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/edid.cpp
+@@ -159,6 +159,8 @@
+ } // namespace
+ 
+ bool parseDetailedTiming(const uint8_t d[18], DetailedTiming &out) {
++	out = {};
++	if (!d) return false;
+ 	uint32_t pclk10k = static_cast<uint32_t>(d[0]) | (static_cast<uint32_t>(d[1]) << 8);
+ 	if (pclk10k == 0)
+ 		return false;   // a display descriptor, not a timing
+@@ -184,12 +186,17 @@
+ 		out.vSyncPositive = true;
+ 	}
+ 
+-	if (out.hActive == 0 || out.vActive == 0)
+-		return false;
++	if (!out.hActive || !out.vActive || !out.hBlank || !out.vBlank ||
++        !out.hSyncWidth || !out.vSyncWidth ||
++        uint32_t(out.hSyncOffset) + out.hSyncWidth > out.hBlank ||
++        uint32_t(out.vSyncOffset) + out.vSyncWidth > out.vBlank) {
++        out = {}; return false;
++    }
+ 	return true;
+ }
+ 
+ bool preferredTiming(const uint8_t *edid, size_t len, DetailedTiming &out) {
++    out = {};
+ 	if (!edid || len < BlockSize || !headerOk(edid))
+ 		return false;
+ 	return parseDetailedTiming(edid + 54, out);
+@@ -213,7 +220,7 @@
+ 	if (!baseBlockValid(edid, len))
+ 		return false;
+ 	// EDID 2.0 (version byte 2) was a different, withdrawn layout.
+-	if (edid[18] != 1)
++	if (edid[18] != 1 || edid[19] > 4)
+ 		return false;
+ 
+ 	out.version        = edid[18];
+@@ -359,11 +366,15 @@
+ }
+ 
+ bool parseCtaBlock(const uint8_t ext[128], CtaCaps &out) {
+-	if (!ext || ext[0] != 0x02)
+-		return false;
+ 	out = CtaCaps {};
++    if (!ext || ext[0] != 0x02 || ext[1] != 3 || ext[2] > 127 ||
++        (ext[2] != 0 && ext[2] < 4)) return false;
+ 	out.revision   = ext[1];
+ 	uint8_t dtdOff = ext[2];          // 0 = no DTDs and no data blocks
++    if (!dtdOff) {
++        for (size_t i=4;i<127;++i) if (ext[i]) { out={}; return false; }
++    }
++    bool forumSeen=false;
+ 	out.underscan  = (ext[3] & 0x80) != 0;
+ 	out.basicAudio = (ext[3] & 0x40) != 0;
+ 	out.ycbcr444   = (ext[3] & 0x20) != 0;
+@@ -376,29 +387,32 @@
+ 		while (pos < end) {
+ 			uint8_t tag = ext[pos] >> 5;
+ 			uint8_t len = ext[pos] & 0x1f;
+-			if (pos + 1 + len > end)
+-				break;
++			if (pos + 1 + len > end) { out = {}; return false; }
+ 			const uint8_t *p = ext + pos + 1;
+ 			if (tag == 2) {                     // video block: SVDs
+ 				// CTA-861-F §7.5.1: codes 129-192 are VIC 1-64 with the
+ 				// native flag; 65-127 and 193-253 are the VIC itself;
+ 				// 0, 128, 254, 255 are reserved.
+-				for (uint8_t i = 0; i < len && out.vicCount < 32; i++) {
++                for (uint8_t i = 0; i < len; i++) {
+ 					uint8_t b = p[i];
+ 					if (b == 0 || b == 128 || b >= 254)
+ 						continue;
+ 					bool native = b >= 129 && b <= 192;
++                    if (out.vicCount == 32) { out = {}; return false; }
+ 					out.vics[out.vicCount]      = native ? static_cast<uint8_t>(b & 0x7f) : b;
+ 					out.vicNative[out.vicCount] = native;
+ 					out.vicCount++;
+ 				}
+-			} else if (tag == 3 && len >= 5 &&  // vendor block, HDMI LLC OUI
++            } else if (tag == 3 && len >= 3 &&  // vendor block, HDMI LLC OUI
+ 			           p[0] == 0x03 && p[1] == 0x0c && p[2] == 0x00) {
++                if (len<5 || out.hasHdmiVsdb) { out={}; return false; }
+ 				out.hasHdmiVsdb = true;
+ 				if (len >= 7 && p[6])
+ 					out.maxTmdsKHz = static_cast<uint32_t>(p[6]) * 5000;
+-			} else if (tag == 3 && len >= 6 &&  // vendor block, HDMI Forum OUI
++            } else if (tag == 3 && len >= 3 &&  // vendor block, HDMI Forum OUI
+ 			           p[0] == 0xd8 && p[1] == 0x5d && p[2] == 0xc4) {
++                if (len<7 || forumSeen) { out={}; return false; }
++                forumSeen=true;
+ 				// HDMI 2.0 table 10-6: version, Max_TMDS_Character_Rate / 5 MHz,
+ 				// then SCDC_Present in bit 7.
+ 				out.hfMaxTmdsKHz = static_cast<uint32_t>(p[4]) * 5000;
+@@ -413,8 +427,8 @@
+ 		size_t pos = dtdOff;
+ 		while (pos + 18 <= 127) {
+ 			DetailedTiming t {};
+-			if (!parseDetailedTiming(ext + pos, t))
+-				break;
++			if (!(ext[pos] | ext[pos+1])) break;
++            if (!parseDetailedTiming(ext + pos, t)) { out = {}; return false; }
+ 			if (out.dtdCount == 0)
+ 				out.firstDtd = t;
+ 			if (out.dtdCount < MaxCtaDtds)
+diff --git a/docs/atombios-parser-design.md b/docs/atombios-parser-design.md
+new file mode 100644
+--- /dev/null
++++ b/docs/atombios-parser-design.md
+@@ -0,0 +1,30 @@
++# M8 AtomBIOS Static Parser
++
++在原AtomBios类上加固，Core connectors()转发到它，不创建重复ROM解析器。
++支持静态55AA legacy image、512B块长度、镜像sum8、
++ATOM ROM header2.2/2.3已知前缀、master data table2.1的35个entry、
++display object info1.5 path_v3（16B）、I2C与HPD静态records和DP/HDMI等connector类型。
++读取的是调用方不可变CPU字节，不执行command bytecode。
++
++镜像输入最大4MiB，在512B边界扫描；遇到带签名但无效的image停止，不自动绕过损坏主镜像。
++读表范围限定选中的legacy image，不允许借更大的外层buffer逃逸。
++验证ATOM/master header长度版本、表offset/common size、表间/控制表重叠、自引用与重复alias。
++路径最多8个、storage不超8个；connector重复/错误对象类型/reserved/path count拒绝。
++record不得指向path array；每步至少2B、最多128步、必须终止；重复I2C/HPD和非法size拒绝。
++unknown record仅按长度有限跳过，不解释为PHY支持。USBC特殊reserved配置当前拒绝，保留为未支持。
++输出先暂存，成功后commit；失败清空ConnectorList/paths。借用ROM仅存在于Parser对象寿命内。
++
++修正master table枚举：DCE index27、VRAM28、VoltageObject32，
++由AMD公开atomfirmware.h的v2.1字段顺序核对。Display v1.4 path_v2不再混作v1.5。
++其他table只验证通用边界，不宣称完整字段语义或所有ATOM版本兼容。
++legacy checksum不是固件真实性或PSP签名认证。
++
++不支持完整PCI PCIR多image链验证、完整PSP包/ROM board authentication、
++其他display object版本、encoder/PHY实际routing、GPIO寄存器使用、执行ATOM函数。
++没有读取本机ROM，也未使用其他板卡ROM映射冒充Navi44结果。
++真实Navi44 VBIOS与connector routing = UNVERIFIED；本轮数据全部合成。
++
++[AMD atomfirmware.h](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/include/atomfirmware.h)
++用于布局交叉检查，2026-10-14阅读，master为移动参考；
++已有AMDRadeonRDNA4源码commit49f7f20c为工程基础（E2）。
++文件头既有Navi48验证描述属于上游历史，不是本轮、本机测试声明。
+diff --git a/docs/cobalt-production-abi.md b/docs/cobalt-production-abi.md
+new file mode 100644
+--- /dev/null
++++ b/docs/cobalt-production-abi.md
+@@ -0,0 +1,41 @@
++# M8 Cobalt Production ABI candidate
++
++新增core/query_candidate.hpp/.cpp，在现有N44I v2上加N44Q 1.0 envelope。
++128B explicit little-endian，不直接序列化C++结构，不是生产N48N协议。
++
++| offset | 内容 |
++|---|---|
++| 0..3 | N44Q |
++| 4..9 | major1/minor0/length128 |
++| 10..11 | reserved0 |
++| 12 | provenance Unknown/Synthetic/StaticReference |
++| 13..15 | verification/owner state/reserved，均0 |
++| 16..19 | presence，必须与内嵌N44I一致 |
++| 20..23 | verified capabilities，必须0 |
++| 24..31 | 非零generation（CPU会话epoch，不是本机身份） |
++| 32..127 | 既有N44I v2 96B |
++
++未知version/minor/length、false verification、owner、capability、provenance或presence不匹配拒绝。
++来源标签不是硬件真实性证明。字段存在不意味着topology/GB_ADDR_CONFIG等已在本机验证。
++encode先写局部缓冲并validate，再commit；decode失败清空模型。
++
++OfflineOwner是纯CPU单对象lease状态机：单lease、generation递增、stale token使状态失败终止，
++close后借用失败。canInitializeHardware恒false，不能仲裁真实GPU或两个独立驱动实例。
++无IOUserClient、selector、MMIO、物理地址、queue或GPU资源句柄。
++
++固定源码审查：
++- AMDRadeonRDNA4 vulkan/navi48_native_abi.h为N48N minor9。
++- Cobalt src/navi48-bringup/src/Navi48NativeABI.h为minor12，QueryInfo192B；
++  v1.10在reserved区引入session VRAM budget，v1.11/12引入scanout selectors22..26。
++- native_open_policy_pure.h：root/WindowServer/APP角色、route和selector限制，
++  APP不得ReadRegs/scanout；import-caller必须匹配owner task。
++- native_g4_pure.h：session memory budget、映射回收等工程条件。
++- mesa-patches/0002、0007：Darwin transport与QueryInfo/GB_ADDR_CONFIG路径。
++
++上述是本地固定commit的可读实现，不是本机复现；没有执行upstream脚本或bring-up。
++不能将ABI1.9/1.12头按名字混用，不能把N44Q128B复制到N48N192B。
++
++生产差距：可信内核采样来源、真实owner exclusivity、权限认证、task lifetime、
++BO/VM/fence、可撤销映射、reset/poisoning与caps协商、gfx1200 shader及Mesa winsys。
++未来由单一驱动拥有power/firmware/VM/queues/display；其他模块仅通过受限接口调用，
++不允许AMDRadeonRDNA4与Cobalt双重初始化。N44Q不授予任何硬件权限。
+diff --git a/docs/darwin-adapter-m8.md b/docs/darwin-adapter-m8.md
+new file mode 100644
+--- /dev/null
++++ b/docs/darwin-adapter-m8.md
+@@ -0,0 +1,31 @@
++# M8 Darwin Adapter contract
++
++沿用MemoryOps / LogOps / SnapshotOps / Lease；新增ScratchOps / ExecutionOps，
++SnapshotOps增加成对release。旧raw MemoryOps继续只服务原始字节；解析器不再将raw分配cast为Node。
++
++Host Mock从对齐uint8_t数组改为真正的Node[512]，修正M7未解决的C++对象生命周期问题。
++NodePool也直接持有构造好的Node数组；nativeScratchOps只引用调用方构造的pool，
++不依赖伪造的placement-new/SDK，不暗中分配或操作设备。
++Kernel pool应随长期owner对象存活、放在堆/owner成员中，不能放入kernel栈。
++
++validateSnapshot顺序：ExecutionOps.enter → borrow input → acquire live Nodes →
++Core validate → release Nodes → release input → log → ExecutionOps.leave。
++失败/无scratch/解析拒绝均按RAII配对释放；缺失context或lifetime callback时拒绝。
++Mock测试了parser失败、资源不足、错误上下文、重入与missing release。
++Mock的inCall/busy是串行模拟，不是原子锁。NodePool不是thread-safe，
++真实Darwin adapter必须提供线程上下文与正确的serialization/teardown，不能把bool当内核锁。
++
++日志仅内部静态token/输入offset，不输出物理地址、serial或payload。
++callbacks是可信adapter契约：不能抛异常、访问硬件或在中断中调用可阻塞分配/日志。
++跨callback重入和异步销毁的真正kernel实现仍NOT RUN。
++借用View副本不会自动失效；owner必须保持输入、context和callback lifetime。
++
++只静态阅读：
++[固定MacKernelSDK IOService.h](https://github.com/acidanthera/MacKernelSDK/blob/05094e5e88cec7caedbfb35e8449ed0db94bf95b/Headers/IOKit/IOService.h)
++的probe/start/stop/open/close/handleOpen及arbitration语义；
++[Apple OSObject](https://github.com/apple-oss-distributions/xnu/blob/main/libkern/libkern/c++/OSObject.h)
++的retain/release与并发限制；
++[IOLib](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/IOKit/IOLib.h)线程上下文要求。
++这不等于实际IOService包装或引用计数已经接入。
++pin IOLib/IOPCIDevice部分网页抓取失败；未下载SDK替代或伪造类型。
++Darwin native build、kext link/load、PCI binding均NOT RUN。
+diff --git a/docs/edid-parser-design.md b/docs/edid-parser-design.md
+new file mode 100644
+--- /dev/null
++++ b/docs/edid-parser-design.md
+@@ -0,0 +1,35 @@
++# M8 EDID Parser
++
++继续复用 src/edid.cpp/.hpp 的字段、DMT/VIC表与CTA解码，没有增加第二套原始EDID解析器。
++Core/display.cpp 提供严格的整包验证与 Mode/Monitor 模型，旧宽松诊断入口不能当生产能力验证。
++
++支持范围：EDID 1.3/1.4，精确128字节块、Header、Checksum、manufacturer三字母编码/product，
++最多基础块加3扩展；digital标志、progressive数字separate-sync DTD、
++已有DMT的established/standard timing子集、CTA revision3的VIC表子集与DTD。
++支持HDMI LLC/Forum VSDB的TMDS/SCDC声明字段；不控制SCDC，也不认为链路已训练。
++
++新增严格拒绝：坏checksum/header/version、声明长度不一致、跨界DBC、非法DTD offset、
++零offset却携带数据、短HDMI Forum block、重复vendor能力块、SVD容量耗尽、
++sync超过blanking、零尺寸/宽度、超预算或不支持的signal。
++源解析器的parseDetailedTiming失败清空结果；parseCtaBlock错误不返回部分成功。
++Core edid()失败清空Monitor和调用方Mode存储。调用方保证输入、输出不重叠并存活。
++
++不支持：EDID2、DisplayID、interlace/stereo/border/analog-composite DTD、完整HDR/FRL/DSC/VRR、
++所有VIC、GTF/CVT公式。未知extension默认Unsupported；
++KnownBlocksOnly策略仅保留已知块并标记partial；未解析的timing也计入unresolved/partial。
++未知CTA vendor/extended payload不会被当作可用链路能力。
++标准timing的DMT解析标记来源；Core不沿用EDID1.3“digital就支持RB”的隐式推断。
++
++Mode.sources区分BaseDtd/CtaDtd/Established/Standard/CtaVic。
++完全相同的raster、clock、sync、polarity去重并合并来源。
++同尺寸同精确刷新率而timing不同，保留为sameRateAlternative，不能随意替换。
++capacity不足返回Budget，不静默丢模式。hardwareVerified恒false。
++
++测试fixture为自制合成字节，含规范中的1080p60 DTD数值；不是本机EDID，不包含用户serial。
++所有扩展checksum校验。未通过DDC/I2C/AUX或Windows GPU API查询显示器。
++
++格式参考：
++[VESA E-EDID A2](https://glenwing.github.io/docs/VESA-EEDID-A2.pdf)，2006规范公开镜像；
++[Linux v6.15 drm_edid.c](https://github.com/torvalds/linux/blob/v6.15/drivers/gpu/drm/drm_edid.c)，
++对照DTD/CTA边界和HF块最小长度（2026-10-14阅读，E1/E2）。
++没有复制Linux实现或引入其运行库。
+diff --git a/docs/macos-build-readiness.md b/docs/macos-build-readiness.md
+new file mode 100644
+--- /dev/null
++++ b/docs/macos-build-readiness.md
+@@ -0,0 +1,35 @@
++# M8 macOS Build Readiness / M9
++
++Windows已真实编译：既有ASIC/Discovery/CodeObj/validation/device_info，
++新增EDID/AtomBIOS/display/integrity/query_candidate及不含Apple SDK的Platform contract。
++9个Core translation unit使用C++17、-fno-exceptions、-fno-rtti、-ffreestanding、
++-Wall/-Wextra/-Werror和4096B单函数栈警告，并审查object undefined symbols。
++仍有memcpy/memset和内部Core引用。总递归栈、Mach-O、Apple symbol/ABI仍未验证。
++Host tests/STL/exception wrapper不进入kernel target；Darwin native不进入Windows target。
++
++~~~mermaid
++flowchart TD
++    A[合法Xcode / Apple SDK / fixed KernelSDK] --> B[真实macOS Core compile only]
++    C[Explicit CPU source list / no hardware backend] --> B
++    B --> D[Mach-O symbol / layout / stack check]
++    D --> E[CPU fixture / lifetime tests on macOS]
++    E --> F[Darwin thread / OSData ownership wrapper review]
++    F --> G[未来独立kext build授权]
++    G --> H[未来独立load / hardware授权]
++~~~
++
++M9建议优先真实macOS的CPU编译与纯逻辑测试，而不是先堆积寄存器初始化：
++1. 用户明确指定合法、已具备Xcode/SDK的Mac及授权工作区；本轮不自动连接。
++2. 只编译Core和adapter object，确认真实头、固定宽度、missing symbols、constructor/teardown。
++3. 复跑同一合成fixtures和CPU-only测试；不签名、不安装、不加载kext。
++4. 解决NodePool堆生命周期、OSData/descriptor retain、ExecutionOps gate和kernel stack预算。
++5. 再研究kext target与版本适配；独立授权不可由此自动获得。
++
++AMDRadeonRDNA4固定Makefile参考macOS11 ABI。MacKernelSDK pin
++05094e5e88cec7caedbfb35e8449ed0db94bf95b；Lilu pin0515f40b7f2a096adc85e832a4c6104fbd07f936。
++固定SDK README基于macOS11/Xcode12.0头，不能推出新Xcode/Sequoia/Tahoe实际兼容。
++没有Windows交叉kext build、fake Apple SDK、自动上传或远程CI。
++KernelSDK native/object compile = NOT RUN；kext build/load = NOT RUN。
++
++若暂时没有合法Mac，Windows仍可针对DisplayID、真实合法静态样本、Atom其他版本、
++CRC格式来源、parser budget继续有限研发；这些不能替代真实Darwin构建。
+diff --git a/docs/navi44-display-capability.md b/docs/navi44-display-capability.md
+new file mode 100644
+--- /dev/null
++++ b/docs/navi44-display-capability.md
+@@ -0,0 +1,44 @@
++# M8 Display Capability / Mode / Link Model
++
++~~~mermaid
++flowchart LR
++    E[EDID CPU bytes] --> M[Monitor declarations / Modes]
++    R[Static Atom ROM bytes] --> C[Connector descriptions]
++    M --> A[Pure mathematical assessment]
++    C --> F[Future connector / PHY adapter: not implemented]
++    L[Independent link budget] --> A
++    G[Independent engine budget] --> A
++    A --> U[No output permission / no hardware verified capability]
++~~~
++
++核心函数：NaviDisplay::timing、edid、connectors、assess。
++Mode包含完整DetailedTiming、约分后的64位refresh fraction、source与同频替代标志。
++Monitor包含mfg/product、digital、partial、声明的TMDS/SCDC与计数，不包含用户serial。
++Connector包含原object/encoder/tag、静态I2C/HPD记录；routingKnown/boardVerified均false。
++
++Origin = Unknown / Synthetic / StaticReference，只记录来源声明，不是认证。
++没有从字节数据产生DeviceVerified的枚举值。不能伪装本机测试。
++输入/输出缓冲由调用方持有，不应相互重叠；Core无IO或隐式allocation。
++
++数学规则：geometry/sync与blanking一致，progressive，clock范围1000..2500000kHz，
++刷新率实验预算1..1000Hz。它们是本原型预算，不是AMD/DP的正式最大能力。
++refresh = pixelClockKHz×1000 / (hTotal×vTotal)，64位整数约分。
++判断RGB24/30/36bpp；DP8b10b只接受已知lane数1/2/4与1.62/2.7/5.4/8.1Gbps；
++payload按8/10计算。TMDS假设RGB/4:4:4，payload=characterClock×24，深色占用更高。
++引擎clock单独比较。未知证据不产生WithinBudget。
++WithinBudget只代表理想算术上限，未计算完整protocol/audio/control/FEC/blanking分配，也不是链路可用证明。
++不支持UHBR128b132、HDMI FRL、DSC、YCbCr subsampling、VRR或训练。
++任何结果outputAllowed/hardwareVerified始终false。
++
++frameBytes=activeW×activeH×4；fullFrameBytesPerSecond为按刷新分数计算的向上取整写带宽。
++乘法溢出直接拒绝。timing()复制输入后清空输出，支持input与out.timing别名的再验证。
++
++## 1440p180
++
++2560×1440×180=663552000有效像素/秒，尚未计消隐。
++经典EDID DTD的16位10kHz clock上限655350kHz，低于该数值；
++因此不能用经典DTD表达本目标，必须进一步研究DisplayID/其他合法表达。
++本轮DisplayID不支持，不能宣称已解析本显示器180Hz。
++合成模型2720×1500 totals / 734400kHz严格算得180Hz，只用于数学测试，不是实际输出参数建议。
++32bpp完整帧14745600B，180fps一次写带宽2654208000B/s、帧时间约5.56ms。
++没有GPU/CPU性能测量，扫描速率、合成与实际present帧率需各自未来验收。
+diff --git a/finalize_m8.py b/finalize_m8.py
+new file mode 100644
+--- /dev/null
++++ b/finalize_m8.py
+@@ -0,0 +1,678 @@
++"""Project-checked M8 reports, source patch, replay and hashes; no hardware."""
++from pathlib import Path
++import sys,json,hashlib,difflib,subprocess,os,zipfile
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++ROOT=safe.ROOT;OUT=safe.mkdir('reports/m8')
++results=json.loads((OUT/'test-results.json').read_text())
++if results['status']!='PASS':raise SystemExit('No final PASS without passing tests')
++commands=json.loads((OUT/'commands.json').read_text())
++before=json.loads((OUT/'baseline-sha256.json').read_text())
++historical=json.loads((OUT/'historical-reports-sha256.json').read_text())
++def digest(p):
++    with p.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
++for rel,value in historical.items():
++    if digest(safe.checked(rel))!=value:raise SystemExit('Historical report changed: '+rel)
++for rel,value in before.items():
++    if digest(OUT/'history'/rel)!=value:raise SystemExit('Snapshot changed: '+rel)
++for name in ('device.cpp','plugin.cpp','asicprofile.hpp'):
++    rel='development/AMDRadeonRDNA4-Navi44/src/'+name
++    if digest(ROOT/rel)!=before[rel]:raise SystemExit('Historical hardware gate changed')
++safe.write(OUT/'history-integrity.json',json.dumps({'status':'PASS','historical_files':len(historical),
++           'snapshot_files':len(before),'GPU_gate_files':'unchanged'},indent=2))
++env=os.environ.copy();env.update(GIT_CONFIG_GLOBAL='NUL',GIT_CONFIG_NOSYSTEM='1',GIT_OPTIONAL_LOCKS='0',
++                               TMP=str(ROOT/'tmp'),TEMP=str(ROOT/'tmp'))
++git=Path('D:/RuntimeEnvironment/Git/cmd/git.exe');git_results=[]
++pins={'upstream/AMDRadeonRDNA4':'49f7f20c00dd154384418078f8a09e79c400a06a',
++      'upstream/Cobalt64':'d6c9aedf8e6526a39e349b5886cbc8c7ddf77f65'}
++for rel in ('.',*pins):
++    folder=ROOT if rel=='.' else ROOT/rel
++    for verb in (['status','--short'],['rev-parse','HEAD']):
++        if rel=='.' and verb[0]=='rev-parse':continue
++        args=[str(git),'-c','safe.directory='+str(folder),'-C',str(folder),*verb]
++        p=subprocess.run(args,env=env,capture_output=True,text=True,encoding='utf-8',timeout=15)
++        git_results.append({'argv':args,'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr})
++        if rel in pins and (p.returncode or (verb[0]=='rev-parse' and p.stdout.strip()!=pins[rel])):
++            raise SystemExit('Upstream Git evidence changed')
++safe.write(OUT/'git-status.json',json.dumps(git_results,ensure_ascii=False,indent=2))
++BIN=ROOT/'tools/toolchains/llvm/llvm-mingw-20261006-ucrt-x86_64/bin'
++archive=ROOT/'tools/toolchains/llvm-mingw-20261006-ucrt-x86_64.zip'
++expected=json.loads((ROOT/'reports/m65/toolchain-provenance.json').read_text())['expected_sha256']
++if digest(archive)!=expected:raise SystemExit('Compiler archive mismatch')
++toolhash={}
++with zipfile.ZipFile(archive) as z:
++    for name in ('clang++.exe','llvm-nm.exe','llvm-symbolizer.exe','x86_64-w64-windows-gnu.cfg','mingw32-common.cfg',
++                 'libclang_rt.asan_dynamic-x86_64.dll','libc++.dll','libunwind.dll','libwinpthread-1.dll'):
++        with z.open('llvm-mingw-20261006-ucrt-x86_64/bin/'+name) as stream:known=hashlib.file_digest(stream,'sha256').hexdigest()
++        actual=digest(safe.checked(BIN/name))
++        if actual!=known:raise SystemExit('Extracted tool differs: '+name)
++        toolhash[name]=actual
++safe.write(OUT/'toolchain-integrity.json',json.dumps({'status':'PASS','archive_sha256':expected,
++           'method':'existing ZIP comparison, no download/extraction','sha256':toolhash},indent=2))
++
++docs={
++'docs/edid-parser-design.md':'''# M8 EDID Parser
++
++继续复用 src/edid.cpp/.hpp 的字段、DMT/VIC表与CTA解码，没有增加第二套原始EDID解析器。
++Core/display.cpp 提供严格的整包验证与 Mode/Monitor 模型，旧宽松诊断入口不能当生产能力验证。
++
++支持范围：EDID 1.3/1.4，精确128字节块、Header、Checksum、manufacturer三字母编码/product，
++最多基础块加3扩展；digital标志、progressive数字separate-sync DTD、
++已有DMT的established/standard timing子集、CTA revision3的VIC表子集与DTD。
++支持HDMI LLC/Forum VSDB的TMDS/SCDC声明字段；不控制SCDC，也不认为链路已训练。
++
++新增严格拒绝：坏checksum/header/version、声明长度不一致、跨界DBC、非法DTD offset、
++零offset却携带数据、短HDMI Forum block、重复vendor能力块、SVD容量耗尽、
++sync超过blanking、零尺寸/宽度、超预算或不支持的signal。
++源解析器的parseDetailedTiming失败清空结果；parseCtaBlock错误不返回部分成功。
++Core edid()失败清空Monitor和调用方Mode存储。调用方保证输入、输出不重叠并存活。
++
++不支持：EDID2、DisplayID、interlace/stereo/border/analog-composite DTD、完整HDR/FRL/DSC/VRR、
++所有VIC、GTF/CVT公式。未知extension默认Unsupported；
++KnownBlocksOnly策略仅保留已知块并标记partial；未解析的timing也计入unresolved/partial。
++未知CTA vendor/extended payload不会被当作可用链路能力。
++标准timing的DMT解析标记来源；Core不沿用EDID1.3“digital就支持RB”的隐式推断。
++
++Mode.sources区分BaseDtd/CtaDtd/Established/Standard/CtaVic。
++完全相同的raster、clock、sync、polarity去重并合并来源。
++同尺寸同精确刷新率而timing不同，保留为sameRateAlternative，不能随意替换。
++capacity不足返回Budget，不静默丢模式。hardwareVerified恒false。
++
++测试fixture为自制合成字节，含规范中的1080p60 DTD数值；不是本机EDID，不包含用户serial。
++所有扩展checksum校验。未通过DDC/I2C/AUX或Windows GPU API查询显示器。
++
++格式参考：
++[VESA E-EDID A2](https://glenwing.github.io/docs/VESA-EEDID-A2.pdf)，2006规范公开镜像；
++[Linux v6.15 drm_edid.c](https://github.com/torvalds/linux/blob/v6.15/drivers/gpu/drm/drm_edid.c)，
++对照DTD/CTA边界和HF块最小长度（2026-10-14阅读，E1/E2）。
++没有复制Linux实现或引入其运行库。
++''',
++'docs/atombios-parser-design.md':'''# M8 AtomBIOS Static Parser
++
++在原AtomBios类上加固，Core connectors()转发到它，不创建重复ROM解析器。
++支持静态55AA legacy image、512B块长度、镜像sum8、
++ATOM ROM header2.2/2.3已知前缀、master data table2.1的35个entry、
++display object info1.5 path_v3（16B）、I2C与HPD静态records和DP/HDMI等connector类型。
++读取的是调用方不可变CPU字节，不执行command bytecode。
++
++镜像输入最大4MiB，在512B边界扫描；遇到带签名但无效的image停止，不自动绕过损坏主镜像。
++读表范围限定选中的legacy image，不允许借更大的外层buffer逃逸。
++验证ATOM/master header长度版本、表offset/common size、表间/控制表重叠、自引用与重复alias。
++路径最多8个、storage不超8个；connector重复/错误对象类型/reserved/path count拒绝。
++record不得指向path array；每步至少2B、最多128步、必须终止；重复I2C/HPD和非法size拒绝。
++unknown record仅按长度有限跳过，不解释为PHY支持。USBC特殊reserved配置当前拒绝，保留为未支持。
++输出先暂存，成功后commit；失败清空ConnectorList/paths。借用ROM仅存在于Parser对象寿命内。
++
++修正master table枚举：DCE index27、VRAM28、VoltageObject32，
++由AMD公开atomfirmware.h的v2.1字段顺序核对。Display v1.4 path_v2不再混作v1.5。
++其他table只验证通用边界，不宣称完整字段语义或所有ATOM版本兼容。
++legacy checksum不是固件真实性或PSP签名认证。
++
++不支持完整PCI PCIR多image链验证、完整PSP包/ROM board authentication、
++其他display object版本、encoder/PHY实际routing、GPIO寄存器使用、执行ATOM函数。
++没有读取本机ROM，也未使用其他板卡ROM映射冒充Navi44结果。
++真实Navi44 VBIOS与connector routing = UNVERIFIED；本轮数据全部合成。
++
++[AMD atomfirmware.h](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/include/atomfirmware.h)
++用于布局交叉检查，2026-10-14阅读，master为移动参考；
++已有AMDRadeonRDNA4源码commit49f7f20c为工程基础（E2）。
++文件头既有Navi48验证描述属于上游历史，不是本轮、本机测试声明。
++''',
++'docs/navi44-display-capability.md':'''# M8 Display Capability / Mode / Link Model
++
++~~~mermaid
++flowchart LR
++    E[EDID CPU bytes] --> M[Monitor declarations / Modes]
++    R[Static Atom ROM bytes] --> C[Connector descriptions]
++    M --> A[Pure mathematical assessment]
++    C --> F[Future connector / PHY adapter: not implemented]
++    L[Independent link budget] --> A
++    G[Independent engine budget] --> A
++    A --> U[No output permission / no hardware verified capability]
++~~~
++
++核心函数：NaviDisplay::timing、edid、connectors、assess。
++Mode包含完整DetailedTiming、约分后的64位refresh fraction、source与同频替代标志。
++Monitor包含mfg/product、digital、partial、声明的TMDS/SCDC与计数，不包含用户serial。
++Connector包含原object/encoder/tag、静态I2C/HPD记录；routingKnown/boardVerified均false。
++
++Origin = Unknown / Synthetic / StaticReference，只记录来源声明，不是认证。
++没有从字节数据产生DeviceVerified的枚举值。不能伪装本机测试。
++输入/输出缓冲由调用方持有，不应相互重叠；Core无IO或隐式allocation。
++
++数学规则：geometry/sync与blanking一致，progressive，clock范围1000..2500000kHz，
++刷新率实验预算1..1000Hz。它们是本原型预算，不是AMD/DP的正式最大能力。
++refresh = pixelClockKHz×1000 / (hTotal×vTotal)，64位整数约分。
++判断RGB24/30/36bpp；DP8b10b只接受已知lane数1/2/4与1.62/2.7/5.4/8.1Gbps；
++payload按8/10计算。TMDS假设RGB/4:4:4，payload=characterClock×24，深色占用更高。
++引擎clock单独比较。未知证据不产生WithinBudget。
++WithinBudget只代表理想算术上限，未计算完整protocol/audio/control/FEC/blanking分配，也不是链路可用证明。
++不支持UHBR128b132、HDMI FRL、DSC、YCbCr subsampling、VRR或训练。
++任何结果outputAllowed/hardwareVerified始终false。
++
++frameBytes=activeW×activeH×4；fullFrameBytesPerSecond为按刷新分数计算的向上取整写带宽。
++乘法溢出直接拒绝。timing()复制输入后清空输出，支持input与out.timing别名的再验证。
++
++## 1440p180
++
++2560×1440×180=663552000有效像素/秒，尚未计消隐。
++经典EDID DTD的16位10kHz clock上限655350kHz，低于该数值；
++因此不能用经典DTD表达本目标，必须进一步研究DisplayID/其他合法表达。
++本轮DisplayID不支持，不能宣称已解析本显示器180Hz。
++合成模型2720×1500 totals / 734400kHz严格算得180Hz，只用于数学测试，不是实际输出参数建议。
++32bpp完整帧14745600B，180fps一次写带宽2654208000B/s、帧时间约5.56ms。
++没有GPU/CPU性能测量，扫描速率、合成与实际present帧率需各自未来验收。
++''',
++'docs/darwin-adapter-m8.md':'''# M8 Darwin Adapter contract
++
++沿用MemoryOps / LogOps / SnapshotOps / Lease；新增ScratchOps / ExecutionOps，
++SnapshotOps增加成对release。旧raw MemoryOps继续只服务原始字节；解析器不再将raw分配cast为Node。
++
++Host Mock从对齐uint8_t数组改为真正的Node[512]，修正M7未解决的C++对象生命周期问题。
++NodePool也直接持有构造好的Node数组；nativeScratchOps只引用调用方构造的pool，
++不依赖伪造的placement-new/SDK，不暗中分配或操作设备。
++Kernel pool应随长期owner对象存活、放在堆/owner成员中，不能放入kernel栈。
++
++validateSnapshot顺序：ExecutionOps.enter → borrow input → acquire live Nodes →
++Core validate → release Nodes → release input → log → ExecutionOps.leave。
++失败/无scratch/解析拒绝均按RAII配对释放；缺失context或lifetime callback时拒绝。
++Mock测试了parser失败、资源不足、错误上下文、重入与missing release。
++Mock的inCall/busy是串行模拟，不是原子锁。NodePool不是thread-safe，
++真实Darwin adapter必须提供线程上下文与正确的serialization/teardown，不能把bool当内核锁。
++
++日志仅内部静态token/输入offset，不输出物理地址、serial或payload。
++callbacks是可信adapter契约：不能抛异常、访问硬件或在中断中调用可阻塞分配/日志。
++跨callback重入和异步销毁的真正kernel实现仍NOT RUN。
++借用View副本不会自动失效；owner必须保持输入、context和callback lifetime。
++
++只静态阅读：
++[固定MacKernelSDK IOService.h](https://github.com/acidanthera/MacKernelSDK/blob/05094e5e88cec7caedbfb35e8449ed0db94bf95b/Headers/IOKit/IOService.h)
++的probe/start/stop/open/close/handleOpen及arbitration语义；
++[Apple OSObject](https://github.com/apple-oss-distributions/xnu/blob/main/libkern/libkern/c++/OSObject.h)
++的retain/release与并发限制；
++[IOLib](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/IOKit/IOLib.h)线程上下文要求。
++这不等于实际IOService包装或引用计数已经接入。
++pin IOLib/IOPCIDevice部分网页抓取失败；未下载SDK替代或伪造类型。
++Darwin native build、kext link/load、PCI binding均NOT RUN。
++''',
++'docs/cobalt-production-abi.md':'''# M8 Cobalt Production ABI candidate
++
++新增core/query_candidate.hpp/.cpp，在现有N44I v2上加N44Q 1.0 envelope。
++128B explicit little-endian，不直接序列化C++结构，不是生产N48N协议。
++
++| offset | 内容 |
++|---|---|
++| 0..3 | N44Q |
++| 4..9 | major1/minor0/length128 |
++| 10..11 | reserved0 |
++| 12 | provenance Unknown/Synthetic/StaticReference |
++| 13..15 | verification/owner state/reserved，均0 |
++| 16..19 | presence，必须与内嵌N44I一致 |
++| 20..23 | verified capabilities，必须0 |
++| 24..31 | 非零generation（CPU会话epoch，不是本机身份） |
++| 32..127 | 既有N44I v2 96B |
++
++未知version/minor/length、false verification、owner、capability、provenance或presence不匹配拒绝。
++来源标签不是硬件真实性证明。字段存在不意味着topology/GB_ADDR_CONFIG等已在本机验证。
++encode先写局部缓冲并validate，再commit；decode失败清空模型。
++
++OfflineOwner是纯CPU单对象lease状态机：单lease、generation递增、stale token使状态失败终止，
++close后借用失败。canInitializeHardware恒false，不能仲裁真实GPU或两个独立驱动实例。
++无IOUserClient、selector、MMIO、物理地址、queue或GPU资源句柄。
++
++固定源码审查：
++- AMDRadeonRDNA4 vulkan/navi48_native_abi.h为N48N minor9。
++- Cobalt src/navi48-bringup/src/Navi48NativeABI.h为minor12，QueryInfo192B；
++  v1.10在reserved区引入session VRAM budget，v1.11/12引入scanout selectors22..26。
++- native_open_policy_pure.h：root/WindowServer/APP角色、route和selector限制，
++  APP不得ReadRegs/scanout；import-caller必须匹配owner task。
++- native_g4_pure.h：session memory budget、映射回收等工程条件。
++- mesa-patches/0002、0007：Darwin transport与QueryInfo/GB_ADDR_CONFIG路径。
++
++上述是本地固定commit的可读实现，不是本机复现；没有执行upstream脚本或bring-up。
++不能将ABI1.9/1.12头按名字混用，不能把N44Q128B复制到N48N192B。
++
++生产差距：可信内核采样来源、真实owner exclusivity、权限认证、task lifetime、
++BO/VM/fence、可撤销映射、reset/poisoning与caps协商、gfx1200 shader及Mesa winsys。
++未来由单一驱动拥有power/firmware/VM/queues/display；其他模块仅通过受限接口调用，
++不允许AMDRadeonRDNA4与Cobalt双重初始化。N44Q不授予任何硬件权限。
++''',
++'docs/macos-build-readiness.md':'''# M8 macOS Build Readiness / M9
++
++Windows已真实编译：既有ASIC/Discovery/CodeObj/validation/device_info，
++新增EDID/AtomBIOS/display/integrity/query_candidate及不含Apple SDK的Platform contract。
++9个Core translation unit使用C++17、-fno-exceptions、-fno-rtti、-ffreestanding、
++-Wall/-Wextra/-Werror和4096B单函数栈警告，并审查object undefined symbols。
++仍有memcpy/memset和内部Core引用。总递归栈、Mach-O、Apple symbol/ABI仍未验证。
++Host tests/STL/exception wrapper不进入kernel target；Darwin native不进入Windows target。
++
++~~~mermaid
++flowchart TD
++    A[合法Xcode / Apple SDK / fixed KernelSDK] --> B[真实macOS Core compile only]
++    C[Explicit CPU source list / no hardware backend] --> B
++    B --> D[Mach-O symbol / layout / stack check]
++    D --> E[CPU fixture / lifetime tests on macOS]
++    E --> F[Darwin thread / OSData ownership wrapper review]
++    F --> G[未来独立kext build授权]
++    G --> H[未来独立load / hardware授权]
++~~~
++
++M9建议优先真实macOS的CPU编译与纯逻辑测试，而不是先堆积寄存器初始化：
++1. 用户明确指定合法、已具备Xcode/SDK的Mac及授权工作区；本轮不自动连接。
++2. 只编译Core和adapter object，确认真实头、固定宽度、missing symbols、constructor/teardown。
++3. 复跑同一合成fixtures和CPU-only测试；不签名、不安装、不加载kext。
++4. 解决NodePool堆生命周期、OSData/descriptor retain、ExecutionOps gate和kernel stack预算。
++5. 再研究kext target与版本适配；独立授权不可由此自动获得。
++
++AMDRadeonRDNA4固定Makefile参考macOS11 ABI。MacKernelSDK pin
++05094e5e88cec7caedbfb35e8449ed0db94bf95b；Lilu pin0515f40b7f2a096adc85e832a4c6104fbd07f936。
++固定SDK README基于macOS11/Xcode12.0头，不能推出新Xcode/Sequoia/Tahoe实际兼容。
++没有Windows交叉kext build、fake Apple SDK、自动上传或远程CI。
++KernelSDK native/object compile = NOT RUN；kext build/load = NOT RUN。
++
++若暂时没有合法Mac，Windows仍可针对DisplayID、真实合法静态样本、Atom其他版本、
++CRC格式来源、parser budget继续有限研发；这些不能替代真实Darwin构建。
++'''}
++for path,text in docs.items():safe.write(path,text)
++safe.write('README.md','''# Hackintosh-Navi44-Lab
++
++RX 9060 XT / Navi44 的 CPU-only 驱动研发工作区；当前阶段 M8。
++已形成 EDID / AtomBIOS 静态解析与显示预算模型，没有可部署驱动或真实显示输出。
++
++## 当前交付
++
++- [M8完整报告](reports/m8/development-report.md)
++- [测试结果](reports/m8/test-results.json)
++- [真实命令/退出码](reports/m8/commands.json)
++- [安全审查](reports/m8/safety-audit.md)
++- [剩余阻碍](reports/m8/remaining-blockers.md)
++- [增量源码补丁](patches/m8-from-m7.patch)
++- [EDID设计](docs/edid-parser-design.md)
++- [AtomBIOS设计](docs/atombios-parser-design.md)
++- [Display模型](docs/navi44-display-capability.md)
++- [Darwin契约](docs/darwin-adapter-m8.md)
++- [Cobalt候选ABI](docs/cobalt-production-abi.md)
++- [真正macOS构建路线](docs/macos-build-readiness.md)
++
++## CPU-only测试入口
++
++仅在本项目目录运行：
++
++~~~powershell
++& 'D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe' -I -B -X utf8 run_m8_offline_tests.py
++~~~
++
++使用已有便携Clang，无系统安装/管理员/全局PATH修改。
++reports/m8/regression/execution存日志，build/m8存产物，tmp存临时文件。
++串行有限测试；子进程30/40秒超时。canary是仅项目子进程的预期CPU错误。
++CMake已更新显式CPU目标与超时，但本轮未configure/build，不应写到Lab外。
++
++M8改动前关键快照reports/m8/history，独立M7基线reports/m8/baseline。
++M7/M6.5/M6历史报告与补丁保留，不再运行旧stage主入口或finalizer覆盖历史记录。
++M8只读旧helper定义并重定向输出；m8_prepare/harden/baseline_retry为一次性追溯脚本。
++平台path guard不是独立OS沙箱，实际沙箱授权更宽；每次写入仍限制在Lab。
++GPU match/init/Makefile禁用，Host不链接device/plugin/native IOKit。
++没有实际GPU、Vulkan/Metal、WindowServer、kext、EFI、SSD或macOS部署。
++''')
++safe.write(OUT/'safety-audit.md','''# M8 安全审查
++
++唯一主动写入边界：D:/CodexWorkSpace/黑苹果研究/Hackintosh-Navi44-Lab。
++已确认当前workspace-write沙箱允许范围比Lab更广，不宣称OS级Lab专属隔离。
++人工审查每个命令，固定源码/进程allowlist，写入前执行真实路径/父目录检查；
++拒绝..、越界resolve、symlink/reparse/junction与多hardlink。不能抵御独立并发TOCTOU攻击。
++无法确认安全的设备/SDK/远程操作没有执行；没有请求Full Access或权限提升。
++
++实际进程：既有Python、Lab中核对过归档的Clang/nm/symbolizer、本项目CPU-only exe、
++只读Git status/rev-parse、项目副本Git apply。没有执行上游完整构建/安装脚本。
++M8 runner从旧runner明确边界导入已审查helper，重定向所有M7输出，
++不执行旧report writer。历史文件hash核对，最终验证旧gate源码字节未改。
++Host源码只列Core与EDID/Atom纯解析，排除device/plugin/IOKit/native GPU API。
++
++TMP/TEMP/cache及sanitizer日志指向Lab，Python -B。每子进程30/40秒，串行固定种子，
++fuzz有限2400+800，已有变异2400，非无限/性能压力。一个16MiB+1测试buffer用于budget边界，
++不通过放宽Host1MiB传输限制完成差分。失败保留于attempts，不关闭Sanitizer。
++只有本项目canary进程发生预期异常；未结束用户其他进程。
++CMake显式CPU source、无fetch/install/custom/pre/post hooks；新增CTest串行30秒。
++CMake/MSVC/native SDK构建未执行。compiler CFG与runtime重新对照已有ZIP。
++
++| 禁止操作 | 本代理执行记录 |
++|---|---|
++| 工作区外主动写入 | 未执行；无独立系统级审计 |
++| Windows系统/注册表/服务/驱动/安全策略修改 | 未执行 |
++| EFI/BCD/BIOS/UEFI/TPM/Secure Boot/BitLocker修改 | 未执行 |
++| SSD分区/Intel第二盘内容访问 | 未执行 |
++| GPU BAR/MMIO/ROM/VBIOS/DMA/固件/命令 | 未执行 |
++| DDC/I2C/AUX或显示配置变更 | 未执行 |
++| SYS/Kext注册/加载/安装 | 未执行 |
++| 管理员/全局PATH/Git配置 | 未执行 |
++| 未授权远程设备/代码推送/PR/Release | 未执行 |
++| 远程第三方代码执行/系统安装 | 未执行 |
++
++网络仅网页阅读；未下载/运行新工具链、Apple SDK或上游脚本。
++操作系统和工具可能产生缓存、日志、故障报告，未有独立系统级观测，
++因此不承诺物理零写入或绝对零副作用。
++''')
++safe.write(OUT/'remaining-blockers.md','''# M8 剩余阻碍
++
++- DisplayID未实现；经典EDID DTD clock无法表达1440p180，不能宣称本监视器完整解析。
++- EDID只支持1.3/1.4及CTA rev3子集；interlace/stereo/FRL/DSC/HDR/VRR/完整VIC仍未支持。
++- Atom只支持限定header/master/display版本与静态记录，没有真实Navi44 ROM或PHY routing证据。
++- 原始checksum/静态元数据不是固件签名或真实硬件能力证明。
++- CRC-32 ISO-HDLC算法已实现，但AMD固件具体格式/convention缺少可信样本确认，默认拒绝路径不放宽。
++- ELF只有离线验证/预算，没有GPU loader/ISA执行；真gfx1200编译产物继续SKIP。
++- Node对象生命周期已通过typed pool改造；真实Darwin OSData retain/线程gate/heap pool/teardown仍未接入。
++- native Apple API源码未编译，Windows COFF检查不能替代Mach-O、内核符号/总栈/SDK兼容。
++- N44Q是数据候选，无真实IOUserClient认证或全局GPU owner；N48N1.9与Cobalt1.12不能混用。
++- GPU power/firmware/DCN/DMUB/GOP/AUX/VM/queue/恢复完全未执行；显示/Vulkan/Metal/WindowServer NOT RUN。
++- Sanitizer只覆盖有限输入，leak/concurrency/hardware stability没有验证，fuzz非coverage-guided。
++
++M9优先真实macOS CPU编译/fixture验证；随后再判断是否有条件进行独立kext或硬件研发。
++不存在本轮授权可自动启动的GPU实验或Mac远程操作。
++''')
++reg=results['regression'];pyPass=sum(x['PASS'] for x in reg['python'].values())+results['python_m8']['PASS']
++cppOld=reg['cpp_regression']+reg['cpp_m7']
++summary=f'''# M8 完整开发报告：Navi 44 显示核心与Darwin就绪工程
++
++日期：2026-10-14，Asia/Shanghai。项目：Hackintosh-Navi44-Lab。
++环境：Windows11，现有LLVM-MinGW；范围：实际源码、CPU-only编译、静态字节测试。
++
++## 1. 核心结论
++
++本轮在M7项目上实际增强EDID/AtomBIOS，形成可复用显示数据模型；
++完善typed scratch/input lifecycle/serialized contract，新增CRC工具、ELF预算和N44Q候选协议。
++源码已在Windows以禁异常/RTTI、freestanding及严格警告编译，完成离线回归、差分、Sanitizer。
++它们是未来驱动的基础纯逻辑模块，没有接入真正RX9060XT。
++
++Darwin native、macOS/kext、GOP/framebuffer输出、DP/HDMI训练、GPU firmware/VM/queues、
++Vulkan/Metal/WindowServer、1440p180实测、双盘安装全部NOT RUN。
++没有因为测试PASS把模拟能力提升成真实硬件支持。
++
++## 2. 接管与M8基线
++
++核对M7交付manifest、工具与关键源码，保存reports/m8/history和baseline-sha256。
++M7测试独立重定向到reports/m8/baseline与build/m8/baseline；历史report未覆盖。
++独立基线重跑：Python89PASS/2SKIP、C++65PASS、743组差分、2400变异、3143 sanitizer输入、
++两类故障canary。上述仅为M7基线复现，不计M8新增。
++Git核对实际发生在交付审查阶段；开发前以M7哈希建立基线。
++Lab根没有.git，使用快照/增量补丁追溯；两个upstream固定HEAD及只读status已记录。
++所有既有report/patch历史hash再核对，见history-integrity.json。
++
++## 3. 实际源码模块
++
++| 模块 | 实际增量 |
++|---|---|
++| src/edid.cpp | DTD失败清空、geometry、CTA offset/DBC/vendor长度/容量/错误拒绝 |
++| src/atombios.cpp/.hpp | image范围、版本、表重叠/循环/路径/records/失败状态、索引修正 |
++| core/display.hpp/.cpp | Monitor/Mode/Connector/Link/Engine/Fit、解析转发、去重与64位数学 |
++| platform/contract.hpp | ScratchOps/ExecutionOps、snapshot release、RAII清理、NodePool |
++| host/platform_mock.hpp | 真Node数组、context/reentry/lifetime行为计数 |
++| platform/darwin_native.cpp/.hpp | nativeScratchOps引用构造好的pool；仍仅静态源码 |
++| core/integrity.hpp/.cpp | 显式CRC convention、checksumMatched与signature/loadable分离 |
++| core/validation.cpp、host/navi44.py | ELF16MiB/4096 headers预算同步 |
++| core/query_candidate.hpp/.cpp | N44Q1.0编码/解码、来源/epoch、OfflineOwner lease状态机 |
++| tests/fixtures/m8_display.hpp | 合成EDID/CTA/ATOM，非本机数据 |
++| tests/unit/m8_unit.cpp/m8_fuzz.cpp/m8_contract_compile.cpp | 固定预期、恶意输入、有界变异、kernel-friendly contract编译 |
++| tests/test_m8.py | ELF输入/headers预算新Python测试 |
++| run_m8_offline_tests.py/CMakeLists.txt | 独立流水线、显式source allowlist、串行/timeout |
++
++没有复制一套新EDID/ROM原始解析器。保留原公共接口、DMT/VIC逻辑和许可头；
++新Core包装提供统一严格Result。文字编辑可能统一行尾；补丁按字节重放验证。
++真实改动清单见changed-files.json，补丁patches/m8-from-m7.patch。
++
++## 4. EDID实际支持与限制
++
++支持1.3/1.4、128B blocks/Header/Checksum、manufacturer/product/digital、
++progressive数字separate-sync DTD、已有DMT/CTA-VIC子集、CTA rev3 DTD与HDMI TMDS/SCDC声明。
++声明extension数与输入精确匹配，最多4块。非法timing、未知版本、跨界DBC、
++容量不足与损坏内容拒绝，失败清空结果。
++相同timing去重合并source；同尺寸同刷新而不同raster保留alternative。
++默认未知extension拒绝；KnownBlocksOnly保留已知部分并标partial。
++未解析timing计数，不假装完整支持。
++
++未支持DisplayID、EDID2、interlace/stereo/边框/模拟复合同步、
++完整HDR/FRL/DSC/VRR、所有VIC或CVT/GTF公式。
++没有DDC/I2C/AUX/Windows GPU API读取。所用fixture全合成，未读取本机EDID。
++
++## 5. AtomBIOS实际支持
++
++55AA、512B块长度、镜像sum8，ATOM2.2/2.3已知前缀、master data2.1、
++display object1.5、path_v3、静态I2C/HPD、connector类型。
++每个访问限于当前image；外层ROM多余数据不能补足坏指针。
++拒绝表重叠/self-cycle/重复connector、错误版本/reserved/count、
++path数组内record偏移、0长度/无终止/重复record。
++修正DCE27/VRAM28/Voltage32索引；v1.4不再混作v1.5。
++
++只有版本化静态信息，无ATOM bytecode执行、PCIR完整多image验证、真实encoder/PHY routing。
++特殊USB-C保留字段配置未支持。真实Navi44 ROM/connector地图仍UNVERIFIED；
++其他板卡历史描述不是本机复现，也未新增使用未确定许可的ROM样本。
++
++## 6. Display Capability如何防误判
++
++EDID声明、connector静态description、link预算、engine预算分别建模。
++Origin只是Unknown/Synthetic/StaticReference，不是可信硬件认证。
++refresh使用64位约分的精确分数；geometry、clock、rate与buffer capacity设明确预算。
++DP8b10b和TMDS RGB24/30/36bpp做理想payload预检，引擎clock独立判断，
++unknown不升级，WithinBudget也不等于协议/链路已通过。
++hardwareVerified、boardVerified、routingKnown与outputAllowed不被离线解析授予。
++没有生成真实mode switch或DP/HDMI Adapter。
++
++1440p180有效像素663552000/s，高于经典DTD最大655350000Hz；
++必须进一步研究DisplayID/其他表达，本轮不支持本目标EDID模式。
++合成2720×1500、734400kHz模型只证明算术180Hz：
++32bpp frame14745600B，完整写入2654208000B/s，帧时间5.56ms。
++这是数学，不是性能或输出结果。
++
++## 7. Darwin Adapter增量
++
++M7 raw byte scratch改为ScratchOps提供真正构造的Node，Host Mock改为Node[512]。
++NodePool长期owner存储；native接口引用pool，避免未证明的raw-byte cast/对象生命周期。
++Snapshot借用需成对release；ExecutionOps明确serialized thread前置条件。
++异常上下文/重入/missing callback拒绝；parse失败/资源不足都配对归还input与scratch。
++执行上下文拒绝时不调用日志，避免错误线程IOLog或递归logging。
++tests验证这些真实CPU行为，没有假的IOKit类型。
++
++真实OSData/descriptor retain、IOService start/stop/open、锁与task teardown还只读设计；
++Mock bool不是kernel并发锁。native API/SDK与Mach-O未编译，
++pool实际放置、线程gate、kernel总栈、符号/ABI和对象析构仍需macOS验证。
++固定SDK IOService头和官方OSObject/IOLib已阅读，部分pin网页失败如实记录。
++
++## 8. Firmware / ELF增量
++
++CRC-32 ISO-HDLC：反射poly0xedb88320、init/final XOR0xffffffff，
++对标准123456789及空/损坏payload做实际测试，未知convention拒绝。
++checksumMatched与signatureVerified/loadable分离，后二者始终false。
++公开AMD common header说明payload CRC字段，但所读Linux路径只核对总体大小，
++不足以证明所有实际固件的CRC convention。没有盲目接入默认Firmware/PSP路径：
++原非零CRC未验证拒绝仍保持，未知signature仍未验证。
++
++ELF输入最多16MiB、phnum+shnum最多4096，Python/C++同步；
++原symbol/descriptor/kernarg/relocation/metadata checks保留。
++大输入不能穿过Host1MiB传输，改为每语言直接单元测试；未放宽Host门禁。
++ALLOC relocations仍不支持，没有应用重定位/Shader执行。
++真实gfx1200编译产物仍SKIP，未改Machine造假。
++
++## 9. Cobalt生产ABI候选的实际成果
++
++新增N44Q1.0/128B codec，内嵌N44I v2/96B，显式LE/version/length/provenance/presence/epoch。
++未知minor、能力、verification、owner或reserved拒绝；来源标签不是认证。
++OfflineOwner支持单CPU lease、close、monotonic generation与stale token失败终止，
++永不允许GPU初始化。不是实际资源所有权或UserClient。
++
++固定Cobalt native header实际minor12、QueryInfo192B，AMDRadeonRDNA4 header minor9；
++旧patch2内嵌更早版本。审查角色/route权限及query预算，APP拒绝ReadRegs/scanout。
++不混用headers，不将128B复制到192B，不把gfx1201 canned topology用于Navi44。
++生产差距仍包括可信kernel采样、task权限、exclusive owner、BO/VM/fence、
++映射撤销/reset、实际gfx1200代码与Mesa winsys；没有Vulkan或Metal新实机能力。
++
++## 10. 工具链和真实构建
++
++LLVM-MinGW20261006，Clang23.1.3，target x86_64-w64-windows-gnu。
++旧ZIP SHA256：317492c456aa27ee607a5919f1d2d38dcdc1112516a24d0bf4b00d078f52d17a。
++本轮重新核对实际compiler/nm/symbolizer/config/runtime与ZIP成员一致，未下载/安装。
++9个Core translation unit真实使用：
++C++17、-fno-exceptions、-fno-rtti、-ffreestanding、-Wall/-Wextra/-Werror、
++-Wframe-larger-than=4096、-O1/-g；对象nm审查。Kernel contract另编译检查。
++Host保留STL便利层；未链接device/plugin/IOKit/native。产物为WindowsPE/COFF。
++仍需memcpy/memset及内部Core符号，不能宣称Apple ABI或完全freestanding。
++
++统一真实入口：
++
++~~~powershell
++& 'D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe' -I -B -X utf8 run_m8_offline_tests.py
++~~~
++
++所有实际argv、exit、持续时间见commands.json；构建详情见build-results.json。
++普通compile/link/unit/diff/fuzz/analyze exit0；canary非零为预期检测。
++CMake修改后静态审查显式source与CTest timeout，现有Safety tests重新通过；
++实际CMake configure/build、MSVC/native SDK均NOT RUN。
++
++## 11. 自动化结果（最后一次执行）
++
++| 分类 | 结果 |
++|---|---|
++| 原Python回归 | 89 PASS、2 SKIP；89中4项静态检查 |
++| 新PythonM8 | {results['python_m8']['PASS']} PASS |
++| 原C++回归 | {cppOld} PASS（34+31） |
++| 新C++M8 | {results['m8_cpp']} PASS |
++| 共享差分 | 743原corpus+{results['budget_differential']}新预算=744组，零差异 |
++| 原确定变异 | 2400组，seed759070，零差异 |
++| 新EDID/ROM变异 | 2400组，seed759080，invariants PASS |
++| 新query变异 | 800组，同一PRNG续序，invariants PASS |
++| Sanitizer | 原3143 corpus/变异、新3200变异及M7/M8单元均通过当前覆盖 |
++| 检测器canary | heap-buffer-overflow/整数溢出实际检测 |
++| 静态分析 | 10文件零warning |
++| Core flags / object symbols / contract | PASS |
++| 真ROM/EDID、gfx1200ELF、Darwin/Kext/GPU | UNVERIFIED/NOT READ/SKIP/NOT RUN |
++
++Python总{pyPass} PASS、2SKIP；C++总{cppOld+results['m8_cpp']} PASS。
++不把基线额外复现、重复sanitizer执行、truncate循环输入和静态assert再计入新单元数量。
++原差分与新fuzz不是同一种验收，不能拼出“GPU支持总PASS”。
++新模块不强行重复写Python Parser，以固定规范值、C++行为与Sanitizer验证。
++
++~~~text
++{results['m8_fuzz']}
++~~~
++
++每进程30/40秒，串行、有限规模，输入immutable invariants、失败清空与能力零提升。
++有界变异不是coverage-guided；未验证leak、真实并发、kernel/硬件稳定性。
++
++## 12. 失败与修复记录
++
++- 重定向baseline runner把import root放在reports/m8：ModuleNotFoundError。
++  修正project import路径，保留baseline-first-failure.log/command。
++- 首次新Core编译遇unused kAtomSignatureOffset：使signature检查继续使用真实常量；
++  -Werror保持，没有屏蔽警告。
++- 新大ELF差分：probe返回input_size，Python Core返回elf_input_budget。
++  属于Host传输与Core层限制差异；保留差异文件，取消跨层不适用case，
++  追加各语言直接budget断言，保留1MiB Host限制与所有原差分。
++- timing再验证输入可别名out.timing：先复制输入再清空输出，加alias-safe测试。
++  此为代码审查修复，不冒充Sanitizer发现。
++- 交付审查发现ExecutionOps拒绝后仍log可能违反线程上下文且递归；
++  拒绝路径不再调用callback，增加有界logging重入断言后重新回归。
++
++其余测试PASS；失败日志/JSON/commands保留在regression/execution/attempts。
++未关闭Sanitizer、删除原测试、放松格式校验或修改已有通过预期掩盖问题。
++
++## 13. 安全审查
++
++所有主动写入限Lab；沙箱范围更广，依靠逐命令人工审查、路径检查与allowlist补充，
++不宣称Lab专属系统隔离或TOCTOU绝对防护。
++未修改Windows系统/驱动/注册表/服务/全局PATH，
++未动EFI/BCD/BIOS/Secure Boot/TPM/BitLocker、未操作分区或读取Intel第二盘内容。
++未访问GPU BAR/MMIO/ROM/VBIOS/DMA、没有firmware/queue/指令或显示配置更改。
++未安装/加载kext/SYS、未管理员提升、未远程Mac/CI操作或Git推送/PR。
++正常OS/工具可能产生缓存/日志，未做独立系统级审计，不承诺绝对零副作用。
++原device/plugin/profile/Makefile gate保持，实际编译source allowlist排除硬件backend。
++
++## 14. M9建议：优先真正macOS编译
++
++| 类型 | 后续任务 | 所需授权/主要风险 |
++|---|---|---|
++| A Windows CPU-only | DisplayID、合法静态样本、其他ATOM版本、CRC格式依据、ABIbudget进一步覆盖 | 后续独立Lab开发授权；仍无硬件，无无限fuzz |
++| B 真macOS纯编译 | Core/Native真实头与Mach-O、符号/构造/retain/thread、CPUfixtures | 用户提供合法Mac与工作区并单独授权；不等于允许签名/加载/改安全策略 |
++| C 真GPU实验 | 本卡Discovery/GOP/connector、DCN/DMUB/链路、电源/VRAM、输出恢复 | 必须单独硬件授权；唯一GPU且无核显，黑屏/卡死风险高 |
++
++优先B：Windows已覆盖足够基础纯逻辑，继续堆积未验证寄存器代码收益低。
++M9先用真实macOS编译Core/adapter object和运行CPU tests，仍不构建可部署kext或加载。
++针对1440p180，A中的DisplayID是明确格式缺口，可有限并行安排，但不能替代B。
++本轮没有自动连接Mac、安装SDK或执行任何下一阶段。
++
++## 15. 来源与证据
++
++E1官方规范/API；E2公开源码；E3本轮CPU运行证据（仅其覆盖范围）；E4作者自述；E5设计推断。
++没有本机macOS/GPU E3。资料阅读日期2026-10-14。
++
++- [VESA E-EDID A2](https://glenwing.github.io/docs/VESA-EEDID-A2.pdf)，2006规范镜像，DTD/扩展字段，E1。
++- [Linux v6.15 DRM EDID](https://github.com/torvalds/linux/blob/v6.15/drivers/gpu/drm/drm_edid.c)，固定tag，CTA/DTD安全参考，E2。
++- [AMD atomfirmware.h](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/include/atomfirmware.h)，AMD许可接口，移动参考，E2。
++- [amdgpu_ucode.c](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/amdgpu/amdgpu_ucode.c)，字段/size检查，移动参考，E2。
++- [RFC1662 C.3](https://www.rfc-editor.org/rfc/rfc1662.html#appendix-C.3)，1994，CRC算法参考，E1；不证明AMD固件CRC适用。
++- [XNU OSObject](https://github.com/apple-oss-distributions/xnu/blob/main/libkern/libkern/c++/OSObject.h)，生命周期/并发限制，E1/E2。
++- [XNU IOLib](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/IOKit/IOLib.h)，allocator上下文，E1/E2。
++- [MacKernelSDK IOService固定头](https://github.com/acidanthera/MacKernelSDK/blob/05094e5e88cec7caedbfb35e8449ed0db94bf95b/Headers/IOKit/IOService.h)，E2。
++- [AMDRadeonRDNA4固定源码](https://github.com/RX4Darwin/AMDRadeonRDNA4.kext/tree/49f7f20c00dd154384418078f8a09e79c400a06a)，本地只读E2，BSD3原许可保留。
++- [Cobalt固定源码](https://github.com/Almosst-DEV/Cobalt64/tree/d6c9aedf8e6526a39e349b5886cbc8c7ddf77f65)，本地native ABI/权限代码E2，许可按文件。
++
++pin IOLib/IOPCIDevice网页抓取失败，没有编造阅读或SDK构建结果。
++未下载第三方ROM/固件样本，未运行上游脚本。
++新代码沿Lab BSD3许可；未移植Linux GPL实现，按格式重新实现和对照既有BSD解析器。
++
++## 16. 交付与终止
++
++完整报告development-report.md；baseline/test/build-results.json；commands.json；
++changed-files.json；safety-audit.md；remaining-blockers.md；
++history-integrity/git-status/toolchain-integrity/delivery-verification.json；
++deliverable-sha256.json；增量patches/m8-from-m7.patch；六份docs和实际源码/tests。
++补丁仅代码/文档，不包含GPU固件、可加载模块、安装器或构建exe。
++补丁在Lab内新副本检查/重放并逐文件hash验证；原source/历史不通过重放修改。
++
++M8授权范围内工程交付完成。所有实际硬件和macOS部署仍未执行。
++本轮交付后停止，等待下一阶段独立授权。
++'''
++safe.write(OUT/'development-report.md',summary)
++builds=[c for c in commands if any(c['name'].startswith(t) for t in ('compile-','link-','symbols-','analyze-','m8-compile-','m8-link-','m8-symbols-','m8-analyze-','m8-contract-'))]
++safe.write(OUT/'build-results.json',json.dumps({'status':'PASS','compiler':(OUT/'regression/execution/compiler-version.log').read_text(),
++           'commands':builds,'CMake':'NOT RUN: static review','MSVC':'NOT RUN','Darwin_native':'NOT RUN','Kext':'NOT RUN'},
++           ensure_ascii=False,indent=2))
++
++# m8_prepare was created before its own snapshot; it is still new versus M7.
++new_stage={'m8_prepare.py','m8_baseline_retry.py','m8_harden_parsers.py','run_m8_offline_tests.py','finalize_m8.py',
++           'tests/test_m8.py','tests/unit/m8_unit.cpp','tests/unit/m8_fuzz.cpp','tests/unit/m8_contract_compile.cpp',
++           'tests/fixtures/m8_display.hpp',*docs,'reports/m8/development-report.md',
++           'reports/m8/safety-audit.md','reports/m8/remaining-blockers.md'}
++for folder in ('development/AMDRadeonRDNA4-Navi44/core','development/AMDRadeonRDNA4-Navi44/platform'):
++    new_stage.update(p.relative_to(ROOT).as_posix() for p in (ROOT/folder).rglob('*') if p.is_file())
++existing={r for r in before if not r.startswith('reports/') and not r.startswith('patches/') and r!='m8_prepare.py'}
++changes=[];pieces=[]
++for rel in sorted(existing|new_stage):
++    p=safe.checked(rel)
++    if not p.is_file():continue
++    data=p.read_bytes();old=(OUT/'history'/rel).read_bytes() if rel in existing else b''
++    if data==old:continue
++    pieces.append('diff --git a/'+rel+' b/'+rel+'\n')
++    if not old:pieces.append('new file mode 100644\n')
++    pieces.extend(difflib.unified_diff(old.decode('utf-8').splitlines(keepends=True),
++                 data.decode('utf-8').splitlines(keepends=True),fromfile='a/'+rel if old else '/dev/null',tofile='b/'+rel))
++    changes.append({'path':rel,'kind':'modified' if old else 'added',
++                    'before_sha256':hashlib.sha256(old).hexdigest() if old else None,'after_sha256':hashlib.sha256(data).hexdigest()})
++safe.write(OUT/'changed-files.json',json.dumps(changes,ensure_ascii=False,indent=2))
++patch=safe.write('patches/m8-from-m7.patch',''.join(pieces))
++folder=safe.mkdir('build/m8/patch-replay');replay=safe.mkdir(folder/str(len(list(folder.iterdir()))+1))
++for row in changes:
++    if row['kind']=='modified':safe.write(replay/row['path'],(OUT/'history'/row['path']).read_bytes())
++records=[]
++for flags in (['--check'],[]):
++    args=[str(git),'-c','core.autocrlf=false','-c','core.whitespace=cr-at-eol','apply',*flags,'--whitespace=nowarn',str(patch)]
++    p=subprocess.run(args,cwd=replay,env=env,capture_output=True,text=True,encoding='utf-8',timeout=30)
++    records.append({'argv':args,'cwd':str(replay),'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr})
++    safe.write(OUT/('patch-check.log' if flags else 'patch-replay.log'),p.stdout+p.stderr)
++    if p.returncode:raise SystemExit('Patch failure: '+p.stderr)
++for row in changes:
++    if digest(safe.checked(replay/row['path']))!=row['after_sha256']:raise SystemExit('Replay mismatch: '+row['path'])
++safe.write(OUT/'delivery-verification.json',json.dumps({'status':'PASS','changed_files':len(changes),
++           'patch_sha256':digest(patch),'git':records,'replay':'all changed files byte-identical','history':'PASS'},ensure_ascii=False,indent=2))
++targets=[ROOT/r['path'] for r in changes]+[patch]+list(OUT.glob('*.json'))+list((ROOT/'build/m8/execution').glob('*.exe'))
++manifest={p.relative_to(ROOT).as_posix():digest(safe.checked(p)) for p in targets if p.name!='deliverable-sha256.json'}
++safe.write(OUT/'deliverable-sha256.json',json.dumps(manifest,ensure_ascii=False,indent=2))
++print(json.dumps({'status':'PASS','changed_files':len(changes),'manifest_files':len(manifest),
++                  'historical_files':len(historical),'patch_sha256':digest(patch),'report':str(OUT/'development-report.md')},ensure_ascii=False))
+diff --git a/m8_baseline_retry.py b/m8_baseline_retry.py
+new file mode 100644
+--- /dev/null
++++ b/m8_baseline_retry.py
+@@ -0,0 +1,19 @@
++"""Correct only redirected runner import path; preserve failed launcher evidence."""
++import sys,runpy,pathlib,json,subprocess,os
++sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent))
++import m7_safety as safe
++ROOT=safe.ROOT;out=ROOT/'reports/m8'
++safe.write(out/'baseline-first-failure.log',(out/'baseline-reproduction.log').read_bytes())
++safe.write(out/'baseline-first-command.json',(out/'baseline-command.json').read_bytes())
++text=(ROOT/'run_m7_offline_tests.py').read_text().replace('reports/m7/','reports/m8/baseline/').replace('build/m7/','build/m8/baseline/')
++text=text.replace('sys.path.insert(0,str(Path(__file__).resolve().parent))','sys.path.insert(0,'+repr(str(ROOT))+')')
++script=safe.write(out/'baseline-runner.py',text)
++env=os.environ.copy();env.update(TMP=str(ROOT/'tmp'),TEMP=str(ROOT/'tmp'))
++cmd=[sys.executable,'-I','-B','-X','utf8',str(script)]
++p=subprocess.run(cmd,cwd=ROOT,env=env,capture_output=True,text=True,encoding='utf-8',timeout=120)
++safe.write(out/'baseline-reproduction.log',p.stdout+p.stderr)
++safe.write(out/'baseline-command.json',json.dumps({'argv':cmd,'exit':p.returncode},indent=2))
++if p.returncode:raise SystemExit('Baseline failed')
++r=json.loads((out/'baseline/test-results.json').read_text())
++safe.write(out/'baseline-results.json',json.dumps({'status':'PASS','scope':'M7 rerun, not M8 new results','result':r},indent=2))
++print(json.dumps(r,indent=2))
+diff --git a/m8_harden_parsers.py b/m8_harden_parsers.py
+new file mode 100644
+--- /dev/null
++++ b/m8_harden_parsers.py
+@@ -0,0 +1,158 @@
++"""One-time, checked hardening of existing parsers; no hardware routines."""
++from pathlib import Path
++import sys,hashlib,json
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++ROOT=safe.ROOT;SRC=ROOT/'development/AMDRadeonRDNA4-Navi44/src'
++hashes=json.loads((ROOT/'reports/m8/baseline-sha256.json').read_text())
++for name in ('edid.cpp','atombios.cpp','atombios.hpp'):
++    rel=(SRC/name).relative_to(ROOT).as_posix()
++    if hashlib.sha256((SRC/name).read_bytes()).hexdigest()!=hashes[rel]:
++        raise SystemExit('Already changed or unexpected input: '+name)
++text=(SRC/'edid.cpp').read_text()
++text=text.replace('bool parseDetailedTiming(const uint8_t d[18], DetailedTiming &out) {',
++                  'bool parseDetailedTiming(const uint8_t d[18], DetailedTiming &out) {\n\tout = {};\n\tif (!d) return false;')
++text=text.replace('if (out.hActive == 0 || out.vActive == 0)\n\t\treturn false;',
++'''if (!out.hActive || !out.vActive || !out.hBlank || !out.vBlank ||
++        !out.hSyncWidth || !out.vSyncWidth ||
++        uint32_t(out.hSyncOffset) + out.hSyncWidth > out.hBlank ||
++        uint32_t(out.vSyncOffset) + out.vSyncWidth > out.vBlank) {
++        out = {}; return false;
++    }''')
++text=text.replace('if (edid[18] != 1)','if (edid[18] != 1 || edid[19] > 4)')
++text=text.replace('''if (!ext || ext[0] != 0x02)
++		return false;
++	out = CtaCaps {};''','''out = CtaCaps {};
++    if (!ext || ext[0] != 0x02 || ext[1] != 3 || ext[2] > 127 ||
++        (ext[2] != 0 && ext[2] < 4)) return false;''')
++text=text.replace('''if (pos + 1 + len > end)
++				break;''','''if (pos + 1 + len > end) { out = {}; return false; }''')
++text=text.replace('''if (!parseDetailedTiming(ext + pos, t))
++				break;''','''if (!(ext[pos] | ext[pos+1])) break;
++            if (!parseDetailedTiming(ext + pos, t)) { out = {}; return false; }''')
++safe.write(SRC/'edid.cpp',text)
++header=(SRC/'atombios.hpp').read_text()
++header=header.replace('DceInfo              = 26,','DceInfo              = 27,').replace('VramInfo             = 27,','VramInfo             = 28,').replace('VoltageObjectInfo    = 31,','VoltageObjectInfo    = 32,')
++header=header.replace('bool isValid() const { return valid; }','bool isValid() const { return valid; }\n    const char *error() const { return lastError; }')
++header=header.replace('bool valid { false };','bool valid { false };\n    size_t imageEnd {0};\n    mutable const char *lastError {"not_initialized"};\n    bool fail(const char *why) const { lastError=why; return false; }\n    bool contains(size_t off,size_t count) const {\n        const size_t end=imageEnd?imageEnd:size;\n        return data && off<=end && count<=end-off && (!imageEnd || off>=base);\n    }')
++safe.write(SRC/'atombios.hpp',header)
++text=(SRC/'atombios.cpp').read_text()
++text=text.replace('if (off >= size) return false;','if (!contains(off,1)) return false;')
++text=text.replace('if (off + 2 > size) return false;','if (!contains(off,2)) return false;')
++text=text.replace('if (off + 4 > size) return false;','if (!contains(off,4)) return false;')
++text=text.replace('''uint16_t tsize; uint8_t frev, crev;''','''out = {}; if (!contains(absOffset,4)) return false;
++    uint16_t tsize; uint8_t frev, crev;''')
++text=text.replace('if (tsize < 4 || absOffset + tsize > size)','if (tsize < 4 || !contains(absOffset,tsize))')
++def replace(start,end,body):
++    global text
++    a=text.index(start);b=text.index(end,a);text=text[:a]+body+'\n\n'+text[b:]
++replace('bool AtomBios::validateImage(', 'bool AtomBios::getCommandTable(','''bool AtomBios::validateImage(size_t offset) {
++    imageEnd=0;base=0;length=0;masterDataTable=masterCmdTable=0;subsysVid=subsysId=0;
++    if (!contains(offset,512) || data[offset]!=0x55 || data[offset+1]!=0xaa)
++        return fail("rom_signature");
++    const size_t bytes=size_t(data[offset+kRomSizeBlocksOffset])*512;
++    if (!bytes || !contains(offset,bytes)) return fail("rom_length");
++    uint8_t sum=0;for(size_t i=0;i<bytes;++i)sum=uint8_t(sum+data[offset+i]);
++    if(sum) return fail("rom_checksum");
++    base=offset;length=bytes;imageEnd=offset+bytes;
++    uint16_t hdr=0,mdt=0;
++    if(!readU16(base+kAtomRomHeaderPointer,hdr)||hdr<0x4a) return fail("atom_header_pointer");
++    const size_t atom=base+hdr;TableHeader h{};
++    if(!readTableHeader(atom,h)||h.size<40||h.formatRev!=2||(h.contentRev!=2&&h.contentRev!=3))
++        return fail("atom_header_version");
++    if(data[atom+4]!='A'||data[atom+5]!='T'||data[atom+6]!='O'||data[atom+7]!='M')
++        return fail("atom_signature");
++    if(!readU16(atom+kMasterDataTableOffset,mdt)||mdt<0x4a) return fail("master_pointer");
++    TableHeader master{};masterDataTable=base+mdt;
++    if(!readTableHeader(masterDataTable,master)||master.formatRev!=2||master.contentRev!=1||master.size!=74)
++        return fail("master_version");
++    auto overlap=[](size_t a,size_t n,size_t b,size_t m){return a<b+m&&b<a+n;};
++    if(overlap(atom,h.size,masterDataTable,master.size))return fail("table_overlap");
++    size_t offsets[MaxDataTable]{},sizes[MaxDataTable]{};
++    for(size_t i=0;i<MaxDataTable;++i){
++        uint16_t rel=0;if(!readU16(masterDataTable+4+2*i,rel))return fail("table_bounds");
++        if(!rel)continue;
++        TableHeader entry{};const size_t at=base+rel;
++        if(rel<0x4a||!readTableHeader(at,entry))return fail("table_bounds");
++        if(overlap(at,entry.size,atom,h.size)||overlap(at,entry.size,masterDataTable,master.size))return fail("table_overlap");
++        for(size_t j=0;j<i;++j)if(sizes[j]&&overlap(at,entry.size,offsets[j],sizes[j]))return fail("table_overlap");
++        offsets[i]=at;sizes[i]=entry.size;
++    }
++    if(!readU16(atom+kSubsysVidOffset,subsysVid)||!readU16(atom+kSubsysIdOffset,subsysId))return fail("atom_header_bounds");
++    uint16_t mct=0;
++    if(!readU16(atom+kMasterHwFunctionOffset,mct))return fail("command_pointer");
++    if(mct){
++        TableHeader command{};const size_t at=base+mct;
++        if(mct<0x4a||!readTableHeader(at,command)||command.formatRev!=2||command.contentRev!=1)return fail("command_version");
++        if(overlap(at,command.size,atom,h.size)||overlap(at,command.size,masterDataTable,master.size))return fail("table_overlap");
++        for(size_t j=0;j<MaxDataTable;++j)if(sizes[j]&&overlap(at,command.size,offsets[j],sizes[j]))return fail("table_overlap");
++        masterCmdTable=at;
++    }
++    lastError=nullptr;return true;
++}''')
++replace('bool AtomBios::init(', 'size_t AtomBios::configName(','''bool AtomBios::init(const uint8_t *romData,size_t romSize) {
++    data=romData;size=romSize;valid=false;imageEnd=base=length=masterDataTable=masterCmdTable=0;
++    subsysVid=subsysId=0;lastError="rom_bounds";
++    // Fixed offline input budget; never scan hardware or an unbounded view.
++    if(!data||size<512||size>(4u<<20))return false;
++    for(size_t off=0;off<=size-512;off+=512){
++        if(validateImage(off)){valid=true;return true;}
++        // A signature-bearing image that fails validation is not silently bypassed.
++        if(data[off]==0x55&&data[off+1]==0xaa)break;
++    }
++    const char*why=lastError;data=nullptr;size=0;imageEnd=base=length=masterDataTable=masterCmdTable=0;
++    subsysVid=subsysId=0;lastError=why;return false;
++}''')
++text=text.replace('''bool AtomBios::getFirmwareInfo(FirmwareInfo3 &out) const {
++	TableHeader th;''','''bool AtomBios::getFirmwareInfo(FirmwareInfo3 &out) const {
++    out = {};
++    TableHeader th;''')
++text=text.replace('''if (!off || th.formatRev != 3 || th.size < 20)''','''if (!off || th.formatRev != 3 || th.contentRev < 1 || th.contentRev > 5 || th.size < 20)''')
++replace('size_t AtomBios::getDisplayPaths(', 'bool AtomBios::getPathRecords(','''size_t AtomBios::getDisplayPaths(DisplayPath *paths,size_t maxPaths) const {
++    if(!paths||!maxPaths)return 0;
++    for(size_t i=0;i<maxPaths;++i)paths[i]={};
++    TableHeader th{};const size_t off=dataTable(DisplayObjectInfo,&th);
++    if(!off||th.formatRev!=1||th.contentRev!=5||th.size<8){fail("display_version");return 0;}
++    const uint8_t count=data[off+6];
++    if(!count||count>MaxDisplayPaths||count>maxPaths||8u+size_t(count)*16>th.size||data[off+7]){
++        fail("display_count");return 0;
++    }
++    for(size_t i=0;i<count;++i){
++        const size_t p=off+8+i*16;uint16_t object=0,record=0,encoder=0,tag=0;
++        readU16(p,object);readU16(p+2,record);readU16(p+4,encoder);readU16(p+12,tag);
++        uint16_t reserved=0;
++        for(unsigned n: {6u,8u,10u,14u}){readU16(p+n,reserved);if(reserved){fail("display_reserved");return 0;}}
++        if(!object||((object>>12)&7)!=3||!encoder||((encoder>>12)&7)!=2||!tag||
++           (record&&(record<8+size_t(count)*16||record>th.size-2))){fail("display_path");return 0;}
++        for(size_t j=0;j<i;++j)if(paths[j].connectorObjId==object){fail("display_duplicate");return 0;}
++        paths[i]={object,record,encoder,tag};
++    }
++    lastError=nullptr;return count;
++}''')
++# Avoid initializer_list in kernel-friendly source.
++text=text.replace('for(unsigned n: {6u,8u,10u,14u})','const unsigned slots[]={6u,8u,10u,14u};for(unsigned n:slots)')
++replace('bool AtomBios::getPathRecords(', 'size_t AtomBios::getGpioPins(','''bool AtomBios::getPathRecords(const DisplayPath &path,PathRecords &out) const {
++    out={};TableHeader th{};const size_t table=dataTable(DisplayObjectInfo,&th);
++    DisplayPath paths[MaxDisplayPaths]{};const size_t count=getDisplayPaths(paths,MaxDisplayPaths);bool member=false;
++    for(size_t i=0;i<count;++i)if(paths[i].connectorObjId==path.connectorObjId&&
++        paths[i].recordOffset==path.recordOffset&&paths[i].encoderObjId==path.encoderObjId&&paths[i].deviceTag==path.deviceTag)member=true;
++    if(!table||!member||!path.recordOffset)return fail("record_path");
++    size_t p=table+path.recordOffset;const size_t end=table+th.size;PathRecords result{};
++    unsigned budget=0;
++    while(p<=end&&end-p>=2&&budget++<128){
++        const uint8_t type=data[p],bytes=data[p+1];
++        if(type==0||type==0xff){out=result;lastError=nullptr;return true;}
++        if(bytes<2||bytes>end-p)return fail("record_bounds");
++        if(type==1){
++            if(bytes!=4||result.hasI2c)return fail("record_i2c");
++            result.hasI2c=true;result.i2cId=data[p+2];result.i2cHwCapable=(data[p+2]&0x80)!=0;result.ddcLine=data[p+2]&15;
++        }else if(type==2){
++            if(bytes!=4||result.hasHpd)return fail("record_hpd");
++            result.hasHpd=true;result.hpdPin=data[p+2];result.hpdPlugState=data[p+3];
++        }
++        p+=bytes;
++    }
++    return fail("record_unterminated");
++}''')
++safe.write(SRC/'atombios.cpp',text)
++print('Existing EDID / AtomBios hardened')
+diff --git a/m8_prepare.py b/m8_prepare.py
+new file mode 100644
+--- /dev/null
++++ b/m8_prepare.py
+@@ -0,0 +1,40 @@
++"""Snapshot M7 and redirect its reviewed CPU-only entry into M8 baseline."""
++from pathlib import Path
++import sys,json,hashlib,subprocess,os
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++ROOT=safe.ROOT;OUT=safe.mkdir('reports/m8')
++if (OUT/'history').exists():raise SystemExit('M8 snapshot already exists; refusing overwrite')
++safe.preflight(['development','tests','docs','patches','tools/toolchains/llvm','tmp','reports/m7','build'])
++manifest=json.loads((ROOT/'reports/m7/deliverable-sha256.json').read_text())
++for rel,digest in manifest.items():
++    with safe.checked(rel).open('rb') as stream:
++        if hashlib.file_digest(stream,'sha256').hexdigest()!=digest:raise SystemExit('M7 hash differs: '+rel)
++files=list(ROOT.glob('*.py'))+[ROOT/'README.md',ROOT/'CMakeLists.txt',ROOT/'build_offline.ps1']
++for folder in ('development/AMDRadeonRDNA4-Navi44','tests','docs','patches'):
++    files.extend(p for p in (ROOT/folder).rglob('*') if p.is_file())
++files += list((ROOT/'reports/m7').glob('*.json'))+list((ROOT/'reports/m7').glob('*.md'))
++hashes={}
++for p in sorted(set(files)):
++    safe.checked(p);rel=p.relative_to(ROOT).as_posix();data=p.read_bytes()
++    safe.write(OUT/'history'/rel,data);hashes[rel]=hashlib.sha256(data).hexdigest()
++safe.write(OUT/'baseline-sha256.json',json.dumps(hashes,indent=2))
++historical={}
++for p in (ROOT/'reports').rglob('*'):
++    if p.is_file() and not p.is_relative_to(OUT):
++        safe.checked(p)
++        with p.open('rb') as stream:historical[p.relative_to(ROOT).as_posix()]=hashlib.file_digest(stream,'sha256').hexdigest()
++safe.write(OUT/'historical-reports-sha256.json',json.dumps(historical,indent=2))
++text=(ROOT/'run_m7_offline_tests.py').read_text()
++text=text.replace('reports/m7/','reports/m8/baseline/').replace('build/m7/','build/m8/baseline/')
++text=text.replace('sys.path.insert(0,str(Path(__file__).resolve().parent))','sys.path.insert(0,'+repr(str(ROOT))+')')
++script=safe.write(OUT/'baseline-runner.py',text)
++env=os.environ.copy();env.update(TMP=str(ROOT/'tmp'),TEMP=str(ROOT/'tmp'))
++cmd=[sys.executable,'-I','-B','-X','utf8',str(script)]
++p=subprocess.run(cmd,cwd=ROOT,env=env,capture_output=True,text=True,encoding='utf-8',timeout=120)
++safe.write(OUT/'baseline-reproduction.log',p.stdout+p.stderr)
++safe.write(OUT/'baseline-command.json',json.dumps({'argv':cmd,'exit':p.returncode},indent=2))
++if p.returncode:raise SystemExit('Baseline failed; see M8 logs')
++result=json.loads((OUT/'baseline/test-results.json').read_text())
++safe.write(OUT/'baseline-results.json',json.dumps({'status':'PASS','scope':'M7 rerun, not M8 new results','result':result},indent=2))
++print(json.dumps({'baseline':result,'snapshot_files':len(hashes),'historical_logs':len(historical)},indent=2))
+diff --git a/reports/m8/development-report.md b/reports/m8/development-report.md
+new file mode 100644
+--- /dev/null
++++ b/reports/m8/development-report.md
+@@ -0,0 +1,258 @@
++# M8 完整开发报告：Navi 44 显示核心与Darwin就绪工程
++
++日期：2026-10-14，Asia/Shanghai。项目：Hackintosh-Navi44-Lab。
++环境：Windows11，现有LLVM-MinGW；范围：实际源码、CPU-only编译、静态字节测试。
++
++## 1. 核心结论
++
++本轮在M7项目上实际增强EDID/AtomBIOS，形成可复用显示数据模型；
++完善typed scratch/input lifecycle/serialized contract，新增CRC工具、ELF预算和N44Q候选协议。
++源码已在Windows以禁异常/RTTI、freestanding及严格警告编译，完成离线回归、差分、Sanitizer。
++它们是未来驱动的基础纯逻辑模块，没有接入真正RX9060XT。
++
++Darwin native、macOS/kext、GOP/framebuffer输出、DP/HDMI训练、GPU firmware/VM/queues、
++Vulkan/Metal/WindowServer、1440p180实测、双盘安装全部NOT RUN。
++没有因为测试PASS把模拟能力提升成真实硬件支持。
++
++## 2. 接管与M8基线
++
++核对M7交付manifest、工具与关键源码，保存reports/m8/history和baseline-sha256。
++M7测试独立重定向到reports/m8/baseline与build/m8/baseline；历史report未覆盖。
++独立基线重跑：Python89PASS/2SKIP、C++65PASS、743组差分、2400变异、3143 sanitizer输入、
++两类故障canary。上述仅为M7基线复现，不计M8新增。
++Git核对实际发生在交付审查阶段；开发前以M7哈希建立基线。
++Lab根没有.git，使用快照/增量补丁追溯；两个upstream固定HEAD及只读status已记录。
++所有既有report/patch历史hash再核对，见history-integrity.json。
++
++## 3. 实际源码模块
++
++| 模块 | 实际增量 |
++|---|---|
++| src/edid.cpp | DTD失败清空、geometry、CTA offset/DBC/vendor长度/容量/错误拒绝 |
++| src/atombios.cpp/.hpp | image范围、版本、表重叠/循环/路径/records/失败状态、索引修正 |
++| core/display.hpp/.cpp | Monitor/Mode/Connector/Link/Engine/Fit、解析转发、去重与64位数学 |
++| platform/contract.hpp | ScratchOps/ExecutionOps、snapshot release、RAII清理、NodePool |
++| host/platform_mock.hpp | 真Node数组、context/reentry/lifetime行为计数 |
++| platform/darwin_native.cpp/.hpp | nativeScratchOps引用构造好的pool；仍仅静态源码 |
++| core/integrity.hpp/.cpp | 显式CRC convention、checksumMatched与signature/loadable分离 |
++| core/validation.cpp、host/navi44.py | ELF16MiB/4096 headers预算同步 |
++| core/query_candidate.hpp/.cpp | N44Q1.0编码/解码、来源/epoch、OfflineOwner lease状态机 |
++| tests/fixtures/m8_display.hpp | 合成EDID/CTA/ATOM，非本机数据 |
++| tests/unit/m8_unit.cpp/m8_fuzz.cpp/m8_contract_compile.cpp | 固定预期、恶意输入、有界变异、kernel-friendly contract编译 |
++| tests/test_m8.py | ELF输入/headers预算新Python测试 |
++| run_m8_offline_tests.py/CMakeLists.txt | 独立流水线、显式source allowlist、串行/timeout |
++
++没有复制一套新EDID/ROM原始解析器。保留原公共接口、DMT/VIC逻辑和许可头；
++新Core包装提供统一严格Result。文字编辑可能统一行尾；补丁按字节重放验证。
++真实改动清单见changed-files.json，补丁patches/m8-from-m7.patch。
++
++## 4. EDID实际支持与限制
++
++支持1.3/1.4、128B blocks/Header/Checksum、manufacturer/product/digital、
++progressive数字separate-sync DTD、已有DMT/CTA-VIC子集、CTA rev3 DTD与HDMI TMDS/SCDC声明。
++声明extension数与输入精确匹配，最多4块。非法timing、未知版本、跨界DBC、
++容量不足与损坏内容拒绝，失败清空结果。
++相同timing去重合并source；同尺寸同刷新而不同raster保留alternative。
++默认未知extension拒绝；KnownBlocksOnly保留已知部分并标partial。
++未解析timing计数，不假装完整支持。
++
++未支持DisplayID、EDID2、interlace/stereo/边框/模拟复合同步、
++完整HDR/FRL/DSC/VRR、所有VIC或CVT/GTF公式。
++没有DDC/I2C/AUX/Windows GPU API读取。所用fixture全合成，未读取本机EDID。
++
++## 5. AtomBIOS实际支持
++
++55AA、512B块长度、镜像sum8，ATOM2.2/2.3已知前缀、master data2.1、
++display object1.5、path_v3、静态I2C/HPD、connector类型。
++每个访问限于当前image；外层ROM多余数据不能补足坏指针。
++拒绝表重叠/self-cycle/重复connector、错误版本/reserved/count、
++path数组内record偏移、0长度/无终止/重复record。
++修正DCE27/VRAM28/Voltage32索引；v1.4不再混作v1.5。
++
++只有版本化静态信息，无ATOM bytecode执行、PCIR完整多image验证、真实encoder/PHY routing。
++特殊USB-C保留字段配置未支持。真实Navi44 ROM/connector地图仍UNVERIFIED；
++其他板卡历史描述不是本机复现，也未新增使用未确定许可的ROM样本。
++
++## 6. Display Capability如何防误判
++
++EDID声明、connector静态description、link预算、engine预算分别建模。
++Origin只是Unknown/Synthetic/StaticReference，不是可信硬件认证。
++refresh使用64位约分的精确分数；geometry、clock、rate与buffer capacity设明确预算。
++DP8b10b和TMDS RGB24/30/36bpp做理想payload预检，引擎clock独立判断，
++unknown不升级，WithinBudget也不等于协议/链路已通过。
++hardwareVerified、boardVerified、routingKnown与outputAllowed不被离线解析授予。
++没有生成真实mode switch或DP/HDMI Adapter。
++
++1440p180有效像素663552000/s，高于经典DTD最大655350000Hz；
++必须进一步研究DisplayID/其他表达，本轮不支持本目标EDID模式。
++合成2720×1500、734400kHz模型只证明算术180Hz：
++32bpp frame14745600B，完整写入2654208000B/s，帧时间5.56ms。
++这是数学，不是性能或输出结果。
++
++## 7. Darwin Adapter增量
++
++M7 raw byte scratch改为ScratchOps提供真正构造的Node，Host Mock改为Node[512]。
++NodePool长期owner存储；native接口引用pool，避免未证明的raw-byte cast/对象生命周期。
++Snapshot借用需成对release；ExecutionOps明确serialized thread前置条件。
++异常上下文/重入/missing callback拒绝；parse失败/资源不足都配对归还input与scratch。
++执行上下文拒绝时不调用日志，避免错误线程IOLog或递归logging。
++tests验证这些真实CPU行为，没有假的IOKit类型。
++
++真实OSData/descriptor retain、IOService start/stop/open、锁与task teardown还只读设计；
++Mock bool不是kernel并发锁。native API/SDK与Mach-O未编译，
++pool实际放置、线程gate、kernel总栈、符号/ABI和对象析构仍需macOS验证。
++固定SDK IOService头和官方OSObject/IOLib已阅读，部分pin网页失败如实记录。
++
++## 8. Firmware / ELF增量
++
++CRC-32 ISO-HDLC：反射poly0xedb88320、init/final XOR0xffffffff，
++对标准123456789及空/损坏payload做实际测试，未知convention拒绝。
++checksumMatched与signatureVerified/loadable分离，后二者始终false。
++公开AMD common header说明payload CRC字段，但所读Linux路径只核对总体大小，
++不足以证明所有实际固件的CRC convention。没有盲目接入默认Firmware/PSP路径：
++原非零CRC未验证拒绝仍保持，未知signature仍未验证。
++
++ELF输入最多16MiB、phnum+shnum最多4096，Python/C++同步；
++原symbol/descriptor/kernarg/relocation/metadata checks保留。
++大输入不能穿过Host1MiB传输，改为每语言直接单元测试；未放宽Host门禁。
++ALLOC relocations仍不支持，没有应用重定位/Shader执行。
++真实gfx1200编译产物仍SKIP，未改Machine造假。
++
++## 9. Cobalt生产ABI候选的实际成果
++
++新增N44Q1.0/128B codec，内嵌N44I v2/96B，显式LE/version/length/provenance/presence/epoch。
++未知minor、能力、verification、owner或reserved拒绝；来源标签不是认证。
++OfflineOwner支持单CPU lease、close、monotonic generation与stale token失败终止，
++永不允许GPU初始化。不是实际资源所有权或UserClient。
++
++固定Cobalt native header实际minor12、QueryInfo192B，AMDRadeonRDNA4 header minor9；
++旧patch2内嵌更早版本。审查角色/route权限及query预算，APP拒绝ReadRegs/scanout。
++不混用headers，不将128B复制到192B，不把gfx1201 canned topology用于Navi44。
++生产差距仍包括可信kernel采样、task权限、exclusive owner、BO/VM/fence、
++映射撤销/reset、实际gfx1200代码与Mesa winsys；没有Vulkan或Metal新实机能力。
++
++## 10. 工具链和真实构建
++
++LLVM-MinGW20261006，Clang23.1.3，target x86_64-w64-windows-gnu。
++旧ZIP SHA256：317492c456aa27ee607a5919f1d2d38dcdc1112516a24d0bf4b00d078f52d17a。
++本轮重新核对实际compiler/nm/symbolizer/config/runtime与ZIP成员一致，未下载/安装。
++9个Core translation unit真实使用：
++C++17、-fno-exceptions、-fno-rtti、-ffreestanding、-Wall/-Wextra/-Werror、
++-Wframe-larger-than=4096、-O1/-g；对象nm审查。Kernel contract另编译检查。
++Host保留STL便利层；未链接device/plugin/IOKit/native。产物为WindowsPE/COFF。
++仍需memcpy/memset及内部Core符号，不能宣称Apple ABI或完全freestanding。
++
++统一真实入口：
++
++~~~powershell
++& 'D:\RuntimeEnvironment\mise\mise\data\installs\python\3.12.13\python.exe' -I -B -X utf8 run_m8_offline_tests.py
++~~~
++
++所有实际argv、exit、持续时间见commands.json；构建详情见build-results.json。
++普通compile/link/unit/diff/fuzz/analyze exit0；canary非零为预期检测。
++CMake修改后静态审查显式source与CTest timeout，现有Safety tests重新通过；
++实际CMake configure/build、MSVC/native SDK均NOT RUN。
++
++## 11. 自动化结果（最后一次执行）
++
++| 分类 | 结果 |
++|---|---|
++| 原Python回归 | 89 PASS、2 SKIP；89中4项静态检查 |
++| 新PythonM8 | 2 PASS |
++| 原C++回归 | 65 PASS（34+31） |
++| 新C++M8 | 96 PASS |
++| 共享差分 | 743原corpus+1新预算=744组，零差异 |
++| 原确定变异 | 2400组，seed759070，零差异 |
++| 新EDID/ROM变异 | 2400组，seed759080，invariants PASS |
++| 新query变异 | 800组，同一PRNG续序，invariants PASS |
++| Sanitizer | 原3143 corpus/变异、新3200变异及M7/M8单元均通过当前覆盖 |
++| 检测器canary | heap-buffer-overflow/整数溢出实际检测 |
++| 静态分析 | 10文件零warning |
++| Core flags / object symbols / contract | PASS |
++| 真ROM/EDID、gfx1200ELF、Darwin/Kext/GPU | UNVERIFIED/NOT READ/SKIP/NOT RUN |
++
++Python总91 PASS、2SKIP；C++总161 PASS。
++不把基线额外复现、重复sanitizer执行、truncate循环输入和静态assert再计入新单元数量。
++原差分与新fuzz不是同一种验收，不能拼出“GPU支持总PASS”。
++新模块不强行重复写Python Parser，以固定规范值、C++行为与Sanitizer验证。
++
++~~~text
++M8_FUZZ seed=759080 inputs=2400 accepted=479 rejected=1921 invariants=PASS
++M8_QUERY_FUZZ inputs=800 accepted=10 rejected=790 invariants=PASS
++~~~
++
++每进程30/40秒，串行、有限规模，输入immutable invariants、失败清空与能力零提升。
++有界变异不是coverage-guided；未验证leak、真实并发、kernel/硬件稳定性。
++
++## 12. 失败与修复记录
++
++- 重定向baseline runner把import root放在reports/m8：ModuleNotFoundError。
++  修正project import路径，保留baseline-first-failure.log/command。
++- 首次新Core编译遇unused kAtomSignatureOffset：使signature检查继续使用真实常量；
++  -Werror保持，没有屏蔽警告。
++- 新大ELF差分：probe返回input_size，Python Core返回elf_input_budget。
++  属于Host传输与Core层限制差异；保留差异文件，取消跨层不适用case，
++  追加各语言直接budget断言，保留1MiB Host限制与所有原差分。
++- timing再验证输入可别名out.timing：先复制输入再清空输出，加alias-safe测试。
++  此为代码审查修复，不冒充Sanitizer发现。
++- 交付审查发现ExecutionOps拒绝后仍log可能违反线程上下文且递归；
++  拒绝路径不再调用callback，增加有界logging重入断言后重新回归。
++
++其余测试PASS；失败日志/JSON/commands保留在regression/execution/attempts。
++未关闭Sanitizer、删除原测试、放松格式校验或修改已有通过预期掩盖问题。
++
++## 13. 安全审查
++
++所有主动写入限Lab；沙箱范围更广，依靠逐命令人工审查、路径检查与allowlist补充，
++不宣称Lab专属系统隔离或TOCTOU绝对防护。
++未修改Windows系统/驱动/注册表/服务/全局PATH，
++未动EFI/BCD/BIOS/Secure Boot/TPM/BitLocker、未操作分区或读取Intel第二盘内容。
++未访问GPU BAR/MMIO/ROM/VBIOS/DMA、没有firmware/queue/指令或显示配置更改。
++未安装/加载kext/SYS、未管理员提升、未远程Mac/CI操作或Git推送/PR。
++正常OS/工具可能产生缓存/日志，未做独立系统级审计，不承诺绝对零副作用。
++原device/plugin/profile/Makefile gate保持，实际编译source allowlist排除硬件backend。
++
++## 14. M9建议：优先真正macOS编译
++
++| 类型 | 后续任务 | 所需授权/主要风险 |
++|---|---|---|
++| A Windows CPU-only | DisplayID、合法静态样本、其他ATOM版本、CRC格式依据、ABIbudget进一步覆盖 | 后续独立Lab开发授权；仍无硬件，无无限fuzz |
++| B 真macOS纯编译 | Core/Native真实头与Mach-O、符号/构造/retain/thread、CPUfixtures | 用户提供合法Mac与工作区并单独授权；不等于允许签名/加载/改安全策略 |
++| C 真GPU实验 | 本卡Discovery/GOP/connector、DCN/DMUB/链路、电源/VRAM、输出恢复 | 必须单独硬件授权；唯一GPU且无核显，黑屏/卡死风险高 |
++
++优先B：Windows已覆盖足够基础纯逻辑，继续堆积未验证寄存器代码收益低。
++M9先用真实macOS编译Core/adapter object和运行CPU tests，仍不构建可部署kext或加载。
++针对1440p180，A中的DisplayID是明确格式缺口，可有限并行安排，但不能替代B。
++本轮没有自动连接Mac、安装SDK或执行任何下一阶段。
++
++## 15. 来源与证据
++
++E1官方规范/API；E2公开源码；E3本轮CPU运行证据（仅其覆盖范围）；E4作者自述；E5设计推断。
++没有本机macOS/GPU E3。资料阅读日期2026-10-14。
++
++- [VESA E-EDID A2](https://glenwing.github.io/docs/VESA-EEDID-A2.pdf)，2006规范镜像，DTD/扩展字段，E1。
++- [Linux v6.15 DRM EDID](https://github.com/torvalds/linux/blob/v6.15/drivers/gpu/drm/drm_edid.c)，固定tag，CTA/DTD安全参考，E2。
++- [AMD atomfirmware.h](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/include/atomfirmware.h)，AMD许可接口，移动参考，E2。
++- [amdgpu_ucode.c](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/amd/amdgpu/amdgpu_ucode.c)，字段/size检查，移动参考，E2。
++- [RFC1662 C.3](https://www.rfc-editor.org/rfc/rfc1662.html#appendix-C.3)，1994，CRC算法参考，E1；不证明AMD固件CRC适用。
++- [XNU OSObject](https://github.com/apple-oss-distributions/xnu/blob/main/libkern/libkern/c++/OSObject.h)，生命周期/并发限制，E1/E2。
++- [XNU IOLib](https://github.com/apple-oss-distributions/xnu/blob/main/iokit/IOKit/IOLib.h)，allocator上下文，E1/E2。
++- [MacKernelSDK IOService固定头](https://github.com/acidanthera/MacKernelSDK/blob/05094e5e88cec7caedbfb35e8449ed0db94bf95b/Headers/IOKit/IOService.h)，E2。
++- [AMDRadeonRDNA4固定源码](https://github.com/RX4Darwin/AMDRadeonRDNA4.kext/tree/49f7f20c00dd154384418078f8a09e79c400a06a)，本地只读E2，BSD3原许可保留。
++- [Cobalt固定源码](https://github.com/Almosst-DEV/Cobalt64/tree/d6c9aedf8e6526a39e349b5886cbc8c7ddf77f65)，本地native ABI/权限代码E2，许可按文件。
++
++pin IOLib/IOPCIDevice网页抓取失败，没有编造阅读或SDK构建结果。
++未下载第三方ROM/固件样本，未运行上游脚本。
++新代码沿Lab BSD3许可；未移植Linux GPL实现，按格式重新实现和对照既有BSD解析器。
++
++## 16. 交付与终止
++
++完整报告development-report.md；baseline/test/build-results.json；commands.json；
++changed-files.json；safety-audit.md；remaining-blockers.md；
++history-integrity/git-status/toolchain-integrity/delivery-verification.json；
++deliverable-sha256.json；增量patches/m8-from-m7.patch；六份docs和实际源码/tests。
++补丁仅代码/文档，不包含GPU固件、可加载模块、安装器或构建exe。
++补丁在Lab内新副本检查/重放并逐文件hash验证；原source/历史不通过重放修改。
++
++M8授权范围内工程交付完成。所有实际硬件和macOS部署仍未执行。
++本轮交付后停止，等待下一阶段独立授权。
+diff --git a/reports/m8/remaining-blockers.md b/reports/m8/remaining-blockers.md
+new file mode 100644
+--- /dev/null
++++ b/reports/m8/remaining-blockers.md
+@@ -0,0 +1,16 @@
++# M8 剩余阻碍
++
++- DisplayID未实现；经典EDID DTD clock无法表达1440p180，不能宣称本监视器完整解析。
++- EDID只支持1.3/1.4及CTA rev3子集；interlace/stereo/FRL/DSC/HDR/VRR/完整VIC仍未支持。
++- Atom只支持限定header/master/display版本与静态记录，没有真实Navi44 ROM或PHY routing证据。
++- 原始checksum/静态元数据不是固件签名或真实硬件能力证明。
++- CRC-32 ISO-HDLC算法已实现，但AMD固件具体格式/convention缺少可信样本确认，默认拒绝路径不放宽。
++- ELF只有离线验证/预算，没有GPU loader/ISA执行；真gfx1200编译产物继续SKIP。
++- Node对象生命周期已通过typed pool改造；真实Darwin OSData retain/线程gate/heap pool/teardown仍未接入。
++- native Apple API源码未编译，Windows COFF检查不能替代Mach-O、内核符号/总栈/SDK兼容。
++- N44Q是数据候选，无真实IOUserClient认证或全局GPU owner；N48N1.9与Cobalt1.12不能混用。
++- GPU power/firmware/DCN/DMUB/GOP/AUX/VM/queue/恢复完全未执行；显示/Vulkan/Metal/WindowServer NOT RUN。
++- Sanitizer只覆盖有限输入，leak/concurrency/hardware stability没有验证，fuzz非coverage-guided。
++
++M9优先真实macOS CPU编译/fixture验证；随后再判断是否有条件进行独立kext或硬件研发。
++不存在本轮授权可自动启动的GPU实验或Mac远程操作。
+diff --git a/reports/m8/safety-audit.md b/reports/m8/safety-audit.md
+new file mode 100644
+--- /dev/null
++++ b/reports/m8/safety-audit.md
+@@ -0,0 +1,37 @@
++# M8 安全审查
++
++唯一主动写入边界：D:/CodexWorkSpace/黑苹果研究/Hackintosh-Navi44-Lab。
++已确认当前workspace-write沙箱允许范围比Lab更广，不宣称OS级Lab专属隔离。
++人工审查每个命令，固定源码/进程allowlist，写入前执行真实路径/父目录检查；
++拒绝..、越界resolve、symlink/reparse/junction与多hardlink。不能抵御独立并发TOCTOU攻击。
++无法确认安全的设备/SDK/远程操作没有执行；没有请求Full Access或权限提升。
++
++实际进程：既有Python、Lab中核对过归档的Clang/nm/symbolizer、本项目CPU-only exe、
++只读Git status/rev-parse、项目副本Git apply。没有执行上游完整构建/安装脚本。
++M8 runner从旧runner明确边界导入已审查helper，重定向所有M7输出，
++不执行旧report writer。历史文件hash核对，最终验证旧gate源码字节未改。
++Host源码只列Core与EDID/Atom纯解析，排除device/plugin/IOKit/native GPU API。
++
++TMP/TEMP/cache及sanitizer日志指向Lab，Python -B。每子进程30/40秒，串行固定种子，
++fuzz有限2400+800，已有变异2400，非无限/性能压力。一个16MiB+1测试buffer用于budget边界，
++不通过放宽Host1MiB传输限制完成差分。失败保留于attempts，不关闭Sanitizer。
++只有本项目canary进程发生预期异常；未结束用户其他进程。
++CMake显式CPU source、无fetch/install/custom/pre/post hooks；新增CTest串行30秒。
++CMake/MSVC/native SDK构建未执行。compiler CFG与runtime重新对照已有ZIP。
++
++| 禁止操作 | 本代理执行记录 |
++|---|---|
++| 工作区外主动写入 | 未执行；无独立系统级审计 |
++| Windows系统/注册表/服务/驱动/安全策略修改 | 未执行 |
++| EFI/BCD/BIOS/UEFI/TPM/Secure Boot/BitLocker修改 | 未执行 |
++| SSD分区/Intel第二盘内容访问 | 未执行 |
++| GPU BAR/MMIO/ROM/VBIOS/DMA/固件/命令 | 未执行 |
++| DDC/I2C/AUX或显示配置变更 | 未执行 |
++| SYS/Kext注册/加载/安装 | 未执行 |
++| 管理员/全局PATH/Git配置 | 未执行 |
++| 未授权远程设备/代码推送/PR/Release | 未执行 |
++| 远程第三方代码执行/系统安装 | 未执行 |
++
++网络仅网页阅读；未下载/运行新工具链、Apple SDK或上游脚本。
++操作系统和工具可能产生缓存、日志、故障报告，未有独立系统级观测，
++因此不承诺物理零写入或绝对零副作用。
+diff --git a/run_m8_offline_tests.py b/run_m8_offline_tests.py
+new file mode 100644
+--- /dev/null
++++ b/run_m8_offline_tests.py
+@@ -0,0 +1,76 @@
++"""Reviewed serial CPU-only M8 pipeline. No install, hardware APIs or SDK fakery."""
++from pathlib import Path
++import sys,json,hashlib
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++ROOT=safe.ROOT;OUT=safe.mkdir('reports/m8');BUILD=safe.mkdir('build/m8/execution')
++# Import reviewed M7 definitions only, redirect all its reports before any execution.
++text=(ROOT/'run_m7_offline_tests.py').read_text()
++if text.count("for prior in ('test-results.json','commands.json'):")!=1:raise SystemExit('M7 helper boundary changed')
++text=text.split("for prior in ('test-results.json','commands.json'):")[0]
++text=text.replace('reports/m7/','reports/m8/regression/').replace('build/m7/','build/m8/regression/')
++r={'__file__':str(ROOT/'run_m7_offline_tests.py'),'__name__':'m8_reviewed_helpers'}
++exec(compile(text,'reviewed-M7-host-helpers','exec'),r)
++# Keep new-stage log/build records separate from M7 regression.
++run=r['run'];commands=r['b']['commands'];CPP=r['CPP'];SRC=r['SRC'];CORE=r['CORE']
++sources=[SRC/'ipdiscovery.cpp',SRC/'codeobj.cpp',CORE/'validation.cpp',CORE/'device_info.cpp',
++         SRC/'edid.cpp',SRC/'atombios.cpp',CORE/'display.cpp',CORE/'integrity.cpp',CORE/'query_candidate.cpp']
++objects={}
++def build(test,name,sanitize=False):
++    key='asan-ubsan' if sanitize else 'plain'
++    if key not in objects:
++        objs=[]
++        for p in sources:
++            obj=safe.checked(BUILD/(key+'-'+p.stem+'.o'))
++            args=[CPP,'-std=c++17','-Wall','-Wextra','-Werror','-fno-exceptions','-fno-rtti','-ffreestanding',
++                  '-Wframe-larger-than=4096','-O1','-g','-I'+str(SRC)]
++            if sanitize:args+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
++            run(args+['-c',p,'-o',obj],'m8-compile-'+key+'-'+p.stem,timeout=40)
++            symbols=run([r['b']['BIN']/'llvm-nm.exe','--undefined-only',obj],'m8-symbols-'+key+'-'+p.stem)
++            if any(t in symbols for t in ('__cxa_throw','__gxx_personality','_Unwind','__dynamic_cast','_ZSt','_Znwm','_Znam')):
++                raise RuntimeError('Core runtime dependency '+str(p))
++            objs.append(obj)
++        objects[key]=objs
++    exe=safe.checked(BUILD/(name+'.exe'));args=[CPP,'-std=c++17','-Wall','-Wextra','-Werror','-static','-O1','-g','-I'+str(SRC)]
++    if sanitize:args+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
++    run(args+[ROOT/test,*objects[key],'-o',exe],'m8-link-'+name,timeout=40);return exe
++def main():
++    r['main']() # Actual M7 regression into M8 directory; never the original report writer.
++    run([sys.executable,'-I','-B','-X','utf8',ROOT/'tests/test_m8.py'],'m8-python')
++    extra_cases=[]
++    raw=r['f'].elf()
++    r['b']['struct'].pack_into('<H',raw,56,5000);extra_cases.append(('elf',raw,(72,)))
++    # Input-budget is tested separately in each language: the existing Host
++    # hex transport correctly refuses payloads above 1 MiB, before Core.
++    reg_probe=ROOT/'build/m8/regression/execution/probe.exe'
++    budget_diff=r['compare'](reg_probe,extra_cases,'m8-budget-differential')
++    for filename in ('libclang_rt.asan_dynamic-x86_64.dll','libc++.dll','libunwind.dll','libwinpthread-1.dll'):
++        safe.write(BUILD/filename,(r['b']['BIN']/filename).read_bytes())
++    unit=build('tests/unit/m8_unit.cpp','m8-unit');fuzz=build('tests/unit/m8_fuzz.cpp','m8-fuzz')
++    unitlog=run([unit],'m8-unit');fuzzlog=run([fuzz],'m8-fuzz')
++    su=build('tests/unit/m8_unit.cpp','m8-unit-sanitized',True);sf=build('tests/unit/m8_fuzz.cpp','m8-fuzz-sanitized',True)
++    run([su],'m8-unit-sanitized');run([sf],'m8-fuzz-sanitized')
++    obj=BUILD/'contract-check.o'
++    run([CPP,'-std=c++17','-Wall','-Wextra','-Werror','-fno-exceptions','-fno-rtti','-ffreestanding',
++         '-Wframe-larger-than=4096','-I'+str(SRC),'-c',ROOT/'tests/unit/m8_contract_compile.cpp','-o',obj],
++        'm8-contract-check',timeout=30)
++    analysis=[]
++    for p in sources+[ROOT/'tests/unit/m8_contract_compile.cpp']:
++        run([CPP,'--analyze','-std=c++17','-fno-exceptions','-fno-rtti','-I'+str(SRC),p,'-o',BUILD/(p.stem+'.plist')],
++            'm8-analyze-'+p.stem,timeout=30)
++        log=(ROOT/'reports/m8/regression/execution'/('m8-analyze-'+p.stem+'.log')).read_text()
++        analysis.append({'file':p.relative_to(ROOT).as_posix(),'warnings':log.count('warning:')})
++    reg=json.loads((OUT/'regression/test-results.json').read_text())
++    result={'stage':'M8','status':'PASS','regression':reg,'m8_cpp':unitlog.count('PASS '),'m8_fuzz':fuzzlog.strip(),
++            'python_m8':r['b']['unittest_counts']((ROOT/'reports/m8/regression/execution/m8-python.log').read_text()),
++            'budget_differential':budget_diff,
++            'sanitizers':{'status':'PASS','unit_cases':unitlog.count('PASS '),'display_mutation_inputs':2400,'query_mutation_inputs':800,'leaks':'NOT VERIFIED'},
++            'static_analysis':analysis,'kernel_contract_compile':'PASS','Darwin_native':'NOT RUN','Kext':'NOT RUN',
++            'GPU':'NOT RUN','real_Navi44_ROM':'UNVERIFIED','real_monitor_EDID':'NOT READ'}
++    safe.write(OUT/'test-results.json',json.dumps(result,indent=2));print(json.dumps(result,indent=2))
++for rel in ('test-results.json','commands.json'):
++    r['archive'](OUT/rel)
++try:main()
++except Exception as exc:
++    safe.write(OUT/'test-results.json',json.dumps({'stage':'M8','status':'FAIL','error':str(exc)},indent=2));raise
++finally:safe.write(OUT/'commands.json',json.dumps(commands,ensure_ascii=False,indent=2))
+diff --git a/tests/fixtures/m8_display.hpp b/tests/fixtures/m8_display.hpp
+new file mode 100644
+--- /dev/null
++++ b/tests/fixtures/m8_display.hpp
+@@ -0,0 +1,44 @@
++// Synthetic bytes only. No hardware captures, serials, firmware upload or commands.
++#ifndef Navi44M8Fixtures_hpp
++#define Navi44M8Fixtures_hpp
++#include <array>
++#include <vector>
++#include <stdint.h>
++namespace M8Fixture {
++template<class B>void w16(B&b,size_t p,uint16_t v){b[p]=uint8_t(v);b[p+1]=uint8_t(v>>8);}
++template<class B>void seal(B&b,size_t offset=0,size_t size=128){
++    uint8_t sum=0;b[offset+size-1]=0;for(size_t i=0;i<size-1;++i)sum=uint8_t(sum+b[offset+i]);
++    b[offset+size-1]=uint8_t(0-sum);
++}
++inline std::array<uint8_t,128> edid(){
++    std::array<uint8_t,128>b{};for(unsigned i=1;i<7;++i)b[i]=255;
++    uint16_t id=(14u<<10)|(22u<<5)|9;b[8]=uint8_t(id>>8);b[9]=uint8_t(id);
++    w16(b,10,44);b[18]=1;b[19]=4;b[20]=0x80;
++    for(unsigned i=38;i<54;++i)b[i]=1;
++    for(unsigned i=0;i<4;++i)b[54+18*i+3]=0x10;
++    const uint8_t d[]={0x02,0x3a,0x80,0x18,0x71,0x38,0x2d,0x40,88,44,0x45,0,0,0,0,0,0,0x1e};
++    for(unsigned i=0;i<18;++i)b[54+i]=d[i];seal(b);return b;
++}
++inline std::vector<uint8_t> cta(unsigned blocks=1){
++    auto base=edid();base[126]=uint8_t(blocks);seal(base);
++    std::vector<uint8_t>b(base.begin(),base.end());b.resize((blocks+1)*128);
++    for(unsigned n=1;n<=blocks;++n){
++        size_t off=n*128;b[off]=2;b[off+1]=3;b[off+2]=6;
++        b[off+4]=0x41;b[off+5]=16;seal(b,off);
++    }return b;
++}
++inline std::array<uint8_t,1024> rom(){
++    std::array<uint8_t,1024>b{};b[0]=0x55;b[1]=0xaa;b[2]=2;w16(b,0x48,0x80);
++    w16(b,0x80,40);b[0x82]=2;b[0x83]=2;b[0x84]='A';b[0x85]='T';b[0x86]='O';b[0x87]='M';
++    w16(b,0xa0,0x100);w16(b,0x100,74);b[0x102]=2;b[0x103]=1;
++    w16(b,0x104+22*2,0x180);w16(b,0x180,60);b[0x182]=1;b[0x183]=5;
++    w16(b,0x184,0x88);b[0x186]=2;
++    for(unsigned i=0;i<2;++i){
++        size_t p=0x188+i*16;w16(b,p,i?0x310c:0x3113);w16(b,p+2,uint16_t(40+i*10));
++        w16(b,p+4,uint16_t(0x2120+i));w16(b,p+12,i?0x80:8);
++        size_t r=0x180+40+i*10;const uint8_t raw[]={1,4,uint8_t(0x90+i),0,2,4,uint8_t(i+1),1,0xff,0};
++        for(unsigned j=0;j<10;++j)b[r+j]=raw[j];
++    }seal(b,0,b.size());return b;
++}
++}
++#endif
+diff --git a/tests/test_m8.py b/tests/test_m8.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_m8.py
+@@ -0,0 +1,14 @@
++"""New cross-language ELF resource budgets; fixtures stay synthetic."""
++import importlib.util,pathlib,sys,struct,unittest
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++def load(name,path):
++    s=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(s);sys.modules[name]=m;s.loader.exec_module(m);return m
++n=load('m8n',ROOT/'development/AMDRadeonRDNA4-Navi44/host/navi44.py')
++f=load('m8f',ROOT/'tests/fixtures/synthetic.py')
++class M8(unittest.TestCase):
++    def test_elf_input_budget(self):
++        with self.assertRaisesRegex(n.Invalid,'elf_input_budget'):n.validate_elf(bytes((16<<20)+1),n.Target.GFX1200)
++    def test_elf_table_budget(self):
++        b=f.elf();struct.pack_into('<H',b,56,5000)
++        with self.assertRaisesRegex(n.Invalid,'elf_table_budget'):n.validate_elf(b,n.Target.GFX1200)
++if __name__=='__main__':unittest.main(verbosity=2)
+diff --git a/tests/unit/m8_contract_compile.cpp b/tests/unit/m8_contract_compile.cpp
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/m8_contract_compile.cpp
+@@ -0,0 +1,8 @@
++// Compiled with Core flags; no fake SDK, raw allocations or hardware calls.
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/darwin_contract.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/contract.hpp"
++static_assert(sizeof(NaviCore::Error)==1,"fixed error");
++static_assert(alignof(NaviCore::Node)>=alignof(uint64_t),"typed scratch alignment");
++NaviCore::Result contractCheck(NaviPlatform::Contract c){
++    return NaviPlatform::validateSnapshot(c,Asic::Target::Gfx1200);
++}
+diff --git a/tests/unit/m8_fuzz.cpp b/tests/unit/m8_fuzz.cpp
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/m8_fuzz.cpp
+@@ -0,0 +1,52 @@
++// Bounded deterministic parser mutation + invariants, not GPU/stress fuzzing.
++#include "../../development/AMDRadeonRDNA4-Navi44/core/display.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/core/query_candidate.hpp"
++#include "../fixtures/m8_display.hpp"
++#include <iostream>
++#include <vector>
++int main(){
++    uint32_t seed=759080;auto random=[&](){seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;return seed;};
++    size_t accepted=0,rejected=0;
++    for(unsigned i=0;i<2400;++i){
++        std::vector<uint8_t> input;
++        if(i%2){auto a=M8Fixture::rom();input.assign(a.begin(),a.end());}
++        else input=M8Fixture::cta((i%6)/2+1);
++        for(unsigned j=0,n=1+random()%4;j<n;++j)input[random()%input.size()]^=uint8_t(1+random()%255);
++        if(i%5==0)input.resize(random()%input.size());
++        else if(i%3==0){
++            if(i%2)M8Fixture::seal(input,0,input.size());
++            else for(size_t off=0;off+128<=input.size();off+=128)M8Fixture::seal(input,off);
++        }
++        const auto original=input;NaviCore::Result result;
++        if(i%2){
++            NaviDisplay::ConnectorList out{};result=NaviDisplay::connectors({input.data(),input.size()},NaviDisplay::Origin::Synthetic,out);
++            if((!result.ok()&&out.count)||out.count>8||out.boardVerified)return 1;
++            for(size_t j=0;j<out.count;++j)if(out.entries[j].hardwareVerified||out.entries[j].routingKnown)return 1;
++        }else{
++            NaviDisplay::Mode modes[64]{};NaviDisplay::Monitor out{};
++            result=NaviDisplay::edid({input.data(),input.size()},NaviDisplay::Origin::Synthetic,out,modes,64,NaviDisplay::ExtensionPolicy::KnownBlocksOnly);
++            if((!result.ok()&&out.modeCount)||out.modeCount>64)return 1;
++            for(size_t j=0;j<out.modeCount;++j){
++                if(modes[j].hardwareVerified||!modes[j].refresh.denominator)return 1;
++                const auto&t=modes[j].timing;
++                if(modes[j].refresh.numerator*uint64_t(t.hTotal())*t.vTotal()!=
++                   uint64_t(t.pixelClockKHz)*1000*modes[j].refresh.denominator)return 1;
++            }
++        }
++        if(input!=original)return 1;
++        result.ok()?++accepted:++rejected;
++    }
++    std::cout<<"M8_FUZZ seed=759080 inputs=2400 accepted="<<accepted<<" rejected="<<rejected<<" invariants=PASS\n";
++    NaviCore::QueryCandidate query{};query.device.profile=Asic::identify(0x1002,0x7590);
++    query.generation=1;query.provenance=NaviCore::Provenance::Synthetic;
++    std::array<uint8_t,128> wire{};if(!NaviCore::encodeQuery(query,wire.data(),128).ok())return 1;
++    accepted=rejected=0;
++    for(unsigned i=0;i<800;++i){
++        auto raw=wire;for(unsigned j=0,n=1+random()%4;j<n;++j)raw[random()%128]^=uint8_t(1+random()%255);
++        const size_t length=i%4==0?random()%128:128;NaviCore::QueryCandidate out{};
++        auto result=NaviCore::decodeQuery({raw.data(),length},out);
++        if((!result.ok()&&out.generation)||(result.ok()&&out.device.profile.capabilities))return 1;
++        result.ok()?++accepted:++rejected;
++    }
++    std::cout<<"M8_QUERY_FUZZ inputs=800 accepted="<<accepted<<" rejected="<<rejected<<" invariants=PASS\n";
++}
+diff --git a/tests/unit/m8_unit.cpp b/tests/unit/m8_unit.cpp
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/m8_unit.cpp
+@@ -0,0 +1,151 @@
++// CPU behavioral tests against fixed format expectations, never a GPU.
++#include "../../development/AMDRadeonRDNA4-Navi44/core/display.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/core/integrity.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/core/query_candidate.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp"
++#include "../fixtures/m8_display.hpp"
++#include <iostream>
++#include <cstring>
++int main(){
++    using namespace NaviDisplay;using namespace NaviCore;using namespace M8Fixture;
++    unsigned pass=0,fail=0;auto check=[&](const char*n,bool ok){std::cout<<(ok?"PASS ":"FAIL ")<<n<<'\n';ok?++pass:++fail;};
++    Mode modes[64]{};Monitor monitor{};auto data=M8Fixture::edid();
++    auto parse=[&](const auto&b,ExtensionPolicy p=ExtensionPolicy::RejectUnknown){return NaviDisplay::edid({b.data(),b.size()},Origin::Synthetic,monitor,modes,64,p);};
++    check("edid_valid_14",parse(data).ok()&&monitor.modeCount==1&&std::strcmp(monitor.manufacturer,"NVI")==0&&monitor.product==44);
++    check("edid_refresh_exact",modes[0].timing.hActive==1920&&modes[0].timing.vActive==1080&&modes[0].refresh.numerator==60&&modes[0].refresh.denominator==1&&!modes[0].hardwareVerified);
++    data[19]=3;seal(data);check("edid_valid_13",parse(data).ok());data=M8Fixture::edid();
++    data[0]=1;seal(data);check("edid_header_reject",!parse(data).ok()&&monitor.modeCount==0&&modes[0].sources==0);
++    data=M8Fixture::edid();data[10]^=1;check("edid_checksum_reject",!parse(data).ok());
++    data=M8Fixture::edid();bool truncated=true;for(size_t n=0;n<128;++n)truncated&=!NaviDisplay::edid({data.data(),n},Origin::Synthetic,monitor,modes,64).ok();
++    check("edid_all_base_truncations",truncated);
++    data[19]=5;seal(data);check("edid_unknown_revision",!parse(data).ok());data=M8Fixture::edid();
++    data[126]=1;seal(data);check("edid_missing_extension",!parse(data).ok());data=M8Fixture::edid();
++    data[8]=0;data[9]=0;seal(data);check("edid_manufacturer_invalid",!parse(data).ok());data=M8Fixture::edid();
++    data[62]=255;data[63]=255;seal(data);check("edid_sync_outside_blank",!parse(data).ok());data=M8Fixture::edid();
++    data[54]=1;data[55]=0;seal(data);check("edid_clock_too_small",!parse(data).ok());data=M8Fixture::edid();
++    data[56]=0;data[58]&=15;seal(data);check("edid_zero_width",!parse(data).ok());data=M8Fixture::edid();
++    data[71]|=0x80;seal(data);check("edid_interlace_unsupported",!parse(data).ok());data=M8Fixture::edid();
++    data[71]|=0x20;seal(data);check("edid_stereo_unsupported",!parse(data).ok());data=M8Fixture::edid();
++    for(unsigned i=0;i<18;++i)data[72+i]=data[54+i];seal(data);
++    check("edid_duplicate_coalesced",parse(data).ok()&&monitor.modeCount==1&&monitor.duplicates==1);
++    auto ext=cta();check("cta_vic_deduplicated",parse(ext).ok()&&monitor.modeCount==1&&monitor.duplicates==1&&(modes[0].sources&CtaVic));
++    ext=cta(3);check("cta_multiple_extensions",parse(ext).ok()&&monitor.duplicates==3);
++    ext=cta();ext[128+4]=0x5f;seal(ext,128);check("cta_crossing_data_block",!parse(ext).ok()&&monitor.modeCount==0);
++    ext=cta();ext[128+2]=128;seal(ext,128);check("cta_invalid_dtd_offset",!parse(ext).ok());
++    ext=cta();ext[128+1]=4;seal(ext,128);check("cta_revision_unsupported",!parse(ext).ok());
++    ext=cta();ext[128]=0x70;seal(ext,128);check("displayid_default_refused",!parse(ext).ok());
++    check("displayid_known_only_partial",parse(ext,ExtensionPolicy::KnownBlocksOnly).ok()&&monitor.partial&&!modes[0].hardwareVerified);
++    ext=cta();ext[255]^=1;check("cta_checksum_reject",!parse(ext).ok());
++    ext=cta();ext[130]=0;seal(ext,128);check("cta_zero_offset_cannot_hide_data",!parse(ext).ok());
++    ext=cta();const uint8_t hdmiBlocks[]={0x67,3,12,0,0,0,0,30,0x67,0xd8,0x5d,0xc4,1,120,0x80,0};
++    for(unsigned i=0;i<sizeof(hdmiBlocks);++i)ext[128+6+i]=hdmiBlocks[i];
++    ext[130]=22;seal(ext,128);
++    check("cta_hdmi_advertisement",parse(ext).ok()&&monitor.scdcAdvertised&&monitor.sinkMaxTmdsKHz==600000&&!modes[0].hardwareVerified);
++    ext[128+14]=0x66;ext[130]=21;seal(ext,128);check("cta_short_forum_block",!parse(ext).ok());
++    check("mode_storage_budget",!NaviDisplay::edid({data.data(),128},Origin::Synthetic,monitor,modes,0).ok());
++    data=M8Fixture::edid();data[35]=0x20;seal(data);check("mode_capacity_not_truncated",!NaviDisplay::edid({data.data(),128},Origin::Synthetic,monitor,modes,1).ok()&&monitor.modeCount==0);
++    Edid::DetailedTiming t{148500,1920,280,88,44,1080,45,4,5,true,true,false};Mode mode{};
++    check("timing_exact_fraction",timing(t,mode).ok()&&mode.refresh.numerator==60&&mode.refresh.denominator==1);
++    t.hBlank=40;check("timing_geometry_refused",!timing(t,mode).ok());t.hBlank=280;t.pixelClockKHz=UINT32_MAX;
++    check("timing_clock_budget",!timing(t,mode).ok());t.pixelClockKHz=148500;timing(t,mode);
++    Decision decision{};LinkBudget unknown{};EngineBudget engine{};
++    check("unknown_link_remains_unknown",assess(mode,unknown,engine,24,decision).ok()&&decision.link==Fit::Unknown&&!decision.outputAllowed);
++    LinkBudget dp{Origin::Synthetic,LinkKind::Dp8b10b,4,2700,0};
++    check("dp_budget_math",assess(mode,dp,engine,24,decision).ok()&&decision.linkPayloadBitsPerSecond==8640000000ULL&&decision.requiredBitsPerSecond==3564000000ULL&&decision.link==Fit::WithinBudget);
++    check("frame_math",decision.frameBytes==8294400&&decision.fullFrameBytesPerSecond==497664000);
++    dp.lanes=1;dp.rateMbps=1620;check("dp_insufficient",assess(mode,dp,engine,24,decision).ok()&&decision.link==Fit::Insufficient);
++    dp.lanes=3;check("dp_bad_lanes",!assess(mode,dp,engine,24,decision).ok());dp.lanes=4;dp.rateMbps=2700;
++    mode.hardwareVerified=true;check("mode_cannot_claim_hardware",!assess(mode,dp,engine,24,decision).ok());mode.hardwareVerified=false;
++    mode.refresh.numerator=61;check("mode_fraction_tamper",!assess(mode,dp,engine,24,decision).ok());timing(t,mode);
++    LinkBudget hdmi{Origin::Synthetic,LinkKind::Tmds,0,0,148500};
++    check("tmds_rgb_8bpc",assess(mode,hdmi,engine,24,decision).ok()&&decision.link==Fit::WithinBudget);
++    check("tmds_deep_color_budget",assess(mode,hdmi,engine,30,decision).ok()&&decision.link==Fit::Insufficient);
++    engine={Origin::Synthetic,100000};check("engine_limit_independent",assess(mode,hdmi,engine,24,decision).ok()&&decision.engine==Fit::Insufficient&&!decision.outputAllowed);
++    Edid::DetailedTiming high{734400,2560,160,48,32,1440,60,3,5,true,true,false};Mode highMode{};
++    check("synthetic_1440p180_math",timing(high,highMode).ok()&&highMode.refresh.numerator==180&&highMode.refresh.denominator==1&&
++        assess(highMode,unknown,EngineBudget{},24,decision).ok()&&decision.frameBytes==14745600&&
++        decision.fullFrameBytesPerSecond==2654208000ULL&&!decision.outputAllowed);
++    check("timing_alias_safe",timing(highMode.timing,highMode).ok()&&highMode.refresh.numerator==180);
++    check("classic_dtd_clock_limit_below_180",uint64_t(655350000)<uint64_t(2560)*1440*180);
++    Edid::DetailedTiming hostile{2500000,49998,1,0,1,49998,1,0,1,true,true,false};Mode huge{};
++    check("frame_product_overflow_rejected",timing(hostile,huge).ok()&&!assess(huge,unknown,EngineBudget{},24,decision).ok()&&!decision.frameBytes);
++    auto romData=rom();AtomBios atom;check("rom_valid",atom.init(romData.data(),romData.size())&&atom.imageLength()==1024);
++    AtomBios::DisplayPath oversized[9]{};check("connector_storage_budget",atom.getDisplayPaths(oversized,9)==0);
++    check("master_indices",AtomBios::DceInfo==27&&AtomBios::VramInfo==28&&AtomBios::VoltageObjectInfo==32);
++    ConnectorList list{};auto board=[&](const auto&b){return connectors({b.data(),b.size()},Origin::Synthetic,list);};
++    check("connectors_dp_hdmi",board(romData).ok()&&list.count==2&&list.entries[0].type==AtomBios::ConnectorDP&&list.entries[1].type==AtomBios::ConnectorHDMIA);
++    check("connector_static_not_hardware",!list.boardVerified&&!list.entries[0].hardwareVerified&&!list.entries[0].routingKnown&&list.entries[0].records.hasI2c&&list.entries[0].records.hasHpd);
++    romData[0]=0;seal(romData,0,1024);check("rom_signature_refused",!board(romData).ok()&&list.count==0);romData=rom();
++    romData[100]^=1;check("rom_checksum_refused",!board(romData).ok());romData=rom();
++    w16(romData,0x48,1023);seal(romData,0,1024);check("rom_header_outside_image",!board(romData).ok());romData=rom();
++    romData[0x83]=9;seal(romData,0,1024);check("rom_header_version_refused",!board(romData).ok());romData=rom();
++    romData[0x103]=9;seal(romData,0,1024);check("master_version_refused",!board(romData).ok());romData=rom();
++    w16(romData,0x104+22*2,0x100);seal(romData,0,1024);check("master_cycle_refused",!board(romData).ok());romData=rom();
++    w16(romData,0x104+21*2,0x180);seal(romData,0,1024);check("data_table_overlap_refused",!board(romData).ok());romData=rom();
++    romData[0x183]=4;seal(romData,0,1024);check("display_v14_not_mixed",!board(romData).ok());romData=rom();
++    romData[0x186]=9;seal(romData,0,1024);check("path_count_refused",!board(romData).ok());romData=rom();
++    w16(romData,0x198,0x3113);seal(romData,0,1024);check("duplicate_connector_refused",!board(romData).ok());romData=rom();
++    w16(romData,0x18a,8);seal(romData,0,1024);check("record_pointer_into_paths",!board(romData).ok());romData=rom();
++    romData[0x180+41]=0;seal(romData,0,1024);check("zero_record_progress",!board(romData).ok());romData=rom();
++    romData[0x180+44]=1;seal(romData,0,1024);check("duplicate_i2c_refused",!board(romData).ok());romData=rom();
++    romData[0x180+58]=3;romData[0x180+59]=2;seal(romData,0,1024);
++    check("record_chain_unterminated",!board(romData).ok()&&list.count==0);romData=rom();
++    bool romTruncations=true;for(size_t n=0;n<1024;++n)romTruncations&=!connectors({romData.data(),n},Origin::Synthetic,list).ok();
++    check("rom_all_truncations",romTruncations);
++    romData[2]=1;seal(romData,0,512);w16(romData,0x104+22*2,0x300);seal(romData,0,512);
++    check("rom_bounds_not_outer_blob",!board(romData).ok());
++    atom.init(romData.data(),romData.size());check("rom_failure_clears_state",!atom.isValid()&&atom.imageLength()==0&&atom.subsystemId()==0);
++    AtomBios::TableHeader th{999,1,1};check("invalid_table_index",atom.dataTable(static_cast<AtomBios::DataTable>(UINT32_MAX),&th)==0&&th.size==0);
++    NaviHost::PlatformMock mock;uint8_t invalid[8]{};mock.snapshot={invalid,8};
++    auto contract=mock.contract();auto r=NaviPlatform::validateSnapshot(contract,Asic::Target::Gfx1200);
++    check("platform_release_on_parser_failure",!r.ok()&&mock.borrows==1&&mock.returns==1&&mock.allocations==1&&mock.releases==1&&mock.enters==mock.leaves&&!mock.inCall);
++    mock.deny=true;r=NaviPlatform::validateSnapshot(contract,Asic::Target::Gfx1200);
++    check("platform_input_release_on_no_scratch",r.code==Error::Budget&&mock.borrows==2&&mock.returns==2);
++    mock.wrongContext=true;r=NaviPlatform::validateSnapshot(contract,Asic::Target::Gfx1200);
++    check("platform_context_rejected",r.code==Error::Protocol&&mock.borrows==2&&mock.logs==2);
++    mock.wrongContext=false;mock.inCall=true;r=NaviPlatform::validateSnapshot(contract,Asic::Target::Gfx1200);
++    check("platform_reentry_rejected",r.code==Error::Protocol&&mock.borrows==2&&mock.logs==2);mock.inCall=false;
++    contract.snapshots.release=nullptr;r=NaviPlatform::validateSnapshot(contract,Asic::Target::Gfx1200);
++    check("platform_missing_lifetime_rejected",!r.ok()&&mock.borrows==2&&!mock.inCall);
++    struct LogReentry {NaviPlatform::Contract c;unsigned calls{0};Result nested{success()};} hook{mock.contract()};
++    hook.c.log={&hook,[](void*ctx,Result){
++        auto&h=*static_cast<LogReentry*>(ctx);++h.calls;
++        // Bound the test even on broken implementations; a second log is FAIL.
++        if(h.calls>1)return;
++        h.nested=NaviPlatform::validateSnapshot(h.c,Asic::Target::Gfx1200);
++    }};
++    NaviPlatform::validateSnapshot(hook.c,Asic::Target::Gfx1200);
++    check("platform_log_reentry_no_recursion",hook.calls==1&&hook.nested.code==Error::Protocol&&!mock.inCall);
++    const uint8_t text[]={'1','2','3','4','5','6','7','8','9'};Integrity integrity{};
++    check("crc32_known_vector",payloadChecksum({text,9},0xcbf43926,CrcConvention::IsoHdlc,integrity).ok()&&integrity.checksumMatched&&!integrity.signatureVerified&&!integrity.loadable);
++    check("crc32_corruption",!payloadChecksum({text,8},0xcbf43926,CrcConvention::IsoHdlc,integrity).ok()&&!integrity.checksumMatched);
++    check("crc32_unknown_convention",!payloadChecksum({text,9},0xcbf43926,CrcConvention::Unknown,integrity).ok());
++    check("crc32_empty_vector",payloadChecksum({nullptr,0},0,CrcConvention::IsoHdlc,integrity).ok());
++    QueryCandidate query{};query.device.profile=Asic::identify(0x1002,0x7590);query.provenance=Provenance::Synthetic;query.generation=1;
++    uint8_t wire[128]{};QueryCandidate decoded{};
++    check("query_envelope_roundtrip",encodeQuery(query,wire,128).ok()&&decodeQuery({wire,128},decoded).ok()&&decoded.device.profile.target==Asic::Target::Gfx1200&&decoded.provenance==Provenance::Synthetic);
++    wire[13]=1;check("query_false_verification_rejected",!decodeQuery({wire,128},decoded).ok()&&!decoded.generation);wire[13]=0;
++    wire[14]=1;check("query_false_owner_rejected",!decodeQuery({wire,128},decoded).ok());wire[14]=0;
++    wire[6]=1;check("query_unknown_minor_rejected",!decodeQuery({wire,128},decoded).ok());wire[6]=0;
++    wire[12]=3;check("query_no_hardware_provenance",!decodeQuery({wire,128},decoded).ok());wire[12]=1;
++    wire[16]=1;check("query_presence_mismatch",!decodeQuery({wire,128},decoded).ok());wire[16]=0;
++    wire[20]=1;check("query_false_capabilities",!decodeQuery({wire,128},decoded).ok());wire[20]=0;
++    OfflineOwner owner;check("offline_owner_prepare",owner.prepare(query).ok()&&!owner.canInitializeHardware());
++    check("offline_owner_lease",owner.borrow(decoded).ok()&&decoded.generation==1);
++    check("offline_owner_reentry",!owner.borrow(decoded).ok());
++    check("offline_owner_return",owner.giveBack(1).ok());owner.close();
++    check("offline_owner_after_close",!owner.borrow(decoded).ok()&&!decoded.generation);
++    check("offline_owner_generation_replay",!owner.prepare(query).ok());query.generation=2;
++    check("offline_owner_next_generation",owner.prepare(query).ok()&&owner.borrow(decoded).ok());
++    check("offline_owner_wrong_epoch_terminal",!owner.giveBack(1).ok()&&!owner.borrow(decoded).ok());
++    query.generation=3;check("offline_owner_failure_not_promoted",!owner.prepare(query).ok());
++    std::array<uint8_t,64> elfbytes{};const uint8_t ident[]={0x7f,'E','L','F',2,1,1};
++    for(unsigned i=0;i<7;++i)elfbytes[i]=ident[i];
++    w16(elfbytes,16,3);w16(elfbytes,18,224);elfbytes[20]=1;elfbytes[48]=72;
++    w16(elfbytes,52,64);w16(elfbytes,54,56);w16(elfbytes,56,5000);w16(elfbytes,58,64);w16(elfbytes,60,2);
++    Node arena[2]{};Scratch scratch{arena,2,0};
++    check("elf_table_count_budget",elf({elfbytes.data(),64},Asic::Target::Gfx1200,scratch).code==Error::Budget);
++    std::vector<uint8_t> boundedLarge((16u<<20)+1);
++    check("elf_direct_input_budget",elf({boundedLarge.data(),boundedLarge.size()},Asic::Target::Gfx1200,scratch).code==Error::Budget);
++    std::cout<<"SUMMARY "<<pass<<' '<<fail<<'\n';return fail?1:0;
++}

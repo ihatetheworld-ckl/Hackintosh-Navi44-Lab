@@ -1,0 +1,23 @@
+{
+  "scope": "Python CPU-only synthetic/logic tests; NOT C++ or GPU verification",
+  "python": "3.12.13 (main, Aug  7 2026, 02:26:41) [MSC v.1944 64 bit (AMD64)]",
+  "tests": 58,
+  "PASS": 56,
+  "FAIL": 0,
+  "SKIP": 2,
+  "skipped": [
+    [
+      "test_real_shader (labtests.ElfTests.test_real_shader)",
+      "No actual gfx1200 compiler output or macOS SDK; synthetic envelope is not shader validation"
+    ],
+    [
+      "test_real_navi44_fixture (labtests.ParserTests.test_real_navi44_fixture)",
+      "No public verified RX9060XT IP Discovery capture; no hardware access authorized"
+    ]
+  ],
+  "NOT RUN": [
+    "C++ compilation (no compiler found)",
+    "macOS kext build (no SDK)",
+    "GPU initialization/submission/display/Vulkan/Metal/WindowServer (not authorized)"
+  ]
+}

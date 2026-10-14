@@ -1,0 +1,74 @@
+{
+  "status": "PASS",
+  "scope": "M7 rerun, not M8 new results",
+  "result": {
+    "stage": "M7",
+    "status": "PASS",
+    "completed_at": "2026-10-14T09:56:38.706461+08:00",
+    "python": {
+      "test_offline.py": {
+        "tests": 58,
+        "PASS": 56,
+        "FAIL": 0,
+        "SKIP": 2,
+        "static_checks": 4,
+        "behavior_PASS": 52
+      },
+      "test_m65.py": {
+        "tests": 11,
+        "PASS": 11,
+        "FAIL": 0,
+        "SKIP": 0,
+        "static_checks": 0,
+        "behavior_PASS": 11
+      },
+      "test_m7.py": {
+        "tests": 22,
+        "PASS": 22,
+        "FAIL": 0,
+        "SKIP": 0,
+        "static_checks": 0,
+        "behavior_PASS": 22
+      }
+    },
+    "cpp_regression": 34,
+    "cpp_m7": 31,
+    "differential": 743,
+    "fuzz": {
+      "seed": 759070,
+      "inputs": 2400,
+      "coverage_guided": false
+    },
+    "core_compile": "PASS: no-exceptions/no-rtti/freestanding + object symbol audit",
+    "sanitizers": {
+      "status": "PASS",
+      "inputs": 3143,
+      "canaries": {
+        "asan": "PASS",
+        "ubsan": "PASS"
+      },
+      "leak_detection": "NOT VERIFIED"
+    },
+    "static_analysis": [
+      {
+        "source": "validation.cpp",
+        "warnings": 0
+      },
+      {
+        "source": "device_info.cpp",
+        "warnings": 0
+      },
+      {
+        "source": "ipdiscovery.cpp",
+        "warnings": 0
+      },
+      {
+        "source": "codeobj.cpp",
+        "warnings": 0
+      }
+    ],
+    "kext": "NOT RUN",
+    "GPU": "NOT RUN",
+    "real_gfx1200_ELF": "SKIP"
+  }
+}

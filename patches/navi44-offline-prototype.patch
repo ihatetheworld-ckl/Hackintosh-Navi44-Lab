@@ -1,0 +1,823 @@
+--- a/Makefile
++++ b/Makefile
+@@ -1,3 +1,5 @@
++# Lab safety guard: upstream kext/tool targets are intentionally disabled.
++$(error Offline lab: use ../../build_offline.ps1; kext/hardware targets are forbidden)
+ # Makefile — cross-compile the AMDRadeonRDNA4 kext for x86_64 (Intel hackintosh)
+ # from any host, including Apple Silicon. Targets macOS 11 (Big Sur) ABI.
+ #
+--- /dev/null
++++ b/src/asicprofile.hpp
+@@ -0,0 +1,45 @@
++// Offline-only ASIC identities. New code under repository BSD-3-Clause LICENSE.
++// LLVM 20.1.8 ELF.h commit 87f0227cb60147a26a1eeb4fb06e3b505e9c7261.
++#ifndef Navi44AsicProfile_hpp
++#define Navi44AsicProfile_hpp
++#include <stdint.h>
++
++namespace Asic {
++enum class Target : uint8_t { Unknown = 0, Gfx1200 = 0x48, Gfx1201 = 0x4e };
++enum class Family : uint8_t { Unknown, Navi44, Navi48 };
++struct IpVersion { uint8_t major, minor, revision; bool known; };
++struct Topology {
++    bool verified;
++    uint32_t se, cu, rb, tcc;
++    uint64_t vramBytes, visibleBarBytes;
++};
++struct Profile {
++    Family family;
++    Target target;
++    uint16_t vendor, device;
++    uint8_t revision;
++    bool revisionKnown;
++    bool revisionVerified;
++    uint32_t capabilities; // zero: no hardware feature has been verified
++    IpVersion expectedGc;
++    Topology topology;
++};
++inline Profile identify(uint16_t vendor, uint16_t device, uint8_t revision = 0,
++                        bool revisionKnown = false) {
++    Profile p { Family::Unknown, Target::Unknown, vendor, device, revision,
++                revisionKnown, false, 0, {0, 0, 0, false}, {false, 0, 0, 0, 0, 0, 0} };
++    if (vendor != 0x1002) return p;
++    if (device == 0x7590) {
++        p.family = Family::Navi44; p.target = Target::Gfx1200;
++        p.expectedGc = {12, 0, 0, true}; // expected family, not a card capture
++    }
++    else if (device == 0x7550 || device == 0x7551) {
++        p.family = Family::Navi48; p.target = Target::Gfx1201;
++        p.expectedGc = {12, 0, 1, true};
++    }
++    return p;
++}
++// There is deliberately no hardware backend or override in this prototype.
++constexpr bool hardwareInitializationAllowed() { return false; }
++}
++#endif
+--- /dev/null
++++ b/src/offlinefirmware.hpp
+@@ -0,0 +1,26 @@
++// CPU-only common-header checks. BSD-3-Clause, see LICENSE.
++#ifndef Navi44OfflineFirmware_hpp
++#define Navi44OfflineFirmware_hpp
++#include <stddef.h>
++#include <stdint.h>
++namespace OfflineFirmware {
++enum class Error { None, Missing, HeaderVersion, Length, IpMismatch, CrcUnverified };
++struct Need { uint16_t ipMajor, ipMinor; const char *component; };
++inline uint16_t le16(const uint8_t *p) { return uint16_t(p[0]) | uint16_t(p[1]) << 8; }
++inline uint32_t le32(const uint8_t *p) {
++    return uint32_t(p[0]) | uint32_t(p[1]) << 8 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 24;
++}
++inline Error validate(const uint8_t *d, size_t n, const Need &need) {
++    if (!d || n < 32) return Error::Missing;
++    if (le16(d + 8) != 1 || le16(d + 10) != 0) return Error::HeaderVersion;
++    const uint32_t size = le32(d), header = le32(d + 4);
++    const uint32_t count = le32(d + 20), off = le32(d + 24);
++    if (size != n || header < 32 || header > n || off < header || off > n ||
++        !count || count > n - off) return Error::Length;
++    if (le16(d + 12) != need.ipMajor || le16(d + 14) != need.ipMinor) return Error::IpMismatch;
++    if (le32(d + 28)) return Error::CrcUnverified;
++    // Structural validation only. AMD/PSP signatures are NOT validated here.
++    return Error::None;
++}
++}
++#endif
+--- a/src/plugin.cpp
++++ b/src/plugin.cpp
+@@ -36,6 +36,7 @@
+ #include "compute.hpp"
+ #include "buildrev.h"   // AMDRADEONRDNA4_BUILD, written by the Makefile
+ #include "device.hpp"
++#include "asicprofile.hpp"
+ #include "ndrv.hpp"
+ 
+ uint32_t rdna4TraceLevel { 0 };
+@@ -193,7 +194,11 @@
+ 		return false;
+ 	uint32_t vd = pci->configRead32(kIOPCIConfigVendorID);
+ 	uint16_t vendor = vd & 0xffff, device = static_cast<uint16_t>(vd >> 16);
+-	if (vendor == 0x1002 && (device == 0x7550 || device == 0x7551))
++	const auto profile = Asic::identify(vendor, device);
++	// Identification is not authorization. Navi44 stays outside every GPU hook.
++	if (profile.family == Asic::Family::Navi44)
++		return false;
++	if (profile.family == Asic::Family::Navi48)
+ 		return true;
+ #ifdef AMDRadeonRDNA4_VM_TEST
+ 	if (vendor == 0x15ad && device == 0x0405)
+--- a/src/device.cpp
++++ b/src/device.cpp
+@@ -8,6 +8,7 @@
+ //
+ 
+ #include "device.hpp"
++#include "asicprofile.hpp"
+ #include "dpphy.hpp"
+ #include "edid.hpp"
+ #include "dmub.hpp"
+@@ -1973,6 +1974,10 @@
+ // ---------------------------------------------------------------------------
+ 
+ bool RDNA4Device::init(IOPCIDevice *pci, IOService *ownerService) {
++	// Offline lab fork: no runtime switch can authorize device initialization.
++	// A future hardware build requires a separately reviewed source change.
++	if (!Asic::hardwareInitializationAllowed())
++		return false;
+ 	pciDevice = pci;
+ 	owner = ownerService;
+ 	if (!pciDevice || !owner)
+--- a/src/codeobj.hpp
++++ b/src/codeobj.hpp
+@@ -17,6 +17,7 @@
+ 
+ #include <stddef.h>
+ #include <stdint.h>
++#include "asicprofile.hpp"
+ 
+ namespace CodeObj {
+ 
+@@ -45,7 +46,7 @@
+ // Look up `name` in `elf`. Returns false (and `why`) if the file is not a
+ // gfx12 AMDGPU code object or the kernel / its descriptor is missing.
+ bool findKernel(const uint8_t *elf, size_t size, const char *name, Kernel &out,
+-                const char **why);
++                const char **why, Asic::Target expected = Asic::Target::Gfx1201);
+ 
+ // The loadable image: the PT_LOAD segments at their virtual addresses in
+ // one block of `size` bytes (ld.lld links code objects at 0), as ROCm's
+@@ -61,7 +62,7 @@
+ 	uint32_t count;
+ 	uint64_t size;
+ };
+-bool parseImage(const uint8_t *elf, size_t size, Image &out, const char **why);
++bool parseImage(const uint8_t *elf, size_t size, Image &out, const char **why, Asic::Target expected = Asic::Target::Gfx1201);
+ 
+ } // namespace CodeObj
+ 
+--- a/src/codeobj.cpp
++++ b/src/codeobj.cpp
+@@ -11,7 +11,6 @@
+ 
+ namespace {
+ constexpr uint16_t kEmAmdgpu    = 224;
+-constexpr uint32_t kMachGfx1201 = 0x4e;           // EF_AMDGPU_MACH_AMDGCN_GFX1201
+ constexpr uint32_t kShtSymtab   = 2, kShtDynsym = 11;
+ 
+ uint16_t u16(const uint8_t *p) { return static_cast<uint16_t>(p[0] | (p[1] << 8)); }
+@@ -46,7 +45,7 @@
+ 		for (uint32_t i = 1; i < shnum; i++) {
+ 			const uint8_t *s = sh(i);
+ 			uint64_t addr = u64(s + 16), soff = u64(s + 24), size = u64(s + 32);
+-			if (addr && va >= addr && va < addr + size && inside(n, soff, size)) {
++			if (addr && va >= addr && va - addr < size && inside(n, soff, size)) {
+ 				off = soff + (va - addr);
+ 				left = size - (va - addr);
+ 				return true;
+@@ -58,14 +57,16 @@
+ 
+ // The ELF header checks both entry points share; nullptr when it is a
+ // gfx1201 AMDGPU code object with sane section headers.
+-const char *checkHeader(const uint8_t *d, size_t n, Elf &e) {
++const char *checkHeader(const uint8_t *d, size_t n, Elf &e, Asic::Target expected) {
+ 	if (!d || n < 64 || d[0] != 0x7f || d[1] != 'E' || d[2] != 'L' || d[3] != 'F' ||
+ 	    d[4] != 2 /* ELFCLASS64 */ || d[5] != 1 /* little-endian */)
+ 		return "not an ELF64 little-endian file";
+ 	if (u16(d + 18) != kEmAmdgpu)
+ 		return "not an AMDGPU code object";
+-	if ((u32(d + 48) & 0xff) != kMachGfx1201)
+-		return "not built for gfx1201";
++	if (expected != Asic::Target::Gfx1200 && expected != Asic::Target::Gfx1201)
++		return "unknown expected target";
++	if ((u32(d + 48) & 0xff) != static_cast<uint32_t>(expected))
++		return "AMDGPU target mismatch";
+ 	e = Elf { d, n, u64(d + 40), u16(d + 58), u16(d + 60) };
+ 	if (e.shentsize < 64 || !inside(n, e.shoff, static_cast<uint64_t>(e.shnum) * e.shentsize))
+ 		return "bad section headers";
+@@ -73,7 +74,7 @@
+ }
+ } // namespace
+ 
+-bool parseImage(const uint8_t *d, size_t n, Image &out, const char **why) {
++bool parseImage(const uint8_t *d, size_t n, Image &out, const char **why, Asic::Target expected) {
+ 	auto fail = [why](const char *w) {
+ 		if (why)
+ 			*why = w;
+@@ -81,7 +82,7 @@
+ 	};
+ 	out = Image {};
+ 	Elf e {};
+-	if (const char *w = checkHeader(d, n, e))
++	if (const char *w = checkHeader(d, n, e, expected))
+ 		return fail(w);
+ 
+ 	const uint64_t phoff = u64(d + 32);
+@@ -118,15 +119,16 @@
+ 	return true;
+ }
+ 
+-bool findKernel(const uint8_t *d, size_t n, const char *name, Kernel &out, const char **why) {
++bool findKernel(const uint8_t *d, size_t n, const char *name, Kernel &out, const char **why, Asic::Target expected) {
+ 	auto fail = [why](const char *w) {
+ 		if (why)
+ 			*why = w;
+ 		return false;
+ 	};
+ 	out = Kernel {};
++	if (!name) return fail("missing kernel name");
+ 	Elf e {};
+-	if (const char *w = checkHeader(d, n, e))
++	if (const char *w = checkHeader(d, n, e, expected))
+ 		return fail(w);
+ 
+ 	uint64_t codeVa = 0, kdVa = 0;
+--- a/src/ipdiscovery.hpp
++++ b/src/ipdiscovery.hpp
+@@ -85,7 +85,8 @@
+ 	const uint8_t *data { nullptr };
+ 	size_t size { 0 };
+ 	size_t binBase { 0 };    // offset of binary_header in data
+-	size_t dieBase { 0 };    // offset of die_header in data
++	size_t dieBase { 0 };
++	size_t binEnd { 0 }, ipEnd { 0 };    // offset of die_header in data
+ 	uint16_t numIps { 0 };
+ 	bool valid { false };
+ 
+--- a/src/ipdiscovery.cpp
++++ b/src/ipdiscovery.cpp
+@@ -25,13 +25,13 @@
+ }
+ 
+ bool IpDiscovery::readU16(size_t off, uint16_t &v) const {
+-	if (off + 2 > size) return false;
++	if (off > size || 2 > size - off) return false;
+ 	v = static_cast<uint16_t>(data[off] | (data[off + 1] << 8));
+ 	return true;
+ }
+ 
+ bool IpDiscovery::readU32(size_t off, uint32_t &v) const {
+-	if (off + 4 > size) return false;
++	if (off > size || 4 > size - off) return false;
+ 	v = static_cast<uint32_t>(data[off]) |
+ 	    (static_cast<uint32_t>(data[off + 1]) << 8) |
+ 	    (static_cast<uint32_t>(data[off + 2]) << 16) |
+@@ -44,7 +44,11 @@
+ 	if (!readU16(offset + 4, vmajor) || !readU16(offset + 8, checksum) ||
+ 	    !readU16(offset + 10, binSize))
+ 		return false;
+-	if (binSize < 16 || offset + binSize > size)
++	if (offset > size || binSize < 60 || binSize > size - offset ||
++	    (vmajor != 1 && vmajor != 2))
++		return false;
++	uint16_t vminor;
++	if (!readU16(offset + 6, vminor) || (vmajor == 1 ? vminor > 3 : vminor != 0))
+ 		return false;
+ 
+ 	// Checksum: 16-bit byte sum of everything after the checksum field.
+@@ -61,15 +65,30 @@
+ 	    ipdOffset == 0 || ipdSize < 80)
+ 		return false;
+ 
++	const size_t listBytes = vmajor == 1 ? 48 : 0;
++	uint16_t tableCount = 6;
++	if (vmajor == 2 && (!readU16(offset + 12, tableCount) || !tableCount || tableCount > 6)) return false;
++	const size_t headerBytes = (vmajor == 1 ? 12 : 16) + (vmajor == 1 ? listBytes : 8u * tableCount);
++	if (headerBytes > binSize || ipdOffset < headerBytes || ipdOffset > binSize || ipdSize > binSize - ipdOffset) return false;
++	uint16_t tableSum;
++	if (!readU16(tableList + 2, tableSum)) return false;
++	uint16_t actualSum = 0;
++	for (size_t i = offset + ipdOffset; i < offset + ipdOffset + ipdSize; ++i) actualSum = static_cast<uint16_t>(actualSum + data[i]);
++	if (actualSum != tableSum) return false;
+ 	size_t ipd = offset + ipdOffset;
+ 	uint32_t sig;
+ 	uint16_t numDies;
+-	if (!readU32(ipd, sig) || sig != kIpdsSignature || !readU16(ipd + 12, numDies) || numDies == 0)
+-		return false;
+-
+-	// Single-die parts only (true for all dGPUs); die_info[0] at +14.
++	if (!readU32(ipd, sig) || sig != kIpdsSignature || !readU16(ipd + 12, numDies) || numDies != 1)
++		return false;
++	uint32_t tableId;
++	if (!readU32(ipd + 8, tableId) || tableId != 0) return false;
++
++	uint16_t ipVersion, declaredSize;
++	if (!readU16(ipd + 4, ipVersion) || (ipVersion != 3 && ipVersion != 4) ||
++	    !readU16(ipd + 6, declaredSize) || declaredSize != ipdSize || data[ipd + 78] || data[ipd + 79]) return false;
++	// Legacy 32-bit API: reject 64-bit encoding instead of truncation.
+ 	uint16_t dieOffset;
+-	if (!readU16(ipd + 16, dieOffset) || dieOffset == 0)
++	if (!readU16(ipd + 16, dieOffset) || dieOffset < ipdOffset + 80 || dieOffset > binSize || 4 > binSize - dieOffset)
+ 		return false;
+ 
+ 	size_t die = offset + dieOffset;
+@@ -77,6 +96,22 @@
+ 	if (!readU16(die + 2, nips) || nips == 0 || nips > 256)
+ 		return false;
+ 
++	const size_t tableEnd = ipd + ipdSize;
++	if (die < ipd + 80 || die > tableEnd || 4 > tableEnd - die) return false;
++	size_t p = die + 4;
++	for (uint16_t i = 0; i < nips; ++i) {
++		if (p > tableEnd || 8 > tableEnd - p) return false;
++		const uint8_t count = data[p + 3];
++		if (!count || count > MaxBases || 4u * count > tableEnd - p - 8) return false;
++		size_t q = die + 4;
++		for (uint16_t j = 0; j < i; ++j) {
++			if (data[p] == data[q] && data[p + 1] == data[q + 1] && data[p + 2] == data[q + 2]) return false;
++			q += 8 + 4u * data[q + 3];
++		}
++		p += 8 + 4u * count;
++	}
++	binEnd = offset + binSize;
++	ipEnd = tableEnd;
+ 	binBase = offset;
+ 	dieBase = die;
+ 	numIps = nips;
+@@ -87,6 +122,7 @@
+ 	data = buffer;
+ 	size = bufferSize;
+ 	valid = false;
++	numIps = 0; binBase = dieBase = binEnd = ipEnd = 0;
+ 	if (!data || size < 512)
+ 		return false;
+ 
+@@ -108,6 +144,9 @@
+ 	uint16_t vmajor, tblOff;
+ 	if (!readU16(binBase + 4, vmajor))
+ 		return false;
++	uint16_t tableCount = 6;
++	if (vmajor == 2 && (!readU16(binBase + 12, tableCount) || tableCount < 2 || tableCount > 6))
++		return false;
+ 	// GC is table_list[1] (enum table in discovery.h); table_info is 8 bytes.
+ 	const size_t tableList = binBase + (vmajor >= 2 ? 16 : 12);
+ 	if (!readU16(tableList + 8, tblOff) || !tblOff)
+@@ -115,17 +154,29 @@
+ 	// gpu_info_header is 12 bytes (u32 table_id, u16 major, u16 minor, u32
+ 	// size); gc_info v1_0 and v2_0 both put gc_num_se right after it and
+ 	// gc_num_rb_per_se three dwords on.
++	uint16_t gcSize, gcCheck;
++	if (!readU16(tableList + 12, gcSize) || !readU16(tableList + 10, gcCheck) ||
++	    tblOff > binEnd - binBase || gcSize > binEnd - binBase - tblOff || gcSize < 28) return false;
+ 	const size_t gc = binBase + tblOff;
++	uint16_t ipOffset;
++	if (!readU16(tableList, ipOffset) || gc < tableList + 8u * tableCount ||
++	    (gc < ipEnd && gc + gcSize > binBase + ipOffset)) return false;
++	uint16_t sum = 0;
++	for (size_t i = gc; i < gc + gcSize; ++i) sum = static_cast<uint16_t>(sum + data[i]);
++	if (sum != gcCheck) return false;
++	uint32_t declaredGc;
++	if (!readU32(gc + 8, declaredGc) || declaredGc != gcSize) return false;
+ 	// GC_TABLE_ID (discovery.h:30) is what amdgpu checks the table with
+ 	// (amdgpu_discovery.c:648) before it reads a field.
+ 	uint32_t tableId;
+ 	uint16_t gcMajor, gcMinor;
+ 	if (!readU32(gc, tableId) || tableId != 0x4347 || !readU16(gc + 4, gcMajor) ||
+-	    !readU16(gc + 6, gcMinor) || (gcMajor != 1 && gcMajor != 2))
++	    !readU16(gc + 6, gcMinor) || (gcMajor != 1 && gcMajor != 2) || gcMinor != 0 || gcSize < (gcMajor == 1 ? 88 : 80))
+ 		return false;
+ 	uint32_t se, rb;   // outputs only change on success
+ 	if (!readU32(gc + 12, se) || !readU32(gc + 12 + 12, rb))
+ 		return false;
++	if (!se || !rb) return false;
+ 	numSe = se;
+ 	numRbPerSe = rb;
+ 	if (version)
+@@ -179,6 +230,8 @@
+ 	IpEntry ip;
+ 	if (!findIp(hwId, instance, ip) || segment >= ip.numBases)
+ 		return false;
+-	byteOffset = (ip.bases[segment] + regDwordOffset) * 4;
+-	return true;
+-}
++	const uint64_t off = (static_cast<uint64_t>(ip.bases[segment]) + regDwordOffset) * 4;
++	if (off > UINT32_MAX) return false;
++	byteOffset = static_cast<uint32_t>(off);
++	return true;
++}
+--- /dev/null
++++ b/host/navi44.py
+@@ -0,0 +1,424 @@
++"""CPU-only reference implementation. No device IO, drivers or GPU libraries.
++
++New code: BSD-3-Clause, see ../LICENSE. Binary layouts are documented by
++upstream/references/linux-discovery.h and LLVM ELF.h at provenance.json pins.
++Fixtures are synthetic. OfflineReady never authorizes hardware initialization.
++"""
++from dataclasses import dataclass, field
++from enum import Enum
++import struct
++
++
++class Invalid(ValueError):
++    pass
++
++
++class Target(Enum):
++    UNKNOWN = 0
++    GFX1200 = 0x48
++    GFX1201 = 0x4E
++
++
++@dataclass(frozen=True)
++class Profile:
++    vendor: int
++    device: int
++    revision: int | None
++    asic: str
++    target: Target
++    expected_gc: tuple[int, int, int]
++    revision_verified: bool = False
++    capabilities: frozenset = frozenset()
++
++
++def identify(vendor, device, revision=None):
++    if revision is not None and (not isinstance(revision, int) or not 0 <= revision <= 255):
++        raise Invalid("revision_range")
++    if vendor != 0x1002:
++        raise Invalid("unknown_vendor")
++    if device == 0x7590:
++        return Profile(vendor, device, revision, "Navi44", Target.GFX1200, (12, 0, 0))
++    if device in (0x7550, 0x7551):
++        return Profile(vendor, device, revision, "Navi48", Target.GFX1201, (12, 0, 1))
++    raise Invalid("unknown_device")
++
++
++def bounded(total, offset, length):
++    # Subtraction form translates safely to fixed-width C++ size_t.
++    if not all(isinstance(x, int) for x in (total, offset, length)):
++        raise Invalid("range_type")
++    if min(total, offset, length) < 0 or max(total, offset, length) > 0xFFFFFFFFFFFFFFFF:
++        raise Invalid("range_overflow")
++    if offset > total or length > total - offset:
++        raise Invalid("out_of_bounds")
++
++
++def read(data, offset, fmt):
++    bounded(len(data), offset, struct.calcsize(fmt))
++    return struct.unpack_from(fmt, data, offset)
++
++
++@dataclass(frozen=True)
++class Ip:
++    hw_id: int
++    instance: int
++    version: tuple
++    bases: tuple
++
++
++@dataclass(frozen=True)
++class Discovery:
++    binary_version: tuple
++    ipds_version: int
++    address_bits: int
++    ips: tuple
++    gc_info: tuple | None  # SE, RB per SE: described data, not active topology.
++    unknown_ids: tuple
++
++
++def parse_discovery(data):
++    """Parse one binary at offset zero; caller may slice a ROM offline.
++
++    Supports binary v1.0..1.3/v2.0 and IPDS v3/v4, one die.
++    Other versions fail closed. Unknown IPs are retained, not made capable.
++    64-bit register bases remain 64-bit and are never truncated.
++    """
++    if not isinstance(data, (bytes, bytearray)):
++        raise Invalid("buffer_type")
++    magic, major, minor, checksum, size = read(data, 0, "<IHHHH")
++    if magic != 0x28211407:
++        raise Invalid("binary_magic")
++    if (major == 1 and minor > 3) or (major == 2 and minor != 0) or major not in (1, 2):
++        raise Invalid("binary_version")
++    bounded(len(data), 0, size)
++    start = 12 if major == 1 else 16
++    count = 6 if major == 1 else read(data, 12, "<H")[0]
++    if not 1 <= count <= 6:
++        raise Invalid("table_count")
++    bounded(size, start, count * 8)
++    if sum(data[10:size]) & 0xFFFF != checksum:
++        raise Invalid("binary_checksum")
++    tables = []
++    occupied = []
++    for index in range(count):
++        off, check, length, _ = read(data, start + 8 * index, "<HHHH")
++        if off == length == check == 0:
++            tables.append(None)
++            continue
++        if not off or not length or off < start + count * 8:
++            raise Invalid("table_range")
++        bounded(size, off, length)
++        if any(off < end and begin < off + length for begin, end in occupied):
++            raise Invalid("table_overlap")
++        occupied.append((off, off + length))
++        if sum(data[off:off + length]) & 0xFFFF != check:
++            raise Invalid("table_checksum")
++        tables.append((off, length))
++    if not tables[0]:
++        raise Invalid("missing_ipds")
++    off, length = tables[0]
++    bounded(length, 0, 80)
++    sig, version, declared, table_id, dies = read(data, off, "<IHHIH")
++    if sig != 0x53445049 or table_id != 0:
++        raise Invalid("ipds_magic_or_id")
++    if version not in (3, 4):
++        raise Invalid("ipds_version")
++    if declared != length or dies != 1:
++        raise Invalid("ipds_size_or_die_count")
++    flags = data[off + 78]
++    if data[off + 79] or flags & ~1 or (version == 3 and flags):
++        raise Invalid("ipds_flags")
++    width = 8 if flags & 1 else 4
++    die_id, die_off = read(data, off + 14, "<HH")
++    if die_off < off + 80:
++        raise Invalid("die_offset")
++    bounded(off + length, die_off, 4)
++    actual_id, nips = read(data, die_off, "<HH")
++    if actual_id != die_id or not 1 <= nips <= 256:
++        raise Invalid("die_id_or_ip_count")
++    p = die_off + 4
++    ips, seen = [], set()
++    for _ in range(nips):
++        bounded(off + length, p, 8)
++        hw, instance, nb, a, b, c, _flags = read(data, p, "<HBBBBBB")
++        if not 1 <= nb <= 16:
++            raise Invalid("base_count")
++        bounded(off + length, p + 8, nb * width)
++        bases = read(data, p + 8, "<" + ("Q" if width == 8 else "I") * nb)
++        if any(base > 0xFFFFFFFFFFFFFFFF // 4 for base in bases):
++            raise Invalid("register_address_overflow")
++        key = (hw, instance)
++        if key in seen:
++            raise Invalid("duplicate_ip")
++        seen.add(key)
++        ips.append(Ip(hw, instance, (a, b, c), bases))
++        p += 8 + nb * width
++    topology = None
++    if len(tables) > 1 and tables[1]:
++        gc, glen = tables[1]
++        bounded(glen, 0, 28)
++        gid, ga, gb, gsize = read(data, gc, "<IHHI")
++        # Support complete base layouts only; later minor extensions unverified.
++        if gid != 0x4347 or (ga, gb) not in ((1, 0), (2, 0)):
++            raise Invalid("gc_info_version")
++        minimum = 88 if ga == 1 else 80
++        if gsize != glen or glen < minimum:
++            raise Invalid("gc_info_size")
++        se = read(data, gc + 12, "<I")[0]
++        rb = read(data, gc + 24, "<I")[0]
++        if not se or not rb:
++            raise Invalid("gc_info_zero")
++        topology = (se, rb)
++    known = {1, 11, 34, 40, 41, 42, 108, 150, 255, 271}
++    unknown = tuple(sorted({ip.hw_id for ip in ips if ip.hw_id not in known}))
++    return Discovery((major, minor), version, width * 8, tuple(ips), topology, unknown)
++
++
++def validate_discovery(profile, discovery):
++    gc = [ip for ip in discovery.ips if ip.hw_id == 11 and ip.instance == 0]
++    if len(gc) != 1 or gc[0].version != profile.expected_gc:
++        raise Invalid("gc_profile_mismatch")
++    if discovery.gc_info is None:
++        raise Invalid("topology_unknown")
++    return True  # Only a subset, never validates actual active CU/BAR geometry.
++
++
++@dataclass(frozen=True)
++class FirmwareNeed:
++    block: str
++    ip: tuple
++    component: str
++
++
++def firmware_requirements(profile, discovery):
++    validate_discovery(profile, discovery)
++    needs = []
++    # Linux IP-derived naming reference, not a claim Navi44 IPs were captured.
++    for hw, block, components in (
++        (11, "gc", ("pfp", "me", "mec", "rlc", "imu", "mes", "mes1")),
++        (255, "psp", ("sos", "ta")), (1, "smu", ("smu",)),
++        (42, "sdma", ("sdma",)), (271, "dcn", ("dmub",))):
++        entries = [ip for ip in discovery.ips if ip.hw_id == hw and ip.instance == 0]
++        if len(entries) != 1:
++            raise Invalid("required_ip_missing:" + block)
++        for component in components:
++            needs.append(FirmwareNeed(block, entries[0].version, component))
++    return tuple(needs)
++
++
++@dataclass(frozen=True)
++class FirmwareBlob:
++    need: FirmwareNeed
++    data: bytes
++    provenance: str  # 'synthetic' does not mean AMD signature verified.
++
++
++def validate_firmware(needs, blobs):
++    """AMDGPU common header validation only; no signature verification/load.
++
++    Only header v1.0 is supported. Component-specific bodies remain unverified.
++    Unknown versions fail closed. Synthetic blobs prove parser behavior only.
++    """
++    found = {}
++    for blob in blobs:
++        if blob.need in found:
++            raise Invalid("duplicate_firmware")
++        found[blob.need] = blob
++    for need in needs:
++        if need not in found:
++            raise Invalid("required_firmware_missing")
++        data = found[need].data
++        size, header, major, minor, ia, ib, _uv, payload, offset, crc = read(data, 0, "<IIHHHHIIII")
++        if (major, minor) != (1, 0):
++            raise Invalid("firmware_header_version")
++        if size != len(data) or header < 32 or header > size or offset < header or not payload:
++            raise Invalid("firmware_size")
++        bounded(size, offset, payload)
++        if (ia, ib) != need.ip[:2]:
++            raise Invalid("firmware_ip_mismatch")
++        # Do not invent a CRC convention or claim signature checks.
++        if crc != 0:
++            raise Invalid("firmware_crc_unverified")
++    return True
++
++
++def decode_metadata(data):
++    """Bounded MsgPack subset; unsupported encodings explicitly rejected."""
++    def parse(p, depth=0):
++        if depth > 16:
++            raise Invalid("metadata_depth")
++        bounded(len(data), p, 1)
++        tag, p = data[p], p + 1
++        if tag < 0x80:
++            return tag, p
++        if 0xA0 <= tag <= 0xBF or tag in (0xD9, 0xDA, 0xDB):
++            if tag >= 0xA0 and tag <= 0xBF:
++                length = tag & 31
++            else:
++                width = {0xD9: 1, 0xDA: 2, 0xDB: 4}[tag]
++                bounded(len(data), p, width)
++                length = int.from_bytes(data[p:p+width], 'big'); p += width
++            bounded(len(data), p, length)
++            try: text = data[p:p+length].decode('utf-8')
++            except UnicodeError: raise Invalid("metadata_utf8") from None
++            return text, p + length
++        is_map = 0x80 <= tag <= 0x8F or tag in (0xDE, 0xDF)
++        is_array = 0x90 <= tag <= 0x9F or tag in (0xDC, 0xDD)
++        if is_map or is_array:
++            if tag < 0xA0:
++                count = tag & 15
++            else:
++                width = 2 if tag in (0xDC, 0xDE) else 4
++                bounded(len(data), p, width)
++                count = int.from_bytes(data[p:p+width], 'big'); p += width
++            if count > 4096:
++                raise Invalid("metadata_count")
++            result = {} if is_map else []
++            for _ in range(count):
++                value, p = parse(p, depth + 1)
++                if is_map:
++                    if not isinstance(value, str) or value in result:
++                        raise Invalid("metadata_key")
++                    item, p = parse(p, depth + 1); result[value] = item
++                else: result.append(value)
++            return result, p
++        if tag in (0xCC, 0xCD, 0xCE, 0xCF):
++            width = {0xCC:1, 0xCD:2, 0xCE:4, 0xCF:8}[tag]
++            bounded(len(data), p, width)
++            return int.from_bytes(data[p:p+width], 'big'), p + width
++        raise Invalid("metadata_encoding_unsupported")
++    value, end = parse(0)
++    if end != len(data) or not isinstance(value, dict):
++        raise Invalid("metadata_envelope")
++    version = value.get('amdhsa.version')
++    kernels = value.get('amdhsa.kernels')
++    if not isinstance(version, list) or len(version) != 2 or not all(type(x) is int for x in version):
++        raise Invalid("metadata_version_missing")
++    if not isinstance(kernels, list) or not kernels:
++        raise Invalid("metadata_kernels_missing")
++    for kernel in kernels:
++        if not isinstance(kernel, dict) or not all(isinstance(kernel.get(x), str) and kernel[x] for x in ('.name', '.symbol')):
++            raise Invalid("metadata_kernel_identity_missing")
++        if type(kernel.get('.kernarg_segment_size')) is not int:
++            raise Invalid("metadata_kernarg_missing")
++    return value
++
++
++def validate_elf(data, target):
++    """Strict offline ELF envelope; not AMD metadata/shader execution proof."""
++    if target not in (Target.GFX1200, Target.GFX1201):
++        raise Invalid("unknown_target")
++    bounded(len(data), 0, 64)
++    if data[:7] != b"\x7fELF\x02\x01\x01":
++        raise Invalid("elf_ident")
++    etype, machine, version = read(data, 16, "<HHI")
++    if etype != 3 or machine != 224 or version != 1:
++        raise Invalid("elf_type_machine_version")
++    flags = read(data, 48, "<I")[0]
++    if flags & 0xFF != target.value:
++        raise Invalid("elf_target_mismatch")
++    eh, phsize, phnum, shsize, shnum = read(data, 52, "<HHHHH")
++    phoff, shoff = read(data, 32, "<QQ")
++    if eh != 64 or phsize != 56 or shsize != 64 or not phnum or not shnum:
++        raise Invalid("elf_tables_missing")
++    bounded(len(data), phoff, phsize * phnum)
++    bounded(len(data), shoff, shsize * shnum)
++    loads, metadata = 0, False
++    for i in range(phnum):
++        p = phoff + i * phsize
++        kind = read(data, p, "<I")[0]
++        off, va, _pa, filesz, memsz = read(data, p + 8, "<QQQQQ")
++        if kind == 1:
++            bounded(len(data), off, filesz)
++            bounded(16 << 20, va, memsz)
++            if not filesz or filesz > memsz:
++                raise Invalid("elf_load_size")
++            loads += 1
++    for i in range(shnum):
++        p = shoff + i * shsize
++        kind = read(data, p + 4, "<I")[0]
++        off, size = read(data, p + 24, "<QQ")
++        if kind == 7:  # SHT_NOTE; check AMDGPU metadata MsgPack envelope.
++            bounded(len(data), off, size)
++            end, n = off + size, off
++            while n < end:
++                bounded(end, n, 12)
++                namesz, descsz, note_type = read(data, n, "<III")
++                name = n + 12
++                desc = name + ((namesz + 3) & ~3)
++                nxt = desc + ((descsz + 3) & ~3)
++                bounded(end, name, namesz)
++                bounded(end, desc, descsz)
++                bounded(end, n, nxt - n)
++                if data[name:name + namesz] == b"AMDGPU\0" and note_type == 32 and descsz:
++                    decode_metadata(bytes(data[desc:desc+descsz]))
++                    metadata = True
++                n = nxt
++    if not loads or not metadata:
++        raise Invalid("elf_load_or_metadata_missing")
++    return True  # Mandatory metadata subset, not all AMDHSA/shader semantics.
++
++
++class State(Enum):
++    UNKNOWN = "Unknown"
++    PCI = "PciMatched"
++    PROFILE = "ProfileValidated"
++    DISCOVERY = "DiscoveryValidated"
++    FIRMWARE = "FirmwareRequirementsValidated"
++    READY = "OfflineReady"
++    FAILED = "Failed"
++
++
++@dataclass
++class OfflineSession:
++    state: State = State.UNKNOWN
++    error: str | None = None
++
++    def run(self, profile, discovery, blobs):
++        if self.state != State.UNKNOWN:
++            raise Invalid("session_not_fresh")
++        try:
++            if profile is None:
++                raise Invalid("profile_missing")
++            self.state = State.PCI
++            if profile != identify(profile.vendor, profile.device, profile.revision):
++                raise Invalid("profile_tampered")
++            self.state = State.PROFILE
++            validate_discovery(profile, discovery)
++            self.state = State.DISCOVERY
++            needs = firmware_requirements(profile, discovery)
++            validate_firmware(needs, blobs)
++            self.state = State.FIRMWARE
++            self.state = State.READY
++        except Invalid as exc:
++            self.state, self.error = State.FAILED, str(exc)
++            raise
++        return self.state
++
++
++def hardware_initialization_allowed(*_args, **_kwargs):
++    return False  # No implementation to authorize in this offline build.
++
++
++def encode_device_info(profile, topology=None):
++    """Prototype wire v1, not compatible with N48N production ABI.
++
++    Unknown fields are zero with validity bits unset. capabilities always zero.
++    """
++    if topology is not None:
++        raise Invalid("active_topology_unverified")
++    return struct.pack("<4sHHHHBBHQQ", b"N44I", 1, 32,
++                       profile.vendor, profile.device, profile.revision or 0,
++                       int(profile.revision is not None), profile.target.value, 0, 0)
++
++
++def decode_device_info(data):
++    if len(data) != 32:
++        raise Invalid("abi_size")
++    magic, version, size, vendor, device, rev, valid, target, capabilities, reserved = read(data, 0, "<4sHHHHBBHQQ")
++    if magic != b"N44I" or version != 1 or size != 32 or valid not in (0, 1) or capabilities or reserved:
++        raise Invalid("abi_header_or_capabilities")
++    p = identify(vendor, device, rev if valid else None)
++    if target != p.target.value or (not valid and rev):
++        raise Invalid("abi_target_or_revision")
++    return p

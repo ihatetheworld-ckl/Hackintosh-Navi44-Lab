@@ -1,0 +1,78 @@
+{
+  "status": "FAIL",
+  "mismatches": [
+    {
+      "path": ".gitattributes",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": ".gitignore",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "LICENSE",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "NOTICE",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/.gitattributes",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/.gitignore",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/LICENSE",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/src/cursor_linux_ref.inc",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/src/pipe2_linux.inc",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/src/pipe2_linux_dp1.inc",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/src/pipe2_linux_dp2.inc",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/src/pipe2_linux_hpd4.inc",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/src/pvdevinfo.inc",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/src/pvopcodes.inc",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/vulkan/LICENSE-Navi48-MacOS",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/vulkan/LICENSE-Navi48-bringup",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/vulkan/shaders/vkprobe.frag",
+      "lf_normalized_matches": true
+    },
+    {
+      "path": "development/AMDRadeonRDNA4-Navi44/vulkan/shaders/vkprobe.vert",
+      "lf_normalized_matches": true
+    }
+  ],
+  "cause": "Windows native CRLF for text=auto paths without explicit eol"
+}

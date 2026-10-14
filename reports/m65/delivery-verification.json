@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "tested_sources_match": true,
+  "deliverable_hashes_match": true,
+  "local_links_checked": 33,
+  "cumulative_patch_check": "PASS (not applied)",
+  "incremental_patch_check": "PASS (not applied)",
+  "upstream_snapshots_clean": true,
+  "hardware_and_kext": "NOT RUN"
+}

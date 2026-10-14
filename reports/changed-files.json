@@ -1,0 +1,12 @@
+[
+  "Makefile",
+  "src/asicprofile.hpp",
+  "src/offlinefirmware.hpp",
+  "src/plugin.cpp",
+  "src/device.cpp",
+  "src/codeobj.hpp",
+  "src/codeobj.cpp",
+  "src/ipdiscovery.hpp",
+  "src/ipdiscovery.cpp",
+  "host/navi44.py"
+]

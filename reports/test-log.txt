@@ -1,0 +1,63 @@
+test_bad_version (labtests.AbiTests.test_bad_version) ... ok
+test_caps_rejected (labtests.AbiTests.test_caps_rejected) ... ok
+test_roundtrip (labtests.AbiTests.test_roundtrip) ... ok
+test_unknown_geometry (labtests.AbiTests.test_unknown_geometry) ... ok
+test_bad_magic (labtests.ElfTests.test_bad_magic) ... ok
+test_cross_target (labtests.ElfTests.test_cross_target) ... ok
+test_empty_metadata (labtests.ElfTests.test_empty_metadata) ... ok
+test_gfx1200 (labtests.ElfTests.test_gfx1200) ... ok
+test_gfx1201_regression (labtests.ElfTests.test_gfx1201_regression) ... ok
+test_missing_kernel_identity (labtests.ElfTests.test_missing_kernel_identity) ... ok
+test_no_metadata (labtests.ElfTests.test_no_metadata) ... ok
+test_overflow (labtests.ElfTests.test_overflow) ... ok
+test_real_shader (labtests.ElfTests.test_real_shader) ... skipped 'No actual gfx1200 compiler output or macOS SDK; synthetic envelope is not shader validation'
+test_truncated (labtests.ElfTests.test_truncated) ... ok
+test_unknown (labtests.ElfTests.test_unknown) ... ok
+test_bad_size (labtests.FirmwareTests.test_bad_size) ... ok
+test_crc_unverified (labtests.FirmwareTests.test_crc_unverified) ... ok
+test_duplicate (labtests.FirmwareTests.test_duplicate) ... ok
+test_failed_cleanup (labtests.FirmwareTests.test_failed_cleanup) ... ok
+test_manifest (labtests.FirmwareTests.test_manifest) ... ok
+test_missing (labtests.FirmwareTests.test_missing) ... ok
+test_payload_inside_header (labtests.FirmwareTests.test_payload_inside_header) ... ok
+test_state_machine (labtests.FirmwareTests.test_state_machine) ... ok
+test_tampered_profile (labtests.FirmwareTests.test_tampered_profile) ... ok
+test_unknown_header (labtests.FirmwareTests.test_unknown_header) ... ok
+test_wrong_ip (labtests.FirmwareTests.test_wrong_ip) ... ok
+test_64bit (labtests.ParserTests.test_64bit) ... ok
+test_address_overflow (labtests.ParserTests.test_address_overflow) ... ok
+test_base_count (labtests.ParserTests.test_base_count) ... ok
+test_basic (labtests.ParserTests.test_basic) ... ok
+test_binary_checksum (labtests.ParserTests.test_binary_checksum) ... ok
+test_die_offset (labtests.ParserTests.test_die_offset) ... ok
+test_duplicate (labtests.ParserTests.test_duplicate) ... ok
+test_gc_mismatch (labtests.ParserTests.test_gc_mismatch) ... ok
+test_gc_unknown (labtests.ParserTests.test_gc_unknown) ... ok
+test_integer_overflow (labtests.ParserTests.test_integer_overflow) ... ok
+test_ip_version (labtests.ParserTests.test_ip_version) ... ok
+test_length (labtests.ParserTests.test_length) ... ok
+test_magic (labtests.ParserTests.test_magic) ... ok
+test_mutation_robustness (labtests.ParserTests.test_mutation_robustness) ... ok
+test_navi48 (labtests.ParserTests.test_navi48) ... ok
+test_overlap (labtests.ParserTests.test_overlap) ... ok
+test_real_navi44_fixture (labtests.ParserTests.test_real_navi44_fixture) ... skipped 'No public verified RX9060XT IP Discovery capture; no hardware access authorized'
+test_table_checksum (labtests.ParserTests.test_table_checksum) ... ok
+test_truncations (labtests.ParserTests.test_truncations) ... ok
+test_unknown_ip (labtests.ParserTests.test_unknown_ip) ... ok
+test_v2 (labtests.ParserTests.test_v2) ... ok
+test_version (labtests.ParserTests.test_version) ... ok
+test_hardware_never_authorized (labtests.ProfileTests.test_hardware_never_authorized) ... ok
+test_navi44 (labtests.ProfileTests.test_navi44) ... ok
+test_navi48_regression (labtests.ProfileTests.test_navi48_regression) ... ok
+test_revision (labtests.ProfileTests.test_revision) ... ok
+test_unknown_device (labtests.ProfileTests.test_unknown_device) ... ok
+test_unknown_vendor (labtests.ProfileTests.test_unknown_vendor) ... ok
+test_build_excludes_hardware (labtests.SafetyTests.test_build_excludes_hardware) ... ok
+test_host_imports_have_no_hardware_backend (labtests.SafetyTests.test_host_imports_have_no_hardware_backend) ... ok
+test_init_guard_precedes_hardware (labtests.SafetyTests.test_init_guard_precedes_hardware) ... ok
+test_pinned_llvm_constants (labtests.SafetyTests.test_pinned_llvm_constants) ... ok
+
+----------------------------------------------------------------------
+Ran 58 tests in 0.023s
+
+OK (skipped=2)

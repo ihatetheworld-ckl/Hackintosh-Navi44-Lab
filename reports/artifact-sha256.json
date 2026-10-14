@@ -1,0 +1,6 @@
+{
+  "development/AMDRadeonRDNA4-Navi44/src/asicprofile.hpp": "6a668afab45dc24be0894dd35b819897752e3661df1b5b781e766fe62018f674",
+  "development/AMDRadeonRDNA4-Navi44/host/navi44.py": "f5045fb7b22de9df3c6eef6b421807a8da0406a18c7fbb2d5f866da513e2d9eb",
+  "tests/test_offline.py": "d36ca25b282f37be865411f2945b11bd47d0031402236a872418637b9321cd19",
+  "patches/navi44-offline-prototype.patch": "f91bc73d1f91a8d9808f2272cc2b93967a4c1548be01cc090c00afec992796fb"
+}

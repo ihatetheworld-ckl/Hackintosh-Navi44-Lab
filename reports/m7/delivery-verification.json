@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "changed_files": 34,
+  "patch_sha256": "bb53b763650e5b34c444f1f1a8fade0954f943552ab671e5c1a01d41319c2fda",
+  "git_commands": [
+    {
+      "argv": [
+        "D:\\RuntimeEnvironment\\Git\\cmd\\git.exe",
+        "-c",
+        "core.autocrlf=false",
+        "-c",
+        "core.whitespace=cr-at-eol",
+        "apply",
+        "--check",
+        "--whitespace=nowarn",
+        "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\patches\\m7-from-m65.patch"
+      ],
+      "cwd": "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m7\\patch-replay\\2",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "D:\\RuntimeEnvironment\\Git\\cmd\\git.exe",
+        "-c",
+        "core.autocrlf=false",
+        "-c",
+        "core.whitespace=cr-at-eol",
+        "apply",
+        "--whitespace=nowarn",
+        "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\patches\\m7-from-m65.patch"
+      ],
+      "cwd": "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m7\\patch-replay\\2",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "replay_hashes": "all changed files match byte-for-byte",
+  "history": "PASS"
+}

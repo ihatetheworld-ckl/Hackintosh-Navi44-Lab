@@ -1,0 +1,296 @@
+[
+  {
+    "name": "compiler-version",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "--version"
+    ],
+    "exit": 0,
+    "seconds": 0.125,
+    "expected_failure": false
+  },
+  {
+    "name": "python-tests",
+    "argv": [
+      "D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tests\\test_offline.py"
+    ],
+    "exit": 0,
+    "seconds": 0.141,
+    "expected_failure": false
+  },
+  {
+    "name": "python-m65-tests",
+    "argv": [
+      "D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tests\\test_m65.py"
+    ],
+    "exit": 0,
+    "seconds": 0.109,
+    "expected_failure": false
+  },
+  {
+    "name": "compile-unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-static",
+      "-g",
+      "-O1",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tests\\unit\\m65_unit.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\ipdiscovery.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\offlinevalidation.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\codeobj.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\unit.exe"
+    ],
+    "exit": 0,
+    "seconds": 1.516,
+    "expected_failure": false
+  },
+  {
+    "name": "compile-probe",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-static",
+      "-g",
+      "-O1",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tests\\unit\\m65_probe.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\ipdiscovery.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\offlinevalidation.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\codeobj.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\probe.exe"
+    ],
+    "exit": 0,
+    "seconds": 1.343,
+    "expected_failure": false
+  },
+  {
+    "name": "cpp-unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\unit.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.328,
+    "expected_failure": false
+  },
+  {
+    "name": "static-analysis-ipdiscovery.cpp",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "--analyze",
+      "-std=c++17",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\ipdiscovery.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\ipdiscovery.cpp.plist"
+    ],
+    "exit": 0,
+    "seconds": 0.329,
+    "expected_failure": false
+  },
+  {
+    "name": "static-analysis-codeobj.cpp",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "--analyze",
+      "-std=c++17",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\codeobj.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\codeobj.cpp.plist"
+    ],
+    "exit": 0,
+    "seconds": 1.234,
+    "expected_failure": false
+  },
+  {
+    "name": "static-analysis-offlinevalidation.cpp",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "--analyze",
+      "-std=c++17",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\offlinevalidation.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\offlinevalidation.cpp.plist"
+    ],
+    "exit": 0,
+    "seconds": 5.359,
+    "expected_failure": false
+  },
+  {
+    "name": "differential",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\probe.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.344,
+    "expected_failure": false
+  },
+  {
+    "name": "fuzz-seed-759065",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\probe.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.093,
+    "expected_failure": false
+  },
+  {
+    "name": "compile-unit-sanitized",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-static",
+      "-g",
+      "-O1",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tests\\unit\\m65_unit.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\ipdiscovery.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\offlinevalidation.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\codeobj.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\unit-sanitized.exe"
+    ],
+    "exit": 0,
+    "seconds": 2.094,
+    "expected_failure": false
+  },
+  {
+    "name": "compile-probe-sanitized",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-static",
+      "-g",
+      "-O1",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tests\\unit\\m65_probe.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\ipdiscovery.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\offlinevalidation.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\codeobj.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\probe-sanitized.exe"
+    ],
+    "exit": 0,
+    "seconds": 2.297,
+    "expected_failure": false
+  },
+  {
+    "name": "sanitized-unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\unit-sanitized.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.203,
+    "expected_failure": false
+  },
+  {
+    "name": "sanitized-corpus",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\probe-sanitized.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.406,
+    "expected_failure": false
+  },
+  {
+    "name": "compile-canary-address",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-static",
+      "-g",
+      "-O1",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fsanitize=address",
+      "-fno-omit-frame-pointer",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tests\\unit\\sanitizer_canary.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\ipdiscovery.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\offlinevalidation.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\codeobj.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\canary-address.exe"
+    ],
+    "exit": 0,
+    "seconds": 1.343,
+    "expected_failure": false
+  },
+  {
+    "name": "canary-asan",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\canary-address.exe",
+      "asan"
+    ],
+    "exit": 1,
+    "seconds": 0.172,
+    "expected_failure": true
+  },
+  {
+    "name": "compile-canary-undefined",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-static",
+      "-g",
+      "-O1",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fsanitize=undefined",
+      "-fno-omit-frame-pointer",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tests\\unit\\sanitizer_canary.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\ipdiscovery.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\offlinevalidation.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\development\\AMDRadeonRDNA4-Navi44\\src\\codeobj.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\canary-undefined.exe"
+    ],
+    "exit": 0,
+    "seconds": 1.281,
+    "expected_failure": false
+  },
+  {
+    "name": "canary-ubsan",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m65\\canary-undefined.exe",
+      "ubsan"
+    ],
+    "exit": 1,
+    "seconds": 0.344,
+    "expected_failure": true
+  }
+]

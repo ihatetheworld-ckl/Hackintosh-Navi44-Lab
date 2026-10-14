@@ -1,0 +1,472 @@
+[
+  {
+    "name": "compiler-version",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "--version"
+    ],
+    "exit": 0,
+    "seconds": 0.031
+  },
+  {
+    "name": "python-test_offline",
+    "argv": [
+      "D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\test_offline.py"
+    ],
+    "exit": 0,
+    "seconds": 0.141
+  },
+  {
+    "name": "python-test_m65",
+    "argv": [
+      "D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\test_m65.py"
+    ],
+    "exit": 0,
+    "seconds": 0.109
+  },
+  {
+    "name": "python-test_m7",
+    "argv": [
+      "D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\test_m7.py"
+    ],
+    "exit": 0,
+    "seconds": 0.125
+  },
+  {
+    "name": "python-test_m8",
+    "argv": [
+      "D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\test_m8.py"
+    ],
+    "exit": 0,
+    "seconds": 0.109
+  },
+  {
+    "name": "core-codeobj",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src\\codeobj.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\codeobj.o"
+    ],
+    "exit": 0,
+    "seconds": 0.125
+  },
+  {
+    "name": "core-ipdiscovery",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src\\ipdiscovery.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\ipdiscovery.o"
+    ],
+    "exit": 0,
+    "seconds": 0.109
+  },
+  {
+    "name": "core-validation",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\core\\validation.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\validation.o"
+    ],
+    "exit": 0,
+    "seconds": 0.172
+  },
+  {
+    "name": "core-device_info",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\core\\device_info.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\device_info.o"
+    ],
+    "exit": 0,
+    "seconds": 0.062
+  },
+  {
+    "name": "core-edid",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src\\edid.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\edid.o"
+    ],
+    "exit": 0,
+    "seconds": 0.109
+  },
+  {
+    "name": "core-atombios",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src\\atombios.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\atombios.o"
+    ],
+    "exit": 0,
+    "seconds": 0.125
+  },
+  {
+    "name": "core-display",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\core\\display.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\display.o"
+    ],
+    "exit": 0,
+    "seconds": 0.125
+  },
+  {
+    "name": "core-integrity",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\core\\integrity.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\integrity.o"
+    ],
+    "exit": 0,
+    "seconds": 0.046
+  },
+  {
+    "name": "core-query_candidate",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\core\\query_candidate.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\query_candidate.o"
+    ],
+    "exit": 0,
+    "seconds": 0.063
+  },
+  {
+    "name": "host-adapter",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src\\offlinevalidation.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\offlinevalidation.o"
+    ],
+    "exit": 0,
+    "seconds": 0.063
+  },
+  {
+    "name": "build-m65_unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-static",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\unit\\m65_unit.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\codeobj.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\ipdiscovery.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\validation.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\device_info.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\edid.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\atombios.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\display.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\integrity.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\query_candidate.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\offlinevalidation.o",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\m65_unit.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.531
+  },
+  {
+    "name": "run-m65_unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\m65_unit.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.296
+  },
+  {
+    "name": "build-m7_unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-static",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\unit\\m7_unit.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\codeobj.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\ipdiscovery.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\validation.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\device_info.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\edid.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\atombios.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\display.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\integrity.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\query_candidate.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\offlinevalidation.o",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\m7_unit.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.484
+  },
+  {
+    "name": "run-m7_unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\m7_unit.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.297
+  },
+  {
+    "name": "build-m8_unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-static",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\unit\\m8_unit.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\codeobj.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\ipdiscovery.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\validation.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\device_info.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\edid.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\atombios.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\display.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\integrity.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\query_candidate.o",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\m8_unit.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.875
+  },
+  {
+    "name": "run-m8_unit",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\m8_unit.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.328
+  },
+  {
+    "name": "build-m8_fuzz",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-static",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\unit\\m8_fuzz.cpp",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\codeobj.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\ipdiscovery.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\validation.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\device_info.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\edid.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\atombios.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\display.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\integrity.o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\query_candidate.o",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\m8_fuzz.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.578
+  },
+  {
+    "name": "run-m8_fuzz",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\m8_fuzz.exe"
+    ],
+    "exit": 0,
+    "seconds": 0.329
+  },
+  {
+    "name": "platform-contract",
+    "argv": [
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\tools\\toolchains\\llvm\\llvm-mingw-20261006-ucrt-x86_64\\bin\\clang++.exe",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-ID:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\development\\AMDRadeonRDNA4-Navi44\\src",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-c",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\tests\\unit\\m8_contract_compile.cpp",
+      "-o",
+      "D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\build\\m85\\source-export\\build\\m85-host\\contract.o"
+    ],
+    "exit": 0,
+    "seconds": 0.047
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "D:\\CodexWorkSpace\\\u9ed1\u82f9\u679c\u7814\u7a76\\Hackintosh-Navi44-Lab\\reports\\m8\\baseline-runner.py"
+  ],
+  "exit": 0
+}

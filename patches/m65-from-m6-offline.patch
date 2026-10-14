@@ -1,0 +1,2454 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,7 +2,7 @@
+ project(Navi44Offline LANGUAGES CXX)
+ # No install, fetching, IOKit, device.cpp, plugin.cpp, GPU API or hardware backend.
+ set(DIR "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/src")
+-add_executable(navi44_host_tests tests/unit/host_tests.cpp "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp")
++add_executable(navi44_host_tests tests/unit/m65_unit.cpp "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp" "${DIR}/offlinevalidation.cpp")
+ target_include_directories(navi44_host_tests PRIVATE "${DIR}")
+ target_compile_features(navi44_host_tests PRIVATE cxx_std_17)
+ if(MSVC)
+@@ -12,3 +12,6 @@
+ endif()
+ enable_testing()
+ add_test(NAME cpu_only COMMAND navi44_host_tests)
++add_executable(navi44_probe tests/unit/m65_probe.cpp "${DIR}/ipdiscovery.cpp" "${DIR}/offlinevalidation.cpp" "${DIR}/codeobj.cpp")
++target_include_directories(navi44_probe PRIVATE "${DIR}")
++target_compile_features(navi44_probe PRIVATE cxx_std_17)
+--- /dev/null
++++ b/run_all_offline_tests.py
+@@ -0,0 +1,259 @@
++"""M6.5 reviewed CPU-only pipeline. Explicit paths, no shell/install/device calls.
++Only verified portable compiler and our own host binaries are executed.
++All compiler temp/cache/output/log paths stay under this project.
++"""
++from pathlib import Path
++import hashlib, importlib.util, json, os, random, shutil
++import struct, subprocess, sys, time, re
++from datetime import datetime, timezone, timedelta
++ROOT=Path(__file__).resolve().parent
++OUT=ROOT/'reports/m65'; BUILD=ROOT/'build/m65'
++OUT.mkdir(parents=True,exist_ok=True); BUILD.mkdir(parents=True,exist_ok=True)
++BIN=ROOT/'tools/toolchains/llvm/llvm-mingw-20261006-ucrt-x86_64/bin'
++CPP=BIN/'clang++.exe'; SRC=ROOT/'development/AMDRadeonRDNA4-Navi44/src'
++ENV=os.environ.copy()
++ENV.update(TMP=str(ROOT/'tmp'),TEMP=str(ROOT/'tmp'),CLANG_MODULE_CACHE_PATH=str(BUILD/'cache'),
++           ASAN_OPTIONS='halt_on_error=1:detect_leaks=0:log_path=reports/m65/asan',
++           UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1:log_path=reports/m65/ubsan',
++           ASAN_SYMBOLIZER_PATH=str(BIN/'llvm-symbolizer.exe'))
++commands=[]
++
++def unittest_counts(log):
++    """Count executed outcomes, keeping source-only checks separate."""
++    run_count = re.search(r'Ran (\d+) tests?', log)
++    if not run_count: raise RuntimeError('Missing unittest execution summary')
++    rows = re.findall(r'^test_\w+ \(([^)]+)\) \.\.\. (.+)$', log, re.MULTILINE)
++    passed = sum(outcome == 'ok' for _, outcome in rows)
++    skipped = sum(outcome.startswith('skipped ') for _, outcome in rows)
++    failed = sum(outcome in ('FAIL', 'ERROR') for _, outcome in rows)
++    static = sum('.SafetyTests.' in name and outcome == 'ok' for name, outcome in rows)
++    count = int(run_count[1])
++    if count != passed + skipped + failed:
++        raise RuntimeError('Unittest log totals do not match executed rows')
++    return {'tests': count, 'PASS': passed, 'FAIL': failed, 'SKIP': skipped,
++            'static_checks': static, 'behavior_PASS': passed - static}
++
++def source_manifest():
++    paths = [ROOT/'run_all_offline_tests.py', ROOT/'CMakeLists.txt',
++             ROOT/'tests/test_offline.py', ROOT/'tests/test_m65.py',
++             ROOT/'tests/fixtures/synthetic.py', ROOT/'tests/unit/m65_unit.cpp',
++             ROOT/'tests/unit/m65_probe.cpp', ROOT/'tests/unit/sanitizer_canary.cpp',
++             ROOT/'development/AMDRadeonRDNA4-Navi44/host/navi44.py']
++    paths += [SRC/name for name in ('asicprofile.hpp','ipdiscovery.hpp','ipdiscovery.cpp',
++                                   'codeobj.hpp','codeobj.cpp','offlinevalidation.hpp','offlinevalidation.cpp')]
++    return {str(p.relative_to(ROOT)).replace('\\','/'): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
++
++def run(args, name, data=None, timeout=30, expected_failure=False, environment=None):
++    start=time.monotonic()
++    p=subprocess.run([str(x) for x in args],cwd=ROOT,env=environment or ENV,input=data,
++                     capture_output=True,text=True,encoding='utf-8',timeout=timeout)
++    commands.append({'name':name,'argv':[str(x) for x in args],'exit':p.returncode,
++                     'seconds':round(time.monotonic()-start,3),'expected_failure':expected_failure})
++    log=OUT/(name+'.log')
++    if log.exists():
++        attempts=OUT/'attempts';attempts.mkdir(exist_ok=True)
++        index=len(list(attempts.glob(name+'-*.log')))+1
++        shutil.copyfile(log,attempts/(name+'-'+str(index)+'.log'))
++    log.write_text(p.stdout+p.stderr,encoding='utf-8')
++    if p.returncode and not expected_failure: raise RuntimeError(name+' failed; see '+str(OUT/(name+'.log')))
++    if not p.returncode and expected_failure: raise RuntimeError(name+' failed to detect intentional fault')
++    return p.stdout
++
++def load(name,path):
++    spec=importlib.util.spec_from_file_location(name,path); module=importlib.util.module_from_spec(spec)
++    sys.modules[name]=module;spec.loader.exec_module(module);return module
++n=load('m65navi44',ROOT/'development/AMDRadeonRDNA4-Navi44/host/navi44.py')
++f=load('m65fixtures',ROOT/'tests/fixtures/synthetic.py')
++
++def build(source, output, sanitize=False):
++    args=[CPP,'-std=c++17','-Wall','-Wextra','-Werror','-static','-g','-O1','-I'+str(SRC)]
++    if sanitize: args += ['-fsanitize='+('address,undefined' if sanitize is True else sanitize),'-fno-omit-frame-pointer']
++    args += [ROOT/source,SRC/'ipdiscovery.cpp',SRC/'offlinevalidation.cpp',SRC/'codeobj.cpp','-o',BUILD/output]
++    run(args,'compile-'+Path(output).stem,timeout=60)
++    return BUILD/output
++
++def canonical(mode,data,params=()):
++    try:
++        if mode=='discovery':
++            d=n.parse_discovery(data)
++            return {'ok':True,'binary_version':list(d.binary_version),'ipds_version':d.ipds_version,
++                    'address_bits':d.address_bits,'ips':[[x.hw_id,x.instance,*x.version,list(x.bases)] for x in d.ips],
++                    'gc_info':list(d.gc_info) if d.gc_info else None}
++        if mode=='elf':
++            target={0x48:n.Target.GFX1200,0x4e:n.Target.GFX1201}.get(params[0],n.Target.UNKNOWN)
++            n.validate_elf(data,target);return {'ok':True}
++        if mode=='kernel':
++            target={0x48:n.Target.GFX1200,0x4e:n.Target.GFX1201}.get(params[0],n.Target.UNKNOWN)
++            n.validate_kernel(data,target);return {'ok':True}
++        if mode=='manifest':
++            d=n.parse_discovery(data);p=n.identify(0x1002,params[0])
++            needs=n.firmware_requirements(p,d)
++            return {'ok':True,'requirements':[[x.block,x.component,*x.ip] for x in needs]}
++        if mode=='firmware':
++            need=n.FirmwareNeed('synthetic',(params[0],params[1],0),params[2])
++            n.validate_firmware([need],[n.FirmwareBlob(need,data,'synthetic')]);return {'ok':True}
++        if mode=='abi':
++            p=n.decode_device_info(data);return {'ok':True,'target':p.target.value,'capabilities':0}
++        if mode=='profile':
++            p=n.identify(params[0],params[1],None if params[2]==256 else params[2])
++            return {'ok':True,'asic':p.asic,'target':p.target.value,'revision':p.revision,'capabilities':0}
++        raise ValueError(mode)
++    except n.Invalid as e:return {'ok':False,'error':str(e)}
++
++def request(mode,data,params):
++    tail='' if mode=='profile' else data.hex()
++    return ' '.join([mode,*[str(x) for x in params],tail])+'\n'
++
++def compare(exe,cases,name):
++    text=run([exe],name,''.join(request(*c) for c in cases),timeout=30)
++    rows=text.splitlines()
++    if len(rows)!=len(cases):raise RuntimeError('Probe output count mismatch')
++    differences=[]
++    for i,(case,row) in enumerate(zip(cases,rows)):
++        expected=canonical(*case); actual=json.loads(row)
++        if expected!=actual:
++            differences.append({'index':i,'mode':case[0],'params':case[2],
++                                'hex':case[1].hex(),'python':expected,'cpp':actual})
++    (OUT/(name+'-differences.json')).write_text(json.dumps(differences,indent=2),encoding='utf-8')
++    if differences:raise RuntimeError(name+' differences: '+str(len(differences)))
++    return len(cases)
++
++def corpus():
++    cases=[]
++    for binary in (1,2):
++        for width in (4,8):
++            for gc in ((12,0,0),(12,0,1)):
++                cases.append(('discovery',f.discovery(binary=binary,width=width,gc=gc),()))
++    cases += [('discovery',f.discovery(width=8,extra=((999,0,(1,0,0),(0x100000000,)),)),()),
++              ('discovery',f.discovery(topology=False),()),
++              ('discovery',f.discovery(extra=((11,0,(12,0,0),(10,)),)),())]
++    d=f.discovery()
++    cases += [('discovery',d[:i],()) for i in range(len(d))]
++    for offset,value,width in ((0,0,4),(4,9,2),(132,5,2),(144,1,2),(215,17,1),(128+12,2,2)):
++        b=bytearray(d);struct.pack_into({1:'<B',2:'<H',4:'<I'}[width],b,offset,value)
++        f.reseal(b);cases.append(('discovery',b,()))
++    for target in (0x48,0x4e,0):
++        cases += [('elf',f.elf(machine), (target,)) for machine in (0x48,0x4e)]
++    cases += [('elf',f.elf()[:i],(0x48,)) for i in range(64)]
++    cases += [('elf',f.elf(metadata=False),(0x48,)),('elf',f.elf(metadata_value={}),(0x48,))]
++    for component in ('pfp','unknown'):
++        need=n.FirmwareNeed('gc',(12,0,0),component)
++        cases += [('firmware',f.firmware(need),(12,0,component))]
++    need=n.FirmwareNeed('gc',(12,0,0),'pfp');fw=f.firmware(need)
++    cases += [('firmware',fw[:i],(12,0,'pfp')) for i in range(len(fw))]
++    for v,dv,rev in ((0x1002,0x7590,256),(0x1002,0x7550,0),(0x1002,0x7551,3),
++                     (0x1002,0xffff,256),(0,0x7590,256),(0x1002,0x7590,257)):
++        cases.append(('profile',b'',(v,dv,rev)))
++    abi=n.encode_device_info(n.identify(0x1002,0x7590))
++    cases += [('abi',abi[:i],()) for i in range(len(abi))]
++    cases.append(('abi',abi,()))
++    cases += [('kernel',f.kernel_elf(t),(t,)) for t in (0x48,0x4e)]
++    for at,value,fmt in ((840,9,'<I'),(832,17,'<I'),(848,-0x2000,'<q'),(1060,0,'<B')):
++        d=f.kernel_elf();struct.pack_into(fmt,d,at,value);cases.append(('kernel',d,(0x48,)))
++    d=f.kernel_elf(0x4e);d[486]=230
++    cases.append(('kernel',d,(0x4e,)))
++    regression=ROOT/'tests/fixtures/m65-invalid-strtab.bin'
++    if not regression.exists():regression.write_bytes(d)
++    cases += [('manifest',f.discovery(gc=gc),(device,)) for gc,device in
++              (((12,0,0),0x7590),((12,0,1),0x7550),((12,0,1),0x7590))]
++    cases += [('manifest',f.discovery(topology=False),(0x7590,))]
++    return cases
++
++def fuzz_cases(count=2400):
++    rng=random.Random(759065);base=corpus()
++    seeds=[c for c in base if len(c[1])>=32 and c[0]!='profile']
++    result=[]
++    for i in range(count):
++        mode,raw,params=rng.choice(seeds);data=bytearray(raw)
++        for _ in range(rng.randrange(1,5)):data[rng.randrange(len(data))]^=rng.randrange(1,256)
++        if mode=='discovery' and len(data)>=128 and i%2==0:
++            # Reseal only structurally full images to exercise deeper branches.
++            if len(data)==struct.unpack_from('<H',data,10)[0] and struct.unpack_from('<H',data,4)[0] in (1,2):
++                f.reseal(data)
++        result.append((mode,data,params))
++    return result
++
++def main():
++    provenance=json.loads((OUT/'toolchain-provenance.json').read_text(encoding='utf-8'))
++    archive=ROOT/'tools/toolchains/llvm-mingw-20261006-ucrt-x86_64.zip'
++    with archive.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
++    if digest!=provenance['expected_sha256']:raise RuntimeError('Toolchain archive digest changed')
++    version=run([CPP,'--version'],'compiler-version')
++    run([sys.executable,'-I','-B','-X','utf8',ROOT/'tests/test_offline.py'],'python-tests')
++    run([sys.executable,'-I','-B','-X','utf8',ROOT/'tests/test_m65.py'],'python-m65-tests')
++    py_log=(OUT/'python-tests.log').read_text(encoding='utf-8')
++    extra_log=(OUT/'python-m65-tests.log').read_text(encoding='utf-8')
++    py_counts=unittest_counts(py_log); extra_counts=unittest_counts(extra_log)
++    unit=build('tests/unit/m65_unit.cpp','unit.exe');probe=build('tests/unit/m65_probe.cpp','probe.exe')
++    unitlog=run([unit],'cpp-unit')
++    cpp_pass=sum(line.startswith('PASS ') for line in unitlog.splitlines())
++    analysis=[]
++    for source in ('ipdiscovery.cpp','codeobj.cpp','offlinevalidation.cpp'):
++        run([CPP,'--analyze','-std=c++17','-I'+str(SRC),SRC/source,
++                  '-o',BUILD/(source+'.plist')],'static-analysis-'+source,timeout=30)
++        log=(OUT/('static-analysis-'+source+'.log')).read_text(encoding='utf-8')
++        analysis.append({'source':source,'warnings':len(re.findall(r'warning:',log)),'exit':0})
++    fixtures=corpus()
++    (OUT/'shared-corpus.json').write_text(json.dumps([{'mode':m,'hex':bytes(d).hex(),'params':p} for m,d,p in fixtures],indent=2),encoding='utf-8')
++    diff=compare(probe,fixtures,'differential')
++    fuzz=fuzz_cases();fuzz_count=compare(probe,fuzz,'fuzz-seed-759065')
++    sanitizer={'status':'NOT RUN'}
++    sanitized=build('tests/unit/m65_unit.cpp','unit-sanitized.exe',True)
++    sp=build('tests/unit/m65_probe.cpp','probe-sanitized.exe',True)
++    # ASan DLL imports libc++, which in turn imports libunwind. Copy the
++    # verified portable runtime beside the executable, never into Windows.
++    for name in ('libclang_rt.asan_dynamic-x86_64.dll','libc++.dll','libunwind.dll','libwinpthread-1.dll'):
++        shutil.copyfile(BIN/name,BUILD/name)
++    run([sanitized],'sanitized-unit')
++    compare(sp,fixtures+fuzz,'sanitized-corpus')
++    canaries={}
++    for kind,diagnostic in (('address','heap-buffer-overflow'),('undefined','signed integer overflow')):
++        exe=build('tests/unit/sanitizer_canary.cpp','canary-'+kind+'.exe',kind)
++        mode='asan' if kind=='address' else 'ubsan'
++        env=ENV.copy()
++        if mode=='asan':
++            env.pop('UBSAN_OPTIONS',None)
++            env['ASAN_OPTIONS']='halt_on_error=1:detect_leaks=0:log_path=reports/m65/asan-canary'
++        else:
++            env.pop('ASAN_OPTIONS',None)
++            env['UBSAN_OPTIONS']='halt_on_error=1:print_stacktrace=1:log_path=reports/m65/ubsan-canary'
++        previous=set(OUT.glob(mode+'-canary.*'))
++        text=run([exe,mode],'canary-'+mode,expected_failure=True,environment=env)
++        evidence=(OUT/('canary-'+mode+'.log')).read_text(encoding='utf-8')+text+'\n'.join(
++            p.read_text(encoding='utf-8',errors='replace') for p in set(OUT.glob(mode+'-canary.*'))-previous)
++        if diagnostic not in evidence:raise RuntimeError('Missing sanitizer canary diagnostic: '+mode)
++        canaries[mode]='PASS: intentional CPU-only fault detected'
++    sanitizer={'status':'PASS','flags':'address,undefined','unit_cases':cpp_pass,
++               'corpus_cases':len(fixtures)+len(fuzz),'leak_detection':'disabled on Windows; NOT VERIFIED'}
++    summary={'stage':'M6.5','status':'PASS',
++             'completed_at':datetime.now(timezone(timedelta(hours=8))).isoformat(),
++             'compiler':version,'source_sha256':source_manifest(),
++             'python':{'baseline_tests':py_counts['tests'],
++                       'baseline_pass':py_counts['PASS'],'baseline_skip':py_counts['SKIP'],
++                       'static_checks_in_baseline':py_counts['static_checks'],
++                       'additional_tests':extra_counts['tests'],'FAIL':py_counts['FAIL']+extra_counts['FAIL'],
++                       'baseline_detail':py_counts,'additional_detail':extra_counts},
++             'static_analysis':analysis,'cpp_unit':{'PASS':cpp_pass,'FAIL':0},'differential':{'PASS':diff,'FAIL':0},
++             'fuzz':{'seed':759065,'cases':fuzz_count,'status':'PASS','type':'bounded deterministic mutation; not coverage-guided'},
++             'sanitizers':sanitizer,'sanitizer_canaries':canaries,'hardware':'NOT RUN','kext':'NOT RUN',
++             'actual_gfx1200_elf':'SKIP: portable compiler has no AMDGPU backend'}
++    (OUT/'results.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
++    print(json.dumps({k:v for k,v in summary.items() if k not in ('compiler','source_sha256')},indent=2))
++
++previous_result=OUT/'results.json'
++if previous_result.exists():
++    attempts=OUT/'attempts';attempts.mkdir(exist_ok=True)
++    index=len(list(attempts.glob('results-*.json')))+1
++    shutil.copyfile(previous_result,attempts/('results-'+str(index)+'.json'))
++previous_result.write_text(json.dumps({'stage':'M6.5','status':'RUNNING'},indent=2),encoding='utf-8')
++try: main()
++except Exception as exc:
++    previous_result.write_text(json.dumps({'stage':'M6.5','status':'FAIL',
++                                           'error':type(exc).__name__+': '+str(exc)},ensure_ascii=False,indent=2),encoding='utf-8')
++    raise
++finally:
++    path=OUT/'commands.json'
++    if path.exists():
++        attempts=OUT/'attempts';attempts.mkdir(exist_ok=True)
++        shutil.copyfile(path,attempts/('commands-'+str(len(list(attempts.glob('commands-*.json')))+1)+'.json'))
++    path.write_text(json.dumps(commands,ensure_ascii=False,indent=2),encoding='utf-8')
+--- /dev/null
++++ b/finalize_m65.py
+@@ -0,0 +1,666 @@
++"""M6.5 project-local documentation/patch finalization. No build/device calls.
++Reads actual results; preserves M6 historical reports and old documentation.
++"""
++from pathlib import Path
++import difflib
++import hashlib
++import json
++import re
++import shutil
++
++ROOT = Path(__file__).resolve().parent
++DEV = ROOT/'development/AMDRadeonRDNA4-Navi44'
++UP = ROOT/'upstream/AMDRadeonRDNA4'
++HISTORY = ROOT/'reports/m65/history'
++R = json.loads((ROOT/'reports/m65/results.json').read_text(encoding='utf-8'))
++if R.get('status') != 'PASS':
++    raise SystemExit('Finalization requires a successful complete pipeline record')
++for rel, expected in R['source_sha256'].items():
++    if hashlib.sha256((ROOT/rel).read_bytes()).hexdigest() != expected:
++        raise SystemExit('Source changed after recorded tests: '+rel)
++
++def write(rel, text, preserve=False):
++    path = ROOT/rel
++    if not path.resolve().is_relative_to(ROOT.resolve()):
++        raise ValueError('Output outside lab')
++    if preserve and path.exists():
++        old = HISTORY/rel
++        if not old.exists():
++            old.parent.mkdir(parents=True, exist_ok=True)
++            shutil.copyfile(path, old)
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_text(text, encoding='utf-8', newline='\n')
++
++base = json.loads((HISTORY/'baseline-sha256.json').read_text(encoding='utf-8'))
++historical_checks = {}
++for rel in ('reports/test-results.json','reports/test-log.txt','patches/navi44-offline-prototype.patch'):
++    historical_checks[rel] = hashlib.sha256((ROOT/rel).read_bytes()).hexdigest() == base[rel]
++if not all(historical_checks.values()):
++    raise SystemExit('M6 historical artifact unexpectedly changed')
++
++# A cumulative patch against the immutable upstream, and a separate M6->M6.5
++# patch for the lab. Binary regression is generated from included synthetic.py.
++development_paths = ['Makefile','src/asicprofile.hpp','src/offlinefirmware.hpp','src/plugin.cpp',
++    'src/device.cpp','src/codeobj.hpp','src/codeobj.cpp','src/ipdiscovery.hpp',
++    'src/ipdiscovery.cpp','src/offlinevalidation.hpp','src/offlinevalidation.cpp','host/navi44.py']
++def difference(old, new, name):
++    before = old.read_text(encoding='utf-8').splitlines(keepends=True) if old.exists() else []
++    after = new.read_text(encoding='utf-8').splitlines(keepends=True)
++    if before == after: return ''
++    return ''.join(difflib.unified_diff(before, after,
++        fromfile='a/'+name if old.exists() else '/dev/null', tofile='b/'+name))
++cumulative = ''.join(difference(UP/p,DEV/p,p) for p in development_paths)
++write('patches/navi44-m65-offline-cumulative.patch', cumulative)
++project_paths = ['CMakeLists.txt','run_all_offline_tests.py','finalize_m65.py','validate_m65_delivery.py',
++    'm65_prepare.py','m65_acquire_toolchain.py',
++    'm65_replace_discovery.py','tests/test_m65.py','tests/fixtures/synthetic.py',
++    'tests/unit/m65_unit.cpp','tests/unit/m65_probe.cpp','tests/unit/sanitizer_canary.cpp',
++    'tests/unit/sanitizer_smoke.cpp']
++project_paths += ['development/AMDRadeonRDNA4-Navi44/'+p for p in development_paths
++                 if p not in ('Makefile','src/plugin.cpp','src/device.cpp')]
++delta = ''.join(difference(HISTORY/p,ROOT/p,p) for p in project_paths)
++write('patches/m65-from-m6-offline.patch', delta)
++changes = []
++for p in project_paths:
++    old = HISTORY/p
++    if not old.exists() or old.read_bytes() != (ROOT/p).read_bytes():
++        changes.append({'path':p,'type':'modified' if old.exists() else 'added',
++                        'sha256':hashlib.sha256((ROOT/p).read_bytes()).hexdigest()})
++write('reports/m65/changed-files.json',json.dumps(changes,ensure_ascii=False,indent=2))
++write('reports/m65/history-integrity.json',json.dumps(historical_checks,indent=2))
++
++readme = '''# Hackintosh-Navi44-Lab
++
++RX 9060 XT / Navi 44 原生 macOS 项目的 **CPU-only 离线适配原型**。
++当前已完成 M6.5 Windows C++ 编译、跨语言比较及 ASan/UBSan 验证；没有可部署 kext。
++
++## 本轮交付
++
++- [M6.5 完整开发报告](reports/m65-development-report.md)
++- [编译结果](reports/m65-build-results.md)
++- [测试结果](reports/m65-test-results.md)
++- [安全审查](reports/m65-security-review.md)
++- [未完成项](reports/m65-remaining-blockers.md)
++- [机器可读结果](reports/m65/results.json)
++- [M6→M6.5 补丁](patches/m65-from-m6-offline.patch)
++- [上游累计补丁](patches/navi44-m65-offline-cumulative.patch)
++
++## 实际实现
++
++ASIC/profile；32/64 位 Discovery；旧 32 位接口溢出拒绝；firmware common header/需求模型；
++ELF、metadata、kernel descriptor 一致性；模拟 N44I ABI；状态顺序与默认禁止硬件初始化。
++严格校验 host 层使用 STL/异常，不能直接视为 macOS 内核兼容实现。
++
++## 统一入口
++
++在本项目目录，使用现有 Python：
++
++```powershell
++& 'D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe' -I -B -X utf8 run_all_offline_tests.py
++```
++
++便携 Clang 位于 tools/toolchains/llvm/，无系统安装、PATH 修改或管理员权限。
++入口依次执行 Python、C++ 编译/单元测试、静态分析、差分、受控变异、sanitizer 与预期失败 canary。
++日志只在 reports/m65，构建产物只在 build/m65，临时目录在 tmp。
++Canary 的非零退出是预期 CPU 内存错误检测，不是普通测试失败。
++
++## 历史与禁用范围
++
++M6 原报告和补丁保留；基线快照在 reports/m65/history。
++run_offline.py / finish_reports.py / tools_integrate.py 为历史入口或转换记录，不是当前统一入口；
++不要再次执行会覆盖 M6 报告的历史生成器。
++完整上游含硬件与安装脚本，仅作参考，不执行。
++Navi44 不绑定；所有设备 init 恒拒绝；开发 Makefile 仍禁用；host 构建不链接 IOKit/device/plugin。
++GPU、EFI、BIOS、磁盘分区、驱动加载及 macOS 安装均未执行。
++'''
++write('README.md', readme, preserve=True)
++
++docs = {
++'architecture.md': '''# 当前架构：M6.5
++
++固定 AMDRadeonRDNA4 49f7f20、Cobalt64 d6c9aed；不因本轮收尾宣称上游状态更新。
++
++```text
++allocation-free core: asicprofile / IpDiscovery / CodeObj
++                     ↓
++host validation: firmware / ELF metadata / descriptor / ABI / state
++                     ↓
++Windows CPU-only unit / probe → Python canonical comparison
++
++macOS / IOKit / MMIO / submit adapters: future, NOT RUN
++```
++
++IpEntry 旧布局保留；新增 IpEntry64 和 initBinary 精确解析；init 保留离线 ROM 扫描。
++IpDiscovery 类的内部大小改变，未来 macOS 使用者必须全部重新构建，不能假设二进制 ABI 不变。
++Discovery 是调用者不可变内存的 view，调用者必须维护有效期；不读真实 ROM。
++offlinevalidation.cpp 的 STL/异常属于 host 层，不可直接放入禁异常、无 libc++ 的 kext。
++纯逻辑代码已真实 Windows 编译，但 macOS ABI/SDK 编译没有验证。
++
++新增代码 BSD-3-Clause；原 LICENSE 保留。工具链各组件许可证保留；没有复制私有 Apple 框架或真实固件。
++硬件 init 对所有 ASIC 恒拒绝，因此本分支也不是可直接部署的 Navi48 驱动。
++''',
++'firmware-and-discovery.md': '''# Discovery / Firmware：M6.5
++
++格式依据固定 Linux discovery.h。binary v1.0..1.3/v2.0，IPDS v3/v4，单 die；其他版本拒绝。
++Python 与 C++ 使用相同的合成输入，比较 header/IP/版本/base/GC_INFO/拒绝原因。
++32/64 位 base 都保留；新增 ipAt64/findIp64/regByteOffset64。
++旧 IpEntry 为 uint32_t，只有值可表示才返回；高位不会静默截断。
++base 是寄存器 segment 的 dword 基址，byte offset 转换检查乘法/加法，不等于 PCI BAR/物理地址。
++
++FirmwareRequirements 已有 C++ 模型，核对 ASIC/GC、所需 IP、拓扑描述缺失；仍是 advisory 组件清单。
++GC_INFO SE/RB、非GC IP 版本和固件 payload 均来自合成输入，不代表本机。
++Common header 仅 v1.0；大小、payload、major/minor、允许的组件声明检查已测试。
++common header 不编码完整 revision/组件身份，sidecar 声明不是实际组件内容认证。
++非零 CRC 明确 firmware_crc_unverified；未猜测 AMD CRC 覆盖范围或伪报签名验证。
++PSP v2/package/真实加载顺序等尚未支持。没有下载、解析真实 GPU 固件或上传。
++''',
++'gfx1200-target.md': '''# gfx1200 / ELF：M6.5
++
++固定 LLVM ELF.h 核验 gfx1200=0x048、gfx1201=0x04e；不重标记二进制。
++保留 CodeObj 的 expected 参数与旧默认 gfx1201。
++
++新增 C++ Offline::elf / elfKernel，与 Python validate_elf / validate_kernel 独立实现并差分。
++先检查完整 section file envelope，再 metadata，再符号和 descriptor，避免损坏结构诊断顺序不一致。
++校验 ET_DYN/AMDGPU、target、PT_LOAD、section/note、UTF-8/MsgPack 子集、metadata 版本1.0..1.2、
++name/symbol/kernarg、选定 kernel 的 descriptor entry 与符号、kernarg/group/private 大小一致性。
++CodeObj 修复有符号 entry 偏移溢出/下溢，并拒绝 NOBITS 当作文件代码。
++
++严格 host API 没有自动接入现有 kext 的全部 loader 调用；完整 relocations/AMDHSA/shader 语义仍未覆盖。
++完整 synthetic kernel ELF 是格式测试数据，不是 AMD 指令或编译产物。
++已下载工具链没有 AMDGPU backend，真正 gfx1200 产物测试仍 SKIP；不运行 GPU API。
++''',
++'safety-boundaries.md': '''# 安全边界：M6.5
++
++项目内写源码和 CPU-only 测试获授权。没有系统、驱动、启动、安全策略或真实 GPU 实验授权。
++Clang/LLD/runtime 仅便携解压到 lab；无安装器、注册表、全局 PATH 或管理员权限操作。
++host source 列表只含解析、校验和测试；没有 device.cpp/plugin.cpp/IOKit、Vulkan、DX、OpenCL。
++Navi44 不绑定；hardwareInitializationAllowed 恒 false；开发 Makefile 保持禁用。
++
++测试用固定种子、有限输入（当前最大约1200 bytes）、单个顺序 probe、30 秒执行 timeout、60 秒编译 timeout。
++没有声明额外的 OS Job 内存配额或专属 lab 沙箱；不穷举/无限 fuzz、不占用 GPU。
++ASan/UBSan canary 是自有 CPU 进程的故意错误；仅用于验证检测器，非正常数据 PASS。
++LeakSanitizer 未验证，detect_leaks=0；检测通过不证明全代码无内存漏洞。
++系统/网络的正常日志缓存不能承诺物理零写入。项目没有执行磁盘/硬件访问审计，不能作绝对安全证明。
++''',
++'cobalt-integration-plan.md': '''# Cobalt / RADV 接口准备：M6.5
++
++N44I v1 为32字节little-endian，C++/Python已有离线验证：magic/version/length、PCI、revision有效位、target、
++capabilities=0、reserved=0；未知能力不得发布。没有transport/IOUserClient/selector，非生产N48N ABI。
++gfx1200/gfx1201可共享版本化查询协议，但ASIC/IP/topology/固件需求必须独立，不能使用canned gfx1201。
++
++未来可信内核profile→带有效位的真实GC/SE/CU/RB/TCC/GB_ADDR_CONFIG/VRAM/BAR→生产ABI→Darwin RADV。
++IP寄存器基址不应混入BAR物理地址字段；没有任意MMIO或物理地址操作接口。
++单一驱动拥有GPU power/VM/queue/display，用户态只通过受限BO/submit/fence访问。
++VMID生命周期、BO隔离、复位和并发需要未来单独验证，本轮没有实现真实资源所有权。
++Cobalt PR12、bundle/cache和私有Metal接入仍是此前固定研究状态，未应用/运行。
++''',
++'cross-language-parser.md': '''# 跨语言差分验证
++
++Python生产参考函数和C++真实编译probe分别读取相同bytes；C++不调用Python也不复制其输出。
++canonical JSON比较接受/拒绝、binary/IPDS版本、地址宽度、IP实例/版本/base、GC_INFO；
++另比较profile、firmware结构/需求、ELF/descriptor与N44I。
++错误码在共同支持格式内也需一致；Unsupported不是假PASS。
++537个共享case在 reports/m65/shared-corpus.json；多数为截断/错误输入，不等于537份实机fixture。
++2400次seed759065变异同样比较，两实现最终零差异；尚未使用coverage-guided libFuzzer。
++地址高位用JSON整数精确保留，避免浮点路径。
++回归m65-invalid-strtab.bin：合成kernel ELF字符串表声明越界，源生成规则在synthetic.py/统一入口。
++''',
++'cpp-host-build.md': '''# Windows C++ host构建
++
++便携LLVM-MinGW 20261006 UCRT x86_64，Clang23.1.3；官方release asset SHA256记录在toolchain-provenance.json。
++包含C++库、mingw-w64头/import库、LLD和compiler-rt，不需要安装Windows SDK/VS。
++项目路径：tools/toolchains/llvm/llvm-mingw-20261006-ucrt-x86_64/。
++
++```powershell
++& 'D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe' -I -B -X utf8 run_all_offline_tests.py
++```
++
++实际直接clang++编译，C++17、-Wall -Wextra -Werror、-static -g -O1；完整argv在commands.json。
++sanitized增加-fsanitize=address,undefined -fno-omit-frame-pointer。
++ASan DLL还依赖libc++/libunwind；仅复制已校验包内DLL到build/m65，不写Windows。
++ASAN_OPTIONS的log_path使用项目相对路径，避免盘符冒号被误解析。
++stdio显式UTF-8，TMP/TEMP与Clang cache在项目内。
++CMakeLists保留CPU-only source列表，未下载/运行CMake和Ninja；直接编译入口是实际验证路径。
++''',
++'next-stage-readiness.md': '''# 下一阶段就绪度
++
++Windows host core已编译及离线测试；macOS构建NOT RUN，不能复用PE binary为kext。
++IpDiscovery/CodeObj保持无IOKit、无allocation接口；offlinevalidation host层依赖STL/异常，
++需要无异常错误返回/allocator或独立纯解析kernel适配后才能进kext。
++新增IpEntry64不改变旧条目布局，但parser对象内部大小改变，所有macOS使用者需要重新构建。
++上游Makefile可核对的目标是x86_64-apple-macos11.0、C++17、-mkernel/-fapple-kext、
++-fno-exceptions/-fno-rtti、-nostdinc/-nostdlib；host的STL/异常无法直接用于此目标。
++上游submodule pins：Lilu 0515f40b7f2a096adc85e832a4c6104fbd07f936，
++MacKernelSDK 05094e5e88cec7caedbfb35e8449ed0db94bf95b；本轮没有递归获取/运行。
++具体Xcode/SDK版本尚未验证，不能由Windows Clang版本推出；需要合法Apple SDK和x86_64内核目标。
++没有伪造头文件，也不能将Windows PE程序当Mach-O kext。
++代码配置仍参考上游macOS11 API，未证明可跨Sequoia/Tahoe；OpenCore只是未来注入条件，不是本轮产物。
++签名/加载与安全策略必须独立决定，本轮不改变系统保护或生成可加载kext。
++真实显示：板卡数据/连接器/固件/profile、继承GOP、受控模式及恢复计划，需授权。
++提交：VM/BO/fence/IP固件和超时；Vulkan：真topology/ABI/RADV；Metal：完整资源/shader/系统接入。
++'''
++}
++for name, content in docs.items():
++    write('docs/'+name,content,preserve=True)
++
++P = R['python']; C = R['cpp_unit']['PASS']; D = R['differential']['PASS']; F = R['fuzz']['cases']
++unit_names = re.findall(r'^PASS (.+)$',(ROOT/'reports/m65/cpp-unit.log').read_text(encoding='utf-8'),re.MULTILINE)
++unit_rows = '\n'.join('| '+name+' | PASS |' for name in unit_names)
++change_rows = '\n'.join('| `'+item['path']+'` | '+item['type']+' |' for item in changes)
++T = json.loads((ROOT/'reports/m65/toolchain-provenance.json').read_text(encoding='utf-8'))
++
++build_report = f'''# M6.5 实际构建结果
++
++报告日期：2026-10-14。最终验证时间：{R['completed_at']}。
++
++| 项目 | 结果 |
++|---|---|
++| 编译器 | Clang23.1.3 / LLVM-MinGW20261006 UCRT x86_64 |
++| 发布来源 | [官方release](https://github.com/mstorsjo/llvm-mingw/releases/tag/20261006) |
++| 归档SHA256 | `{T['sha256']}` |
++| 核验 | 官方GitHub asset digest与本地archive一致；非独立签名 |
++| 普通C++ unit/probe | 编译、链接、实际执行PASS |
++| ASan/UBSan unit/probe | 编译、链接、实际执行PASS |
++| canary | 编译PASS；预期非零退出与相应diagnostic已验证 |
++| CMake/Ninja | 未运行，不是本次构建依赖 |
++| macOS Kext | NOT RUN，不产生安装包 |
++
++实际命令使用显式clang++路径、C++17、警告视为错误、项目include、纯逻辑源文件。
++完整可复现argv：[commands.json](m65/commands.json)；工具记录：[toolchain-provenance.json](m65/toolchain-provenance.json)。
++Python/Clang启动后会正常读取Windows运行库，未写系统编译器目录或修改PATH。
++早期ASan DLL依赖遗漏、盘符log_path和UTF-8问题已修复；历史尝试保留在m65/attempts。
++'''
++write('reports/m65-build-results.md',build_report)
++
++test_report = f'''# M6.5 实际测试结果
++
++最终记录：[results.json](m65/results.json)，时间{R['completed_at']}。
++
++| 类别 | 真正执行结果 | 说明 |
++|---|---|---|
++| 原Python基线 | {P['baseline_pass']} PASS / {P['baseline_skip']} SKIP / 0 FAIL | 58项，其中4个PASS为静态检查 |
++| 新Python回归 | {P['additional_tests']} PASS / 0 FAIL | metadata/descriptor/组件/范围 |
++| Python函数行为合计 | {P['baseline_detail']['behavior_PASS']+P['additional_detail']['behavior_PASS']} PASS | 不计4个静态检查 |
++| C++单元 | {C} PASS / 0 FAIL | 真正编译的函数行为 |
++| 共享差分 | {D}输入零差异 | 接受/输出/拒绝原因 |
++| 受控变异 | {F}输入零差异/无崩溃 | seed759065，非coverage-guided |
++| ASan/UBSan | {C}unit + {D+F}输入PASS | 与普通输入重跑，不能累计为独立功能数量 |
++| 检测器canary | 2种预期故障被捕获 | 非零退出是预期 |
++| 静态分析 | 3个source零warning | 不是函数行为测试 |
++| 真Navi44/真shader | SKIP | fixture缺失/无AMDGPU backend |
++| GPU/Kext | NOT RUN | 未授权/无macOS构建 |
++
++不把静态检查、重复sanitizer运行或多个截断点混成“驱动功能PASS总数”。
++LeakSanitizer没有验证，detect_leaks=0；有限输入没有证明全覆盖。
++
++## C++行为测试清单
++
++| 测试 | 结果 |
++|---|---|
++{unit_rows}
++'''
++write('reports/m65-test-results.md',test_report)
++
++security_report = '''# M6.5 安全审查
++
++项目内写入与CPU-only执行获授权；没有GPU实验授权。
++
++| 行为 | 记录 |
++|---|---|
++| Windows系统/注册表/服务/AMD驱动修改 | 未执行 |
++| EFI/BCD/BIOS/SecureBoot/TPM/BitLocker修改 | 未执行 |
++| 磁盘分区/第二SSD Linux读取或修改 | 未执行 |
++| GPU BAR/MMIO/VBIOS/ROM/DMA/固件访问 | 未执行 |
++| Vulkan/DX/OpenCL GPU提交 | 未执行 |
++| Kext/SYS/服务加载 | 未执行 |
++| 管理员权限请求/全局PATH修改/系统安装 | 未执行 |
++| 项目外显式用户文件写入 | 未执行；系统正常缓存/日志不能承诺零写 |
++| Git push/远程PR/Release | 未执行 |
++| 便携工具 | 官方archive SHA核验后仅项目内解压 |
++| host link | 仅parser/validation/tests，不链接device/plugin/IOKit/GPU API |
++
++init恒false、7590不绑定、Makefile禁用。没有部署产物。
++统计与源码hash关联；历史M6报告/patch hash保持；当前PASS不是完整OS安全审计。
++完整参考树仍有硬件代码/脚本，未执行。工具链下载digest依赖官方托管metadata，不是独立签名或供应链无风险证明。
++canary为自有CPU进程故意heap越界/有符号溢出，不影响GPU；仅验证检测器。
++测试timeout/输入规模有限，没有额外建立OS内存Job硬配额或lab专属沙箱。
++'''
++write('reports/m65-security-review.md',security_report)
++
++blockers = '''# M6.5 剩余阻碍与下一阶段
++
++1. 无合法macOS SDK/Xcode构建结果；Kext/内核ABI NOT RUN。
++2. host严格校验层依赖STL/异常，不是freestanding kernel-ready。
++3. 真Navi44 Discovery/VBIOS/revision/topology/EDID/BAR缺失，未读取硬件。
++4. 真gfx1200 ELF缺失：便携Clang无AMDGPU backend，SKIP；不下载不可信SDK。
++5. Firmware仅common v1.0、非零CRC拒绝；PSP package/组件身份/签名/实际加载清单未验证。
++6. ELF只支持限定MsgPack/metadata和选定kernel一致性，不支持完整relocation/ISA/AMDHSA语义。
++7. C++状态机只验证顺序/终止，不自动验证数据；未实现设备生命周期。
++8. N44I非生产N48N transport；未知topology/capabilities仍不发布。
++9. Fuzz非coverage-guided，有限输入/种子；LeakSanitizer未运行；不证明无漏洞。
++10. 真显示、提交、Vulkan、Metal、WindowServer、1440p180Hz全部NOT RUN。
++
++可继续的离线方向：无异常kernel解析层、扩展shared corpus/coverage fuzz、firmware格式与metadata支持、生产ABI。
++macOS编译需合法工具链和依赖；加载、实机数据采集、显示/队列实验必须另行授权。
++'''
++write('reports/m65-remaining-blockers.md',blockers)
++
++full = f'''# M6.5 完整开发报告：RX 9060 XT / Navi 44 原型工程化与 C++ 离线验证
++
++> 交付日期：2026-10-14，Asia/Shanghai。
++>
++> 最终测试记录：{R['completed_at']}。
++>
++> 项目：`D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab`。
++>
++> **实际完成 Windows C++ 编译、函数测试、Python/C++ 差分、受控变异及 ASan/UBSan。未构建或加载 macOS kext，未操作真实 RX9060XT。**
++
++## 目录
++
++1. [本轮真实成果](#1-本轮真实成果)
++2. [编译环境与来源](#2-编译环境与来源)
++3. [实际构建和代码架构](#3-实际构建和代码架构)
++4. [跨语言一致性与修复](#4-跨语言一致性与修复)
++5. [测试与可复现证据](#5-测试与可复现证据)
++6. [安全审查与限制](#6-安全审查与限制)
++7. [成熟度与验收](#7-成熟度与验收)
++8. [下一阶段与交付索引](#8-下一阶段与交付索引)
++
++## 1. 本轮真实成果
++
++### 1.1 从 M6 到 M6.5 的变化
++
++上一阶段记录为58项Python测试，56 PASS、2 SKIP；C++、kext、GPU均NOT RUN。
++本轮先保存源码/报告快照并复现原基线，再获取便携工具链真正编译原C++测试。
++后续实现64位Discovery和严格校验层，增加共享输入与sanitizer，而不是把原研究重述为新开发。
++
++| 模块 | 本轮实际新增/修改 |
++|---|---|
++| C++工具链 | 官方LLVM-MinGW portable；完整Clang/LLD/C++runtime |
++| Discovery | 新64位entry/query/byte-offset；精确binary入口；旧接口防截断 |
++| Firmware | 编译可用的common header检查和C++需求模型；明确组件/CRC边界 |
++| ELF/metadata | C++严格host解析，与Python一致；descriptor/符号/kernarg对照 |
++| 状态/ABI | C++离线顺序约束、失败终止、N44I验证 |
++| 质量体系 | 实际C++函数单元、shared corpus、差分、变异、ASan/UBSan及canary |
++| 自动化 | run_all_offline_tests.py：完整项目内统一入口、真实日志统计、源码hash |
++| 交付 | 当前报告、分项文档、独立patch和机器可读记录 |
++
++### 1.2 项目目标与范围
++
++固定硬件为i5-12600KF（无核显）、B760M、RX9060XT/1002:7590；没有建议更换硬件。
++唯一已确认显示GPU保持Windows原驱动；Intel256GB第二盘已有EFI/Linux，本轮不读取或修改。
++允许项目内源码、便携工具、CPU-only用户态测试；不允许系统/驱动/启动/分区/真实GPU操作。
++最终成果是工程化的离线软件原型，不能等同可日常使用macOS。
++
++### 1.3 保留历史
++
++M6快照在`reports/m65/history`。原`reports/test-results.json`、`reports/test-log.txt`、
++`patches/navi44-offline-prototype.patch`与快照SHA一致，没有改写成M6.5结果。
++本轮日志、命令和失败尝试使用`reports/m65`及`attempts`；新增文档与独立patch。
++这是基线快照、差异补丁和日志追踪，不声称每一次中间编辑都形成Git提交。
++
++## 2. 编译环境与来源
++
++### 2.1 实际工具
++
++| 项目 | 实际值 |
++|---|---|
++| 平台 | Windows，x86_64-w64-windows-gnu CPU-only用户态 |
++| 编译器 | Clang23.1.3，版本输出见compiler-version.log |
++| 便携发行 | LLVM-MinGW 20261006 UCRT x86_64 |
++| 完整包 | Clang、LLD、mingw-w64头/import库、libc++/libunwind/compiler-rt |
++| Python | 现有3.12.13；未安装依赖 |
++| CMake/Ninja | 未获取或运行；实际采用显式clang++命令 |
++| Apple SDK/Xcode | 未获取；macOS构建NOT RUN |
++
++### 2.2 来源与完整性
++
++[LLVM-MinGW官方发布](https://github.com/mstorsjo/llvm-mingw/releases/tag/20261006)。
++资产：`llvm-mingw-20261006-ucrt-x86_64.zip`，190,836,485 bytes。
++
++```text
++SHA-256: {T['sha256']}
++```
++
++下载后的archive与官方GitHub资产digest一致，之后才解压。此为同一官方托管渠道的完整性核验，
++不是独立签名认证。没有执行系统安装器、安装Windows SDK/VS、注册服务、改PATH或请求管理员权限。
++工具链各许可证保留在项目发行包；新代码沿用上游BSD-3-Clause。
++
++### 2.3 版本固定
++
++| 上游 | 固定参考 |
++|---|---|
++| AMDRadeonRDNA4 | 49f7f20c00dd154384418078f8a09e79c400a06a |
++| Cobalt64 | d6c9aedf8e6526a39e349b5886cbc8c7ddf77f65 |
++| Cobalt PR12 | 2c3bba7771ed0d51dc01a6882987a4cfbbd1afe2，先前查询未合并/未应用 |
++| Linux Discovery | 24a19b953e2a3d0ea5a8c4951a0ab8f32720c907 |
++| LLVM ELF定义 | llvmorg-20.1.8 / 87f0227cb60147a26a1eeb4fb06e3b505e9c7261 |
++| Mesa补丁参考 | f5cb8ee032adabef599ae892ec4e42d796b84da9 |
++
++收尾阶段没有重新查询最新上游，以上为实际固定来源，不能当2026-10-14的实时维护状态声明。
++
++## 3. 实际构建和代码架构
++
++### 3.1 实际命令
++
++统一入口：
++
++```powershell
++& 'D:\\RuntimeEnvironment\\mise\\mise\\data\\installs\\python\\3.12.13\\python.exe' -I -B -X utf8 run_all_offline_tests.py
++```
++
++普通C++编译使用的等效参数（完整绝对路径argv保存在commands.json）：
++
++```text
++clang++ -std=c++17 -Wall -Wextra -Werror -static -g -O1
++  -I development/AMDRadeonRDNA4-Navi44/src
++  tests/unit/m65_unit.cpp
++  development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp
++  development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp
++  development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp
++  -o build/m65/unit.exe
++```
++
++sanitized target再加`-fsanitize=address,undefined -fno-omit-frame-pointer`。
++普通/sanitized unit与probe均真实编译、链接、执行，最终无普通构建错误。
++canary另分别使用address与undefined，非零退出为预期错误被捕获。
++没有伪造Apple头文件，没有生成kext安装包。
++
++### 3.2 分层与未来内核边界
++
++```text
++ASIC / IpDiscovery / CodeObj（无IOKit，部分allocation-free）
++                 ↓
++Offline host validation（STL、异常、metadata）
++                 ↓
++C++ unit/probe ↔ Python独立实现
++                 ↓
++共享输入 / 差分 / 有界变异 / ASan-UBSan
++
++IOKit/PCI/MMIO/firmware upload/queue/display adapters：future
++```
++
++Windows编译通过不代表内核兼容。严格host层使用STL和异常，未来需要freestanding适配/allocator/
++无异常错误返回；新增parser对象内部字段改变大小，macOS相关使用者需重编译。旧IpEntry布局未改变。
++上游可查目标为x86_64-apple-macos11.0、C++17、-mkernel/-fapple-kext、-fno-exceptions/-fno-rtti。
++固定Lilu pin为0515f40b7f2a096adc85e832a4c6104fbd07f936，MacKernelSDK为
++05094e5e88cec7caedbfb35e8449ed0db94bf95b。具体Xcode/Apple SDK未验证，不从host版本虚构兼容结论。
++
++### 3.3 64位Discovery
++
++新增`IpEntry64`、`initBinary`、`ipAt64`、`findIp64`、`regByteOffset64`。
++legacy `init`保留内存中的ROM扫描；差分使用从offset0开始的精确binary入口。
++64位base不截断；旧32位查询只在值可表示时成功。高位、加法、乘4越界均拒绝。
++base是寄存器segment dword基址，不等于物理BAR地址，本轮没有改变任何寄存器访问逻辑。
++buffer为caller-owned不可变view；调用者必须维护有效期。多die/未知版本仍fail-closed。
++
++### 3.4 Firmware/ELF/状态
++
++Firmware检查common header v1.0的长度、payload和IP major/minor；C++已有需求清单模型。
++组件标识是调用方声明与允许名称检查，不是common header内不存在的组件ID认证。
++CRC非零明确未验证，不猜算法或加载成功；PSP签名/package和真实版本仍缺。
++
++ELF严格层检查完整文件范围→metadata→选定kernel的symbol/descriptor；对kernarg/group/private大小对照。
++固定常量gfx1200=0x048、gfx1201=0x04e；不通过重新标记ELF使它“兼容”。
++metadata仅限定MsgPack与AMDHSA版本子集，不证明ISA正确。旧loader并未自动改成完整strict API。
++
++C++状态机验证顺序和终止，不自动验证数据或真实设备；OfflineReady绝不授权硬件初始化。
++N44I仍为32字节模拟协议，capabilities/reserved为0，非N48N transport，未知topology不公开。
++
++## 4. 跨语言一致性与修复
++
++### 4.1 独立比较方法
++
++Python函数和真实编译的C++probe读相同bytes，输出canonical结果。比较接受/拒绝、版本、IP、地址、
++GC_INFO；并测试profile、firmware需求/结构、ELF/descriptor、ABI与错误原因。
++两端不通过共享执行结果“互相证明”。共同支持输入最终{D}项零差异。
++多数共享case是合成数据的截断/错误变体，不是{D}份真实硬件样本。
++
++### 4.2 实际发现与修复
++
++| 问题 | 定位与修复 | 证据 |
++|---|---|---|
++| Windows默认GBK读取Clang中文路径 | subprocess显式UTF-8 | 入口最终完整成功，旧尝试保留 |
++| ASan startup缺DLL | ASan依赖libc++，后者依赖libunwind；仅复制到build | sanitized执行和canary |
++| ASAN_OPTIONS盘符冒号 | 使用项目相对log_path | 选项解析错误消失 |
++| Python bytearray symbol不可hash | 转bytes作为符号键 | 新kernel测试通过 |
++| C++ descriptor entry有符号偏移 | 显式加法上溢/下溢拒绝，NOBITS不当代码 | 回归与sanitizer |
++| 完整section与metadata检查顺序不同 | 两端先检查完整文件envelope再语义 | 差分零差异 |
++| metadata/descriptor内容不一致 | 新strict接口比较symbol/kernarg/group/private | 合成kernel正常/损坏测试 |
++| 固定统计数可能误报 | 从unittest日志计算、源码hash关联 | 最终results.json |
++
++保存合成回归样本`tests/fixtures/m65-invalid-strtab.bin`；其生成规则来自synthetic kernel并将字符串表size高位
++改成越界，不能称为RX9060XT捕获。部分中间差异是错误分类顺序不同，两端原本都拒绝，未误称已发现硬件漏洞。
++
++## 5. 测试与可复现证据
++
++### 5.1 分类型结果
++
++| 类别 | 最终结果 | 限定 |
++|---|---|---|
++| Python原基线 | 58总计：56 PASS、2 SKIP、0 FAIL | 4个PASS是静态检查 |
++| Python新增 | {P['additional_tests']} PASS | 真正函数回归 |
++| Python函数行为 | {P['baseline_detail']['behavior_PASS']+P['additional_detail']['behavior_PASS']} PASS | 不含4个静态检查 |
++| C++行为单元 | {C} PASS、0 FAIL | 真实Windows二进制 |
++| shared差分 | {D}输入、0差异 | 接受/语义/错误原因 |
++| deterministic mutation | {F}输入、0差异/崩溃 | seed759065，非coverage-guided |
++| ASan/UBSan重跑 | {C}unit + {D+F}输入通过 | 重复覆盖，不额外累计功能PASS |
++| detector canary | heap越界、signed overflow均被捕获 | 预期CPU进程失败 |
++| Clang static analyzer | 3个source、零warning | 不是实机/动态证明 |
++
++原真实Discovery和真实shader测试仍SKIP。Clang的registered targets没有AMDGPU，
++不生成伪造真实编译产物。macOS/kext/GPU/显示/提交/Vulkan/Metal/WindowServer/180Hz全部NOT RUN。
++
++### 5.2 有界执行
++
++单顺序probe，输入由当前约1200 bytes的种子产生；固定2400次，测试进程timeout30秒、编译60秒。
++没有无限fuzz或GPU压力测试；未建立额外OS Job内存硬配额。ASan检测通过仅针对当前工作负载；
++LeakSanitizer没有运行，detect_leaks=0。零warning/零差异不是全代码无漏洞或规范完整证明。
++
++### 5.3 证据位置
++
++- [结果JSON](m65/results.json)：来源hash、时间与分类统计。
++- [完整命令](m65/commands.json)：实际argv、退出码、耗时与expected_failure。
++- [C++单元日志](m65/cpp-unit.log)、[Python新增](m65/python-m65-tests.log)。
++- [共享输入](m65/shared-corpus.json)、[差分](m65/differential-differences.json)、[变异](m65/fuzz-seed-759065-differences.json)。
++- [Sanitizer日志](m65/sanitized-unit.log)、[对应差分](m65/sanitized-corpus-differences.json)。
++- [来源记录](m65/toolchain-provenance.json)、[历史完整性](m65/history-integrity.json)。
++- detector详细diagnostic在`m65/asan-canary.*`/`ubsan-canary.*`及canary日志。
++
++## 6. 安全审查与限制
++
++### 6.1 禁止操作的实际记录
++
++Windows系统/注册表/服务/驱动、EFI/BCD/BIOS、安全策略、硬盘分区、第二盘Linux、
++GPU BAR/MMIO/VBIOS/ROM/DMA/固件、Vulkan/DX/OpenCL提交、Kext加载、管理员权限、
++global PATH、远程发布：**未执行**。
++主动源码、工具、runtime、日志和报告输出仅在lab；系统运行库正常读取与OS缓存日志不能承诺零副作用。
++没有进行系统级文件写入追踪审计，不能提供绝对安全证明。
++
++### 6.2 门禁仍保留
++
++7590不绑定；hardwareInitializationAllowed恒false，无普通参数能解除；开发Makefile禁用。
++host source清单没有device.cpp/plugin.cpp/IOKit/GPU API，不生成驱动安装器。
++该分支也不能当作Navi48正常部署分支，因为所有设备init默认拒绝。
++源码门禁不替代OS沙箱，完整参考树含未运行的危险脚本。
++
++### 6.3 技术和维护边界
++
++Firmware仅有限结构，metadata仅子集，未处理完整relocation/ISA；有限fuzz覆盖。
++生产ABI和单一GPU所有者尚未接入；真实revision/active topology/BAR/固件缺失。
++WindowsSTL/异常host层与Darwin内核仍需适配；不伪造Apple头文件或绕过签名/保护。
++新增源码保留BSD；LLVM/MinGW/引用各保留许可证，开源驱动并不授予非Apple硬件macOS许可。
++
++## 7. 成熟度与验收
++
++| 项目 | 判断 |
++|---|---|
++| ASIC Profile | 离线识别/target/revision状态通过；未知能力仍关闭 |
++| Discovery | C++32/64及legacy窄化已编译测试；真fixture缺失 |
++| Firmware | CPU结构/需求模型可用；真实组件/CRC/签名未验证 |
++| ELF | strict envelope/metadata/descriptor已跨语言测试；真ISA产物缺失 |
++| C++构建 | Windows host完成；非macOS/kext |
++| 自动化 | 统一入口、分类统计、日志/history/hash完成 |
++| macOS准备 | 依赖/架构差距明确，SDK/ABI未编译 |
++| 显示准备 | 基础软件证据提高；真实显示未验证 |
++| Vulkan/Metal准备 | 数据接口规划与底层参考；无加速成果 |
++
++M6.5核心验收：原基线复现、便携工具核验、实际编译运行、Navi44/Navi48与target区分、
++shared格式一致、默认门禁及真实证据均完成。尽可能项目中的64位、firmware/ELF强化、sanitizer、
++变异测试已完成有限实现；真正macOS/GPU不属于本轮验收。
++
++## 8. 下一阶段与交付索引
++
++### 8.1 距离A—E的具体缺口
++
++| 目标 | 仍需工作 |
++|---|---|
++| A. macOS kext编译 | 合法Xcode/SDK、固定Lilu/MacKernelSDK、内核ABI/C++选项、无异常/allocator适配 |
++| B. RX9060XT基础显示 | 真profile/IP/连接器/BAR/固件/EDID；继承GOP；有界模式与恢复；实机授权 |
++| C. 命令提交 | VM/BO、PSP/SMU/SDMA/MES/CP、fence、中断、timeout、DMA安全与隔离 |
++| D. Vulkan | 真实topology/GB_ADDR_CONFIG/VRAM/BAR、版本化生产ABI、Darwin RADV与验证 |
++| E. Metal | 完整资源/共享纹理/argument buffers、shader转译/cache、私有ABI、WindowServer及长期测试 |
++
++优先继续无异常kernel-friendly纯逻辑、更多合法fixtures、coverage fuzz与生产ABI审查，
++不应把当前PASS用于自动加载或安装。实机、驱动签名/加载条件和安全保护变化需独立决定。
++
++### 8.2 修改清单
++
++相对项目根目录，与M6快照比较；历史记录、工具二进制和生成日志不混入源码patch。
++
++| 路径 | 类型 |
++|---|---|
++{change_rows}
++
++### 8.3 交付链接
++
++- [编译报告](m65-build-results.md)、[测试报告](m65-test-results.md)。
++- [安全审查](m65-security-review.md)、[未完成项](m65-remaining-blockers.md)。
++- [跨语言设计](../docs/cross-language-parser.md)、[host构建](../docs/cpp-host-build.md)、[下阶段条件](../docs/next-stage-readiness.md)。
++- [M6→M6.5 patch](../patches/m65-from-m6-offline.patch)。
++- [上游累计patch](../patches/navi44-m65-offline-cumulative.patch)。
++- [机器可读修改清单](m65/changed-files.json)。
++
++patch不包含便携工具、真实固件或二进制fixture；合成fixture可由包含的源码重新生成。
++它们仍是离线适配patch，不能安装到OpenCore或当作成熟驱动。
++
++### 8.4 最终交付核对
++
++已核对测试记录中的源码SHA、交付文件SHA、本地文档链接、原M6历史文件校验值及上游快照。
++累计patch对固定上游、增量patch对独立M6基线副本均通过`git apply --check`，没有实际应用。
++机器可读证明见[delivery-verification.json](m65/delivery-verification.json)。
++该核对只证明当前交付对应关系与patch可应用性，不证明驱动硬件兼容或系统绝对安全。
++
++---
++
++**最终结论：M6.5完成真实Windows C++离线工程化验证及交付；当前进展是软件原型成熟度提升，
++不是RX9060XT硬件显示或Metal兼容性证明。完成后停止，不进入macOS安装、kext部署或GPU实验。**
++'''
++write('reports/m65-development-report.md',full)
++
++artifacts = ['reports/m65-development-report.md','reports/m65-build-results.md','reports/m65-test-results.md',
++    'reports/m65-security-review.md','reports/m65-remaining-blockers.md','reports/m65/results.json',
++    'reports/m65/commands.json','patches/m65-from-m6-offline.patch','patches/navi44-m65-offline-cumulative.patch']
++write('reports/m65/deliverable-sha256.json',json.dumps({p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in artifacts},indent=2))
++print(json.dumps({'report':'reports/m65-development-report.md','source_changes':len(changes),
++                  'M6_history_preserved':all(historical_checks.values()),'status':'documentation generated'},ensure_ascii=False))
+--- /dev/null
++++ b/validate_m65_delivery.py
+@@ -0,0 +1,71 @@
++"""Project-only delivery verification. Does not run builds, devices or GPU APIs."""
++from pathlib import Path
++import hashlib
++import json
++import os
++import re
++import shutil
++import subprocess
++
++ROOT = Path(__file__).resolve().parent
++R = json.loads((ROOT/'reports/m65/results.json').read_text(encoding='utf-8'))
++if R.get('status') != 'PASS': raise SystemExit('Pipeline did not succeed')
++for rel, expected in R['source_sha256'].items():
++    if hashlib.sha256((ROOT/rel).read_bytes()).hexdigest() != expected:
++        raise SystemExit('Tested source mismatch: '+rel)
++for rel, expected in json.loads((ROOT/'reports/m65/deliverable-sha256.json').read_text()).items():
++    if hashlib.sha256((ROOT/rel).read_bytes()).hexdigest() != expected:
++        raise SystemExit('Deliverable mismatch: '+rel)
++
++documents = [ROOT/'README.md'] + list((ROOT/'docs').glob('*.md'))
++documents += list((ROOT/'reports').glob('m65-*.md'))
++links = 0
++for path in documents:
++    for target in re.findall(r'\[[^\]]*\]\(([^)]+)\)',path.read_text(encoding='utf-8')):
++        if target.startswith(('https://','http://','#')): continue
++        target = target.strip('<>').split('#')[0]
++        if not (path.parent/target).exists():
++            raise SystemExit('Broken local link: '+str(path)+': '+target)
++        links += 1
++
++environment = os.environ.copy()
++environment.update(TMP=str(ROOT/'tmp'),TEMP=str(ROOT/'tmp'),GIT_CONFIG_NOSYSTEM='1',
++                   GIT_CONFIG_GLOBAL='NUL',GIT_OPTIONAL_LOCKS='0')
++git = Path('D:/RuntimeEnvironment/Git/cmd/git.exe')
++if not git.is_file(): raise SystemExit('Existing Git unavailable; no installation attempted')
++def check(args,name):
++    p = subprocess.run([str(git),*map(str,args)],cwd=ROOT,env=environment,
++                       capture_output=True,encoding='utf-8',timeout=20)
++    (ROOT/'reports/m65'/name).write_text(p.stdout+p.stderr,encoding='utf-8')
++    if p.returncode: raise SystemExit('Patch verification failed: '+name)
++
++upstream = ROOT/'upstream/AMDRadeonRDNA4'
++check(['-c','safe.directory='+upstream.as_posix(),'-c','core.hooksPath=NUL','-C',upstream,
++       'apply','--check',ROOT/'patches/navi44-m65-offline-cumulative.patch'],'patch-cumulative-check.log')
++stage = ROOT/'build/m65/patch-check-baseline'
++suffix = 0
++while stage.exists():
++    suffix += 1; stage = ROOT/('build/m65/patch-check-baseline-'+str(suffix))
++stage.mkdir()
++history = ROOT/'reports/m65/history'
++for path in history.rglob('*'):
++    if path.is_file():
++        destination = stage/path.relative_to(history)
++        destination.parent.mkdir(parents=True,exist_ok=True)
++        shutil.copyfile(path,destination)
++check(['-c','core.hooksPath=NUL','-C',stage,'apply','--check',
++       ROOT/'patches/m65-from-m6-offline.patch'],'patch-incremental-check.log')
++
++for repo in ('AMDRadeonRDNA4','Cobalt64'):
++    location = ROOT/'upstream'/repo
++    p = subprocess.run([str(git),'-c','safe.directory='+location.as_posix(),'-C',str(location),
++                        'status','--porcelain'],cwd=ROOT,env=environment,capture_output=True,
++                       encoding='utf-8',timeout=20)
++    if p.returncode or p.stdout.strip(): raise SystemExit('Upstream snapshot changed: '+repo)
++
++result = {'status':'PASS','tested_sources_match':True,'deliverable_hashes_match':True,
++          'local_links_checked':links,'cumulative_patch_check':'PASS (not applied)',
++          'incremental_patch_check':'PASS (not applied)',
++          'upstream_snapshots_clean':True,'hardware_and_kext':'NOT RUN'}
++(ROOT/'reports/m65/delivery-verification.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
++print(json.dumps(result,indent=2))
+--- /dev/null
++++ b/m65_prepare.py
+@@ -0,0 +1,24 @@
++"""Local-only M6.5 history capture and baseline run; no hardware operations."""
++from pathlib import Path
++import hashlib, json, shutil, subprocess, sys, os
++ROOT=Path(__file__).resolve().parent
++history=ROOT/'reports/m65/history'
++if history.exists(): raise SystemExit('History already exists: refusing overwrite')
++history.mkdir(parents=True)
++paths=['README.md','CMakeLists.txt','run_offline.py','build_offline.ps1',
++       'tests/test_offline.py','tests/unit/host_tests.cpp','tests/fixtures/synthetic.py',
++       'reports/test-results.json','reports/test-log.txt','patches/navi44-offline-prototype.patch']
++paths += [str(p.relative_to(ROOT)) for p in (ROOT/'development/AMDRadeonRDNA4-Navi44/src').glob('*') if p.name in
++          ('asicprofile.hpp','offlinefirmware.hpp','codeobj.cpp','codeobj.hpp','ipdiscovery.cpp','ipdiscovery.hpp')]
++paths += ['development/AMDRadeonRDNA4-Navi44/host/navi44.py']
++hashes={}
++for rel in paths:
++    src=ROOT/rel; dst=history/rel; dst.parent.mkdir(parents=True,exist_ok=True)
++    shutil.copyfile(src,dst); hashes[rel]=hashlib.sha256(src.read_bytes()).hexdigest()
++(history/'baseline-sha256.json').write_text(json.dumps(hashes,indent=2),encoding='utf-8')
++env=os.environ.copy(); env.update(TMP=str(ROOT/'tmp'),TEMP=str(ROOT/'tmp'))
++result=subprocess.run([sys.executable,'-I','-B',str(ROOT/'tests/test_offline.py')],cwd=ROOT,
++                      env=env,capture_output=True,text=True,timeout=30)
++(ROOT/'reports/m65/baseline-python.log').write_text(result.stdout+result.stderr,encoding='utf-8')
++print(result.stdout+result.stderr)
++sys.exit(result.returncode)
+--- /dev/null
++++ b/m65_acquire_toolchain.py
+@@ -0,0 +1,39 @@
++"""Download official archive, verify publisher-hosted digest, safe unpack only.
++No installers, post-install scripts or external commands are executed.
++"""
++from pathlib import Path, PurePosixPath
++import hashlib, json, urllib.request, zipfile
++ROOT=Path(__file__).resolve().parent
++BASE=ROOT/'tools/toolchains'
++BASE.mkdir(parents=True,exist_ok=True)
++name='llvm-mingw-20261006-ucrt-x86_64.zip'
++url='https://github.com/mstorsjo/llvm-mingw/releases/download/20261006/'+name
++expected='317492c456aa27ee607a5919f1d2d38dcdc1112516a24d0bf4b00d078f52d17a'
++archive=BASE/name
++if not archive.exists():
++    with urllib.request.urlopen(url,timeout=60) as r, archive.open('wb') as out:
++        count=0
++        while block:=r.read(1024*1024):
++            count+=len(block)
++            if count>200_000_000: raise ValueError('Download limit')
++            out.write(block)
++digest=hashlib.file_digest(archive.open('rb'),'sha256').hexdigest()
++if digest!=expected: raise ValueError('SHA256 mismatch; refusing extraction/execution')
++destination=BASE/'llvm'
++if destination.exists(): raise ValueError('Toolchain directory exists; refusing overwrite')
++with zipfile.ZipFile(archive) as z:
++    infos=z.infolist()
++    if sum(i.file_size for i in infos)>3_000_000_000: raise ValueError('Extraction size limit')
++    for i in infos:
++        p=PurePosixPath(i.filename)
++        if p.is_absolute() or '..' in p.parts or ':' in i.filename or '\\' in i.filename:
++            raise ValueError('Unsafe archive path')
++        if (i.external_attr>>16)&0o170000 == 0o120000: raise ValueError('Archive symlink')
++    destination.mkdir()
++    z.extractall(destination)
++record={'project':'mstorsjo/llvm-mingw','tag':'20261006','url':url,
++        'sha256':digest,'expected_sha256':expected,'verified':True,
++        'verification_source':'GitHub official release asset digest via API, not detached signature',
++        'archive_bytes':archive.stat().st_size,'portable':True,'installer_executed':False}
++(ROOT/'reports/m65/toolchain-provenance.json').write_text(json.dumps(record,indent=2),encoding='utf-8')
++print(json.dumps(record,indent=2))
+--- /dev/null
++++ b/m65_replace_discovery.py
+@@ -0,0 +1,191 @@
++"""Reviewed project-only replacement; history captured before this script."""
++from pathlib import Path
++root=Path(__file__).resolve().parent
++source=r'''// Allocation-free Discovery parser, BSD-3-Clause; original LICENSE retained.
++// Format pin: Linux 24a19b953e2a3d0ea5a8c4951a0ab8f32720c907 discovery.h.
++// No register access. Caller retains immutable input for the view lifetime.
++#include "ipdiscovery.hpp"
++
++namespace {
++bool inside(size_t n, size_t off, size_t count) { return off <= n && count <= n - off; }
++uint16_t u16(const uint8_t *p) { return uint16_t(p[0]) | uint16_t(p[1]) << 8; }
++uint32_t u32(const uint8_t *p) { return uint32_t(u16(p)) | uint32_t(u16(p + 2)) << 16; }
++uint64_t u64(const uint8_t *p) { return uint64_t(u32(p)) | uint64_t(u32(p + 4)) << 32; }
++uint16_t sum(const uint8_t *p, size_t n) {
++    uint16_t value = 0;
++    for (size_t i = 0; i < n; ++i) value = uint16_t(value + p[i]);
++    return value;
++}
++}
++
++bool IpDiscovery::fail(const char *why) {
++    valid = false; numIps = 0; haveGc = false;
++    binBase = dieBase = binEnd = ipEnd = 0;
++    lastError = why;
++    return false;
++}
++
++bool IpDiscovery::readU8(size_t off, uint8_t &v) const {
++    if (!data || !inside(size, off, 1)) return false;
++    v = data[off]; return true;
++}
++bool IpDiscovery::readU16(size_t off, uint16_t &v) const {
++    if (!data || !inside(size, off, 2)) return false;
++    v = u16(data + off); return true;
++}
++bool IpDiscovery::readU32(size_t off, uint32_t &v) const {
++    if (!data || !inside(size, off, 4)) return false;
++    v = u32(data + off); return true;
++}
++
++bool IpDiscovery::initBinary(const uint8_t *buffer, size_t bufferSize) {
++    data = buffer; size = bufferSize;
++    fail("not_initialized");
++    if (!data || !inside(size, 0, 12)) return fail("out_of_bounds");
++    return validateBinary(0);
++}
++
++bool IpDiscovery::init(const uint8_t *buffer, size_t bufferSize) {
++    data = buffer; size = bufferSize;
++    fail("not_initialized");
++    if (!data || size < 12) return fail("out_of_bounds");
++    // Legacy ROM scan, bounded in subtraction form. Exact host input uses initBinary.
++    for (size_t off = 0; off <= size - 12; off += 4) {
++        if (u32(data + off) == 0x28211407 && validateBinary(off)) return true;
++    }
++    return fail("binary_magic");
++}
++
++bool IpDiscovery::validateBinary(size_t offset) {
++    if (!inside(size, offset, 12)) return fail("out_of_bounds");
++    const uint8_t *d = data + offset;
++    const size_t available = size - offset;
++    if (u32(d) != 0x28211407) return fail("binary_magic");
++    majorVersion = u16(d + 4); minorVersion = u16(d + 6);
++    if ((majorVersion == 1 && minorVersion > 3) ||
++        (majorVersion == 2 && minorVersion != 0) || (majorVersion != 1 && majorVersion != 2))
++        return fail("binary_version");
++    const size_t n = u16(d + 10);
++    if (!inside(available, 0, n)) return fail("out_of_bounds");
++    const size_t start = majorVersion == 1 ? 12 : 16;
++    if (majorVersion == 2 && !inside(available, 12, 2)) return fail("out_of_bounds");
++    const uint16_t count = majorVersion == 1 ? 6 : u16(d + 12);
++    if (!count || count > 6) return fail("table_count");
++    if (!inside(n, start, size_t(count) * 8)) return fail("out_of_bounds");
++    if (sum(d + 10, n - 10) != u16(d + 8)) return fail("binary_checksum");
++    uint16_t offsets[6] {}, lengths[6] {};
++    for (uint16_t i = 0; i < count; ++i) {
++        const uint8_t *t = d + start + i * 8;
++        const uint16_t off = u16(t), checksum = u16(t + 2), length = u16(t + 4);
++        if (!off && !checksum && !length) continue;
++        if (!off || !length || off < start + count * 8) return fail("table_range");
++        if (!inside(n, off, length)) return fail("out_of_bounds");
++        for (uint16_t j = 0; j < i; ++j)
++            if (lengths[j] && off < size_t(offsets[j]) + lengths[j] && offsets[j] < size_t(off) + length)
++                return fail("table_overlap");
++        if (sum(d + off, length) != checksum) return fail("table_checksum");
++        offsets[i] = off; lengths[i] = length;
++    }
++    if (!lengths[0]) return fail("missing_ipds");
++    const size_t off = offsets[0], length = lengths[0], end = off + length;
++    if (length < 80) return fail("out_of_bounds");
++    if (u32(d + off) != 0x53445049 || u32(d + off + 8) != 0) return fail("ipds_magic_or_id");
++    ipVersion = u16(d + off + 4);
++    if (ipVersion != 3 && ipVersion != 4) return fail("ipds_version");
++    if (u16(d + off + 6) != length || u16(d + off + 12) != 1) return fail("ipds_size_or_die_count");
++    const uint8_t flags = d[off + 78];
++    if (d[off + 79] || (flags & ~1u) || (ipVersion == 3 && flags)) return fail("ipds_flags");
++    addressWidth = (flags & 1) ? 8 : 4;
++    const size_t die = u16(d + off + 16);
++    if (die < off + 80) return fail("die_offset");
++    if (!inside(end, die, 4)) return fail("out_of_bounds");
++    const uint16_t ips = u16(d + die + 2);
++    if (u16(d + die) != u16(d + off + 14) || !ips || ips > 256) return fail("die_id_or_ip_count");
++    size_t p = die + 4;
++    for (uint16_t i = 0; i < ips; ++i) {
++        if (!inside(end, p, 8)) return fail("out_of_bounds");
++        const uint8_t bases = d[p + 3];
++        if (!bases || bases > MaxBases) return fail("base_count");
++        if (!inside(end, p + 8, size_t(bases) * addressWidth)) return fail("out_of_bounds");
++        for (uint8_t b = 0; b < bases; ++b) {
++            const uint8_t *base = d + p + 8 + b * addressWidth;
++            const uint64_t value = addressWidth == 8 ? u64(base) : u32(base);
++            if (value > UINT64_MAX / 4) return fail("register_address_overflow");
++        }
++        for (uint16_t j = 0; j < i; ++j) {
++            const uint8_t *previous = data + entryOffsets[j];
++            if (u16(previous) == u16(d + p) && previous[2] == d[p + 2]) return fail("duplicate_ip");
++        }
++        entryOffsets[i] = offset + p;
++        p += 8 + size_t(bases) * addressWidth;
++    }
++    if (count > 1 && lengths[1]) {
++        const size_t gc = offsets[1], glen = lengths[1];
++        if (glen < 28) return fail("out_of_bounds");
++        const uint16_t a = u16(d + gc + 4), b = u16(d + gc + 6);
++        if (u32(d + gc) != 0x4347 || b || (a != 1 && a != 2)) return fail("gc_info_version");
++        if (u32(d + gc + 8) != glen || glen < (a == 1 ? 88u : 80u)) return fail("gc_info_size");
++        gcSe = u32(d + gc + 12); gcRb = u32(d + gc + 24);
++        if (!gcSe || !gcRb) return fail("gc_info_zero");
++        haveGc = true; gcVersion = uint32_t(a) << 16 | b;
++    }
++    binBase = offset; binEnd = offset + n; dieBase = offset + die; ipEnd = offset + end;
++    numIps = ips; valid = true; lastError = nullptr;
++    return true;
++}
++
++bool IpDiscovery::ipAt64(uint16_t index, IpEntry64 &out) const {
++    out = IpEntry64 {};
++    if (!valid || index >= numIps) return false;
++    const uint8_t *p = data + entryOffsets[index];
++    out.hwId = u16(p); out.instance = p[2]; out.numBases = p[3];
++    out.major = p[4]; out.minor = p[5]; out.revision = p[6];
++    for (uint8_t i = 0; i < out.numBases; ++i)
++        out.bases[i] = addressWidth == 8 ? u64(p + 8 + i * 8) : u32(p + 8 + i * 4);
++    return true;
++}
++bool IpDiscovery::ipAt(uint16_t index, IpEntry &out) const {
++    out = IpEntry {};
++    IpEntry64 ip;
++    if (!ipAt64(index, ip)) return false;
++    for (uint8_t i = 0; i < ip.numBases; ++i) if (ip.bases[i] > UINT32_MAX) return false;
++    out.hwId = ip.hwId; out.instance = ip.instance; out.numBases = ip.numBases;
++    out.major = ip.major; out.minor = ip.minor; out.revision = ip.revision;
++    for (uint8_t i = 0; i < ip.numBases; ++i) out.bases[i] = uint32_t(ip.bases[i]);
++    return true;
++}
++bool IpDiscovery::findIp64(uint16_t hwId, uint8_t instance, IpEntry64 &out) const {
++    for (uint16_t i = 0; i < numIps; ++i) {
++        if (!ipAt64(i, out)) return false;
++        if (out.hwId == hwId && out.instance == instance) return true;
++    }
++    out = IpEntry64 {}; return false;
++}
++bool IpDiscovery::findIp(uint16_t hwId, uint8_t instance, IpEntry &out) const {
++    for (uint16_t i = 0; i < numIps; ++i) {
++        IpEntry64 ip;
++        if (!ipAt64(i, ip)) return false;
++        if (ip.hwId == hwId && ip.instance == instance) return ipAt(i, out);
++    }
++    out = IpEntry {}; return false;
++}
++bool IpDiscovery::gcInfo(uint32_t &se, uint32_t &rb, uint32_t *version) const {
++    if (!valid || !haveGc) return false;
++    se = gcSe; rb = gcRb; if (version) *version = gcVersion; return true;
++}
++bool IpDiscovery::regByteOffset64(uint16_t hw, uint8_t instance, uint8_t segment,
++                                 uint64_t add, uint64_t &out) const {
++    IpEntry64 ip;
++    if (!findIp64(hw, instance, ip) || segment >= ip.numBases ||
++        add > UINT64_MAX / 4 || ip.bases[segment] > UINT64_MAX / 4 - add) return false;
++    out = (ip.bases[segment] + add) * 4; return true;
++}
++bool IpDiscovery::regByteOffset(uint16_t hw, uint8_t instance, uint8_t segment,
++                               uint32_t add, uint32_t &out) const {
++    uint64_t value;
++    if (!regByteOffset64(hw, instance, segment, add, value) || value > UINT32_MAX) return false;
++    out = uint32_t(value); return true;
++}
++'''
++(root/'development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp').write_text(source,encoding='utf-8',newline='\n')
++print('Updated allocation-free parser, exact-binary and legacy scan APIs')
+--- /dev/null
++++ b/tests/test_m65.py
+@@ -0,0 +1,39 @@
++"""M6.5 additional Python regression tests, CPU-only synthetic inputs."""
++import importlib.util, pathlib, sys, struct, unittest
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++def load(name,path):
++    spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec)
++    sys.modules[name]=m;spec.loader.exec_module(m);return m
++n=load('m65logic',ROOT/'development/AMDRadeonRDNA4-Navi44/host/navi44.py')
++f=load('m65data',ROOT/'tests/fixtures/synthetic.py')
++class Additional(unittest.TestCase):
++    def test_full_descriptor(self): self.assertTrue(n.validate_kernel(f.kernel_elf(),n.Target.GFX1200))
++    def test_full_descriptor_navi48(self): self.assertTrue(n.validate_kernel(f.kernel_elf(0x4e),n.Target.GFX1201))
++    def test_descriptor_kernarg_mismatch(self):
++        d=f.kernel_elf();struct.pack_into('<I',d,840,9)
++        with self.assertRaisesRegex(n.Invalid,'mismatch'): n.validate_kernel(d,n.Target.GFX1200)
++    def test_descriptor_group_mismatch(self):
++        d=f.kernel_elf();struct.pack_into('<I',d,832,17)
++        with self.assertRaisesRegex(n.Invalid,'mismatch'): n.validate_kernel(d,n.Target.GFX1200)
++    def test_descriptor_entry_underflow(self):
++        d=f.kernel_elf();struct.pack_into('<q',d,848,-0x2000)
++        with self.assertRaisesRegex(n.Invalid,'invalid'): n.validate_kernel(d,n.Target.GFX1200)
++    def test_missing_symbol(self):
++        d=f.kernel_elf();d[1060]=0
++        with self.assertRaisesRegex(n.Invalid,'invalid'): n.validate_kernel(d,n.Target.GFX1200)
++    def test_kernel_metadata_missing(self):
++        with self.assertRaises(n.Invalid): n.validate_kernel(f.elf(),n.Target.GFX1200)
++    def test_all_section_bounds(self):
++        d=f.kernel_elf();struct.pack_into('<Q',d,192+4*64+24,0xffffffffffffffff)
++        with self.assertRaises(n.Invalid): n.validate_elf(d,n.Target.GFX1200)
++    def test_strtab_prevalidated_regression(self):
++        d=f.kernel_elf(0x4e);d[486]=230
++        with self.assertRaisesRegex(n.Invalid,'out_of_bounds'): n.validate_kernel(d,n.Target.GFX1201)
++    def test_unknown_metadata_version(self):
++        with self.assertRaisesRegex(n.Invalid,'unsupported'):
++            n.validate_elf(f.elf(metadata_value={'amdhsa.version':[99,0],'amdhsa.kernels':[]}),n.Target.GFX1200)
++    def test_component_type(self):
++        need=n.FirmwareNeed('gc',(12,0,0),'not-an-amd-component')
++        with self.assertRaisesRegex(n.Invalid,'component'):
++            n.validate_firmware([need],[n.FirmwareBlob(need,f.firmware(need),'synthetic')])
++if __name__=='__main__':unittest.main(verbosity=2)
+--- a/tests/fixtures/synthetic.py
++++ b/tests/fixtures/synthetic.py
+@@ -79,3 +79,29 @@
+ 
+ def firmware(need):
+     return struct.pack('<IIHHHHIIII', 36, 32, 1, 0, *need.ip[:2], 0, 4, 32, 0) + b'TEST'
++
++
++def kernel_elf(machine=0x48):
++    """Full synthetic symbol/descriptor layout; NOT compiler-generated ISA."""
++    data=bytearray(1200);data[:7]=b'\x7fELF\x02\x01\x01'
++    struct.pack_into('<HHI',data,16,3,224,1)
++    struct.pack_into('<QQ',data,32,64,192);struct.pack_into('<I',data,48,machine)
++    struct.pack_into('<HHHHHH',data,52,64,56,2,64,6,0)
++    struct.pack_into('<IIQQQQQQ',data,64,1,4,832,0x1000,0x1000,64,64,64)
++    struct.pack_into('<IIQQQQQQ',data,120,1,5,896,0x2000,0x2000,4,4,256)
++    meta=msgpack({'amdhsa.version':[1,0],'amdhsa.kernels':[
++        {'.name':'synthetic','.symbol':'synthetic.kd','.kernarg_segment_size':8,
++         '.group_segment_fixed_size':16,'.private_segment_fixed_size':0}]})
++    struct.pack_into('<III',data,608,7,len(meta),32);data[620:627]=b'AMDGPU\0'
++    data[628:628+len(meta)]=meta
++    def section(index,kind,flags,va,off,size,link=0,entry=0):
++        struct.pack_into('<IIQQQQIIQQ',data,192+index*64,0,kind,flags,va,off,size,link,0,1,entry)
++    section(1,7,0,0,608,20+((len(meta)+3)&~3))
++    section(2,1,6,0x2000,896,4);section(3,1,2,0x1000,832,64)
++    strings=b'\0synthetic\0synthetic.kd\0';data[928:928+len(strings)]=strings
++    section(4,3,0,0,928,len(strings));section(5,2,0,0,1008,72,4,24)
++    struct.pack_into('<IBBHQQ',data,1032,1,2,0,2,0x2000,4)
++    struct.pack_into('<IBBHQQ',data,1056,11,1,0,3,0x1000,64)
++    struct.pack_into('<III',data,832,16,0,8);struct.pack_into('<q',data,848,0x1000)
++    data[896:900]=b'TEST'
++    return data
+--- /dev/null
++++ b/tests/unit/m65_unit.cpp
+@@ -0,0 +1,74 @@
++// Actual C++ behavior tests, BSD-3-Clause. No devices or GPU libraries.
++#include "asicprofile.hpp"
++#include "ipdiscovery.hpp"
++#include "offlinevalidation.hpp"
++#include "codeobj.hpp"
++#include <iostream>
++#include <vector>
++#include <cstring>
++void w16(std::vector<uint8_t> &d, size_t p, uint16_t v) { d[p]=uint8_t(v); d[p+1]=uint8_t(v>>8); }
++void w32(std::vector<uint8_t> &d, size_t p, uint32_t v) { w16(d,p,uint16_t(v)); w16(d,p+2,uint16_t(v>>16)); }
++void w64(std::vector<uint8_t> &d, size_t p, uint64_t v) { w32(d,p,uint32_t(v)); w32(d,p+4,uint32_t(v>>32)); }
++uint16_t sum(const std::vector<uint8_t>& d,size_t p,size_t n) { uint16_t s=0; for(size_t i=p;i<p+n;++i)s=uint16_t(s+d[i]); return s; }
++std::vector<uint8_t> fixture(bool wide=false, uint64_t base=0x100) {
++    std::vector<uint8_t> d(344); w32(d,0,0x28211407); w16(d,4,1); w16(d,10,uint16_t(d.size()));
++    w16(d,12,128); w16(d,16,wide?100:96); w16(d,20,256); w16(d,24,88);
++    w32(d,128,0x53445049); w16(d,132,wide?4:3); w16(d,134,wide?100:96);
++    w16(d,140,1); w16(d,144,208); d[206]=wide?1:0;
++    w16(d,210,1); w16(d,212,11); d[215]=1; d[216]=12;
++    if(wide)w64(d,220,base); else w32(d,220,uint32_t(base));
++    w32(d,256,0x4347); w16(d,260,1); w32(d,264,88); w32(d,268,2); w32(d,280,2);
++    w16(d,14,sum(d,128,wide?100:96)); w16(d,22,sum(d,256,88)); w16(d,8,sum(d,10,d.size()-10));
++    return d;
++}
++int main() {
++    unsigned passed=0, failed=0;
++    auto check=[&](const char *name,bool result){ std::cout<<(result?"PASS ":"FAIL ")<<name<<'\n'; result?++passed:++failed; };
++    using namespace Asic;
++    check("navi44_identity",identify(0x1002,0x7590).target==Target::Gfx1200);
++    check("navi48_7550",identify(0x1002,0x7550).target==Target::Gfx1201);
++    check("navi48_7551",identify(0x1002,0x7551).family==Family::Navi48);
++    check("unknown_device",identify(0x1002,0xffff).family==Family::Unknown);
++    check("revision_unverified",!identify(0x1002,0x7590,3,true).revisionVerified);
++    check("topology_unknown",!identify(0x1002,0x7590).topology.verified);
++    check("hardware_permanently_disabled",!hardwareInitializationAllowed());
++    IpDiscovery parser; auto d=fixture();
++    check("discovery_valid",parser.initBinary(d.data(),d.size()));
++    IpDiscovery::IpEntry old{}; check("legacy_entry",parser.ipAt(0,old)&&old.bases[0]==0x100);
++    uint32_t se=0,rb=0; check("gc_info",parser.gcInfo(se,rb)&&se==2&&rb==2);
++    const char *manifestError=nullptr; Offline::FirmwareRequirement needs[16] {}; size_t needCount=0;
++    check("manifest_missing_ip",!Offline::firmwareRequirements(identify(0x1002,0x7590),parser,needs,needCount,&manifestError)&&needCount==0);
++    check("manifest_wrong_gc",!Offline::firmwareRequirements(identify(0x1002,0x7550),parser,needs,needCount,&manifestError));
++    auto wide=fixture(true,UINT64_C(0x100000000));
++    check("discovery_64",parser.initBinary(wide.data(),wide.size()));
++    IpDiscovery::IpEntry64 ip{}; check("high_bits_preserved",parser.ipAt64(0,ip)&&ip.bases[0]==UINT64_C(0x100000000));
++    check("legacy_narrow_rejected",!parser.ipAt(0,old));
++    uint64_t byte=0; check("64bit_byte_offset",parser.regByteOffset64(11,0,0,1,byte)&&byte==UINT64_C(0x400000004));
++    uint32_t narrow=0; check("32bit_offset_rejected",!parser.regByteOffset(11,0,0,1,narrow));
++    check("address_overflow_rejected",!parser.regByteOffset64(11,0,0,UINT64_MAX,byte));
++    bool truncations=true; for(size_t i=0;i<d.size();++i)truncations &= !parser.initBinary(d.data(),i);
++    check("all_truncations",truncations);
++    check("failure_clears_state",!parser.isValid()&&parser.ipCount()==0);
++    d=fixture(); d.back()^=1; check("bad_checksum",!parser.initBinary(d.data(),d.size()));
++    const char *why=nullptr; std::vector<uint8_t> fw(36); w32(fw,0,36);w32(fw,4,32);w16(fw,8,1);
++    w16(fw,12,12);w32(fw,20,4);w32(fw,24,32);
++    check("firmware_header",Offline::firmware(fw.data(),fw.size(),12,0,"pfp",&why));
++    check("firmware_wrong_ip",!Offline::firmware(fw.data(),fw.size(),13,0,"pfp",&why));
++    check("firmware_unknown_component",!Offline::firmware(fw.data(),fw.size(),12,0,"unknown",&why));
++    w32(fw,28,1);check("firmware_crc_fail_closed",!Offline::firmware(fw.data(),fw.size(),12,0,"pfp",&why));
++    uint8_t bad[64]{};check("elf_bad_header",!Offline::elf(bad,64,Target::Gfx1200,&why));
++    check("elf_unknown_target",!Offline::elf(bad,64,Target::Unknown,&why));
++    CodeObj::Image image{};check("old_codeobj_rejects",!CodeObj::parseImage(bad,64,image,&why));
++    Offline::Session session;check("state_cannot_jump",!session.advance(Offline::State::OfflineReady)&&session.state==Offline::State::Failed);
++    check("failed_terminal",!session.advance(Offline::State::PciMatched));
++    Offline::Session good;
++    bool transitions=good.advance(Offline::State::PciMatched)&&good.advance(Offline::State::ProfileValidated)&&
++        good.advance(Offline::State::DiscoveryValidated)&&good.advance(Offline::State::FirmwareRequirementsValidated)&&good.advance(Offline::State::OfflineReady);
++    check("offline_sequence",transitions);
++    check("ready_terminal",!good.advance(Offline::State::Failed));
++    std::vector<uint8_t> abi(32);std::memcpy(abi.data(),"N44I",4);w16(abi,4,1);w16(abi,6,32);
++    w16(abi,8,0x1002);w16(abi,10,0x7590);w16(abi,14,0x48);Profile p{};
++    check("abi_navi44",Offline::deviceInfo(abi.data(),abi.size(),p,&why)&&p.target==Target::Gfx1200);
++    w64(abi,16,1);check("abi_capability_rejected",!Offline::deviceInfo(abi.data(),abi.size(),p,&why));
++    std::cout<<"SUMMARY "<<passed<<' '<<failed<<'\n';return failed?1:0;
++}
+--- /dev/null
++++ b/tests/unit/m65_probe.cpp
+@@ -0,0 +1,95 @@
++// CPU-only stdin protocol. BSD-3-Clause. Never loads a device or driver.
++#include "ipdiscovery.hpp"
++#include "offlinevalidation.hpp"
++#include <iostream>
++#include <sstream>
++#include <string>
++#include <vector>
++
++std::vector<uint8_t> unhex(const std::string &s) {
++    if (s.size() > (2u << 20) || s.size() % 2) throw std::runtime_error("input_size");
++    std::vector<uint8_t> out;
++    for (size_t i = 0; i < s.size(); i += 2) {
++        auto nibble = [](char c) -> unsigned {
++            if (c >= '0' && c <= '9') return c - '0';
++            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
++            throw std::runtime_error("input_hex");
++        };
++        out.push_back(uint8_t(nibble(s[i]) * 16 + nibble(s[i + 1])));
++    }
++    return out;
++}
++void failure(const char *why) { std::cout << "{\"ok\":false,\"error\":\"" << why << "\"}\n"; }
++void success() { std::cout << "{\"ok\":true}\n"; }
++int main() {
++    std::string line;
++    while (std::getline(std::cin, line)) {
++        try {
++            if (line.size() > (2u << 20) + 128) throw std::runtime_error("input_size");
++            std::istringstream in(line); std::string mode, hex; in >> mode;
++            unsigned a = 0, b = 0; std::string component;
++            if (mode == "elf" || mode == "kernel" || mode == "manifest") in >> a;
++            if (mode == "firmware") in >> a >> b >> component;
++            if (mode == "profile") {
++                unsigned revision = 257; in >> a >> b >> revision;
++                if (revision > 256) { failure("revision_range"); continue; }
++                if (a != 0x1002) { failure("unknown_vendor"); continue; }
++                if (b > 65535) { failure("unknown_device"); continue; }
++                const auto p = Asic::identify(uint16_t(a), uint16_t(b), uint8_t(revision), revision != 256);
++                if (p.family == Asic::Family::Unknown) { failure("unknown_device"); continue; }
++                std::cout << "{\"ok\":true,\"asic\":\"" << (p.family == Asic::Family::Navi44 ? "Navi44" : "Navi48")
++                          << "\",\"target\":" << unsigned(p.target) << ",\"revision\":";
++                if (p.revisionKnown) std::cout << unsigned(p.revision); else std::cout << "null";
++                std::cout << ",\"capabilities\":0}\n"; continue;
++            }
++            in >> hex; auto bytes = unhex(hex);
++            const char *error = nullptr;
++            if (mode == "manifest") {
++                IpDiscovery parser;
++                if (!parser.initBinary(bytes.data(),bytes.size())) { failure(parser.error()); continue; }
++                const auto profile = Asic::identify(0x1002,uint16_t(a));
++                if (profile.family == Asic::Family::Unknown) { failure("unknown_device"); continue; }
++                Offline::FirmwareRequirement needs[16] {}; size_t count=0;
++                if (!Offline::firmwareRequirements(profile,parser,needs,count,&error)) { failure(error); continue; }
++                std::cout << "{\"ok\":true,\"requirements\":[";
++                for (size_t i=0;i<count;++i) {
++                    if(i)std::cout<<',';
++                    std::cout<<"[\""<<needs[i].block<<"\",\""<<needs[i].component<<"\","<<unsigned(needs[i].ip.major)
++                             <<','<<unsigned(needs[i].ip.minor)<<','<<unsigned(needs[i].ip.revision)<<']';
++                }
++                std::cout<<"]}\n";
++            } else if (mode == "discovery") {
++                IpDiscovery parser;
++                if (!parser.initBinary(bytes.data(), bytes.size())) { failure(parser.error()); continue; }
++                std::cout << "{\"ok\":true,\"binary_version\":[" << parser.binaryMajor() << ',' << parser.binaryMinor()
++                          << "],\"ipds_version\":" << parser.ipdsVersion() << ",\"address_bits\":" << unsigned(parser.addressBits()) << ",\"ips\":[";
++                for (uint16_t i = 0; i < parser.ipCount(); ++i) {
++                    IpDiscovery::IpEntry64 ip;
++                    if (!parser.ipAt64(i, ip)) throw std::runtime_error("iteration_failure");
++                    if (i) std::cout << ',';
++                    std::cout << '[' << ip.hwId << ',' << unsigned(ip.instance) << ',' << unsigned(ip.major) << ',' << unsigned(ip.minor)
++                              << ',' << unsigned(ip.revision) << ",[";
++                    for (unsigned j = 0; j < ip.numBases; ++j) { if (j) std::cout << ','; std::cout << ip.bases[j]; }
++                    std::cout << "]]";
++                }
++                std::cout << "],\"gc_info\":";
++                uint32_t se = 0, rb = 0;
++                if (parser.gcInfo(se, rb)) std::cout << '[' << se << ',' << rb << ']'; else std::cout << "null";
++                std::cout << "}\n";
++            } else if (mode == "elf") {
++                if (a != 0x48 && a != 0x4e) { failure("unknown_target"); continue; }
++                if (Offline::elf(bytes.data(), bytes.size(), Asic::Target(a), &error)) success(); else failure(error);
++            } else if (mode == "kernel") {
++                if (a != 0x48 && a != 0x4e) { failure("unknown_target"); continue; }
++                if (Offline::elfKernel(bytes.data(),bytes.size(),Asic::Target(a),"synthetic",&error)) success(); else failure(error);
++            } else if (mode == "firmware") {
++                if (Offline::firmware(bytes.data(), bytes.size(), uint16_t(a), uint16_t(b), component.c_str(), &error)) success(); else failure(error);
++            } else if (mode == "abi") {
++                Asic::Profile p;
++                if (Offline::deviceInfo(bytes.data(), bytes.size(), p, &error)) {
++                    std::cout << "{\"ok\":true,\"target\":" << unsigned(p.target) << ",\"capabilities\":0}\n";
++                } else failure(error);
++            } else failure("unknown_mode");
++        } catch (const std::exception &e) { failure(e.what()); }
++    }
++}
+--- /dev/null
++++ b/tests/unit/sanitizer_canary.cpp
+@@ -0,0 +1,13 @@
++// Intentional CPU-only faults in an isolated test process. NEVER GPU code.
++#include <climits>
++#include <cstring>
++int main(int argc, char **argv) {
++    if (argc != 2) return 2;
++    if (!std::strcmp(argv[1], "asan")) {
++        volatile int index = 8;
++        int *p = new int[1]; p[0] = 7;
++        int x = p[index]; delete[] p; return x;
++    }
++    if (!std::strcmp(argv[1], "ubsan")) { volatile int x = INT_MAX; return x + 1; }
++    return 2;
++}
+--- /dev/null
++++ b/tests/unit/sanitizer_smoke.cpp
+@@ -0,0 +1,3 @@
++// No hardware calls. Minimal runtime-startup diagnosis only.
++#include <cstdio>
++int main() { std::puts("sanitizer startup reached main"); return 0; }
+--- a/development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp
+@@ -45,7 +45,8 @@
+ 		for (uint32_t i = 1; i < shnum; i++) {
+ 			const uint8_t *s = sh(i);
+ 			uint64_t addr = u64(s + 16), soff = u64(s + 24), size = u64(s + 32);
+-			if (addr && va >= addr && va - addr < size && inside(n, soff, size)) {
++			if (u32(s + 4) != 8 /* NOBITS */ && (u64(s + 8) & 2 /* ALLOC */) &&
++			    va >= addr && va - addr < size && inside(n, soff, size)) {
+ 				off = soff + (va - addr);
+ 				left = size - (va - addr);
+ 				return true;
+@@ -180,7 +181,16 @@
+ 	out.properties = u16(kd + 56);
+ 
+ 	// The descriptor's entry offset is relative to the descriptor itself.
+-	const uint64_t entryVa = kdVa + static_cast<uint64_t>(entry);
++	uint64_t entryVa;
++	if (entry >= 0) {
++		if (static_cast<uint64_t>(entry) > UINT64_MAX - kdVa)
++			return fail("kernel entry address overflow");
++		entryVa = kdVa + static_cast<uint64_t>(entry);
++	} else {
++		const uint64_t magnitude = 0 - static_cast<uint64_t>(entry);
++		if (magnitude > kdVa) return fail("kernel entry address underflow");
++		entryVa = kdVa - magnitude;
++	}
+ 	if (haveCode && codeVa != entryVa)
+ 		return fail("kernel symbol and descriptor entry disagree");
+ 	uint64_t codeOff, codeLeft;
+--- a/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.hpp
+@@ -51,10 +51,27 @@
+ 		uint8_t  numBases;
+ 		uint32_t bases[MaxBases];   // dword register segment base addresses
+ 	};
++	// Register-segment bases in dword units, NOT PCI BAR physical addresses.
++	// New type leaves the legacy IpEntry layout unchanged.
++	struct IpEntry64 {
++		uint16_t hwId;
++		uint8_t instance, major, minor, revision, numBases;
++		uint64_t bases[MaxBases];
++	};
+ 
+ 	// Scans `buffer` for the discovery binary signature (0x28211407),
+ 	// validates the binary checksum and the IPDS table, and locates die 0.
+ 	bool init(const uint8_t *buffer, size_t bufferSize);
++	bool initBinary(const uint8_t *buffer, size_t bufferSize);
++	const char *error() const { return lastError; }
++	uint16_t binaryMajor() const { return majorVersion; }
++	uint16_t binaryMinor() const { return minorVersion; }
++	uint16_t ipdsVersion() const { return ipVersion; }
++	uint8_t addressBits() const { return addressWidth * 8; }
++	bool ipAt64(uint16_t index, IpEntry64 &out) const;
++	bool findIp64(uint16_t hwId, uint8_t instance, IpEntry64 &out) const;
++	bool regByteOffset64(uint16_t hwId, uint8_t instance, uint8_t segment,
++	                     uint64_t dwordOffset, uint64_t &byteOffset) const;
+ 
+ 	bool isValid() const { return valid; }
+ 	size_t binaryOffset() const { return binBase; }
+@@ -89,6 +106,13 @@
+ 	size_t binEnd { 0 }, ipEnd { 0 };    // offset of die_header in data
+ 	uint16_t numIps { 0 };
+ 	bool valid { false };
++	const char *lastError { "not_initialized" };
++	uint16_t majorVersion {0}, minorVersion {0}, ipVersion {0};
++	uint8_t addressWidth {4};
++	size_t entryOffsets[256] {};
++	bool haveGc {false};
++	uint32_t gcSe {0}, gcRb {0}, gcVersion {0};
++	bool fail(const char *why);
+ 
+ 	bool validateBinary(size_t offset);
+ 
+--- a/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp
+@@ -1,237 +1,185 @@
+-//
+-//  ipdiscovery.cpp
+-//  AMDRadeonRDNA4
+-//
+-//  See ipdiscovery.hpp for scope and the ROM this was validated against.
+-//
+-
++// Allocation-free Discovery parser, BSD-3-Clause; original LICENSE retained.
++// Format pin: Linux 24a19b953e2a3d0ea5a8c4951a0ab8f32720c907 discovery.h.
++// No register access. Caller retains immutable input for the view lifetime.
+ #include "ipdiscovery.hpp"
+ 
+-// binary_header (discovery.h): u32 signature, u16 version_major,
+-// u16 version_minor, u16 binary_checksum, u16 binary_size, then the
+-// table_info list (v1: at +12; v2: u16 num_tables u16 pad, list at +16).
+-static constexpr uint32_t kBinarySignature = 0x28211407;
+-// table_info: u16 offset (from binary start), u16 checksum, u16 size, u16 pad.
+-// Table index 0 is IP_DISCOVERY.
+-// ip_discovery_header: u32 "IPDS", u16 version, u16 size, u32 id,
+-// u16 num_dies, then die_info[16] {u16 die_id; u16 die_offset} — offsets
+-// relative to the *binary* start, not the table.
+-static constexpr uint32_t kIpdsSignature = 0x53445049; // "IPDS" LE
++namespace {
++bool inside(size_t n, size_t off, size_t count) { return off <= n && count <= n - off; }
++uint16_t u16(const uint8_t *p) { return uint16_t(p[0]) | uint16_t(p[1]) << 8; }
++uint32_t u32(const uint8_t *p) { return uint32_t(u16(p)) | uint32_t(u16(p + 2)) << 16; }
++uint64_t u64(const uint8_t *p) { return uint64_t(u32(p)) | uint64_t(u32(p + 4)) << 32; }
++uint16_t sum(const uint8_t *p, size_t n) {
++    uint16_t value = 0;
++    for (size_t i = 0; i < n; ++i) value = uint16_t(value + p[i]);
++    return value;
++}
++}
++
++bool IpDiscovery::fail(const char *why) {
++    valid = false; numIps = 0; haveGc = false;
++    binBase = dieBase = binEnd = ipEnd = 0;
++    lastError = why;
++    return false;
++}
+ 
+ bool IpDiscovery::readU8(size_t off, uint8_t &v) const {
+-	if (off >= size) return false;
+-	v = data[off];
+-	return true;
++    if (!data || !inside(size, off, 1)) return false;
++    v = data[off]; return true;
++}
++bool IpDiscovery::readU16(size_t off, uint16_t &v) const {
++    if (!data || !inside(size, off, 2)) return false;
++    v = u16(data + off); return true;
++}
++bool IpDiscovery::readU32(size_t off, uint32_t &v) const {
++    if (!data || !inside(size, off, 4)) return false;
++    v = u32(data + off); return true;
+ }
+ 
+-bool IpDiscovery::readU16(size_t off, uint16_t &v) const {
+-	if (off > size || 2 > size - off) return false;
+-	v = static_cast<uint16_t>(data[off] | (data[off + 1] << 8));
+-	return true;
++bool IpDiscovery::initBinary(const uint8_t *buffer, size_t bufferSize) {
++    data = buffer; size = bufferSize;
++    fail("not_initialized");
++    if (!data || !inside(size, 0, 12)) return fail("out_of_bounds");
++    return validateBinary(0);
+ }
+ 
+-bool IpDiscovery::readU32(size_t off, uint32_t &v) const {
+-	if (off > size || 4 > size - off) return false;
+-	v = static_cast<uint32_t>(data[off]) |
+-	    (static_cast<uint32_t>(data[off + 1]) << 8) |
+-	    (static_cast<uint32_t>(data[off + 2]) << 16) |
+-	    (static_cast<uint32_t>(data[off + 3]) << 24);
+-	return true;
++bool IpDiscovery::init(const uint8_t *buffer, size_t bufferSize) {
++    data = buffer; size = bufferSize;
++    fail("not_initialized");
++    if (!data || size < 12) return fail("out_of_bounds");
++    // Legacy ROM scan, bounded in subtraction form. Exact host input uses initBinary.
++    for (size_t off = 0; off <= size - 12; off += 4) {
++        if (u32(data + off) == 0x28211407 && validateBinary(off)) return true;
++    }
++    return fail("binary_magic");
+ }
+ 
+ bool IpDiscovery::validateBinary(size_t offset) {
+-	uint16_t vmajor, checksum, binSize;
+-	if (!readU16(offset + 4, vmajor) || !readU16(offset + 8, checksum) ||
+-	    !readU16(offset + 10, binSize))
+-		return false;
+-	if (offset > size || binSize < 60 || binSize > size - offset ||
+-	    (vmajor != 1 && vmajor != 2))
+-		return false;
+-	uint16_t vminor;
+-	if (!readU16(offset + 6, vminor) || (vmajor == 1 ? vminor > 3 : vminor != 0))
+-		return false;
+-
+-	// Checksum: 16-bit byte sum of everything after the checksum field.
+-	uint16_t sum = 0;
+-	for (size_t i = offset + 10; i < offset + binSize; i++)
+-		sum = static_cast<uint16_t>(sum + data[i]);
+-	if (sum != checksum)
+-		return false;
+-
+-	// IP_DISCOVERY is table_list[0]; list position depends on header version.
+-	size_t tableList = offset + (vmajor >= 2 ? 16 : 12);
+-	uint16_t ipdOffset, ipdSize;
+-	if (!readU16(tableList, ipdOffset) || !readU16(tableList + 4, ipdSize) ||
+-	    ipdOffset == 0 || ipdSize < 80)
+-		return false;
+-
+-	const size_t listBytes = vmajor == 1 ? 48 : 0;
+-	uint16_t tableCount = 6;
+-	if (vmajor == 2 && (!readU16(offset + 12, tableCount) || !tableCount || tableCount > 6)) return false;
+-	const size_t headerBytes = (vmajor == 1 ? 12 : 16) + (vmajor == 1 ? listBytes : 8u * tableCount);
+-	if (headerBytes > binSize || ipdOffset < headerBytes || ipdOffset > binSize || ipdSize > binSize - ipdOffset) return false;
+-	uint16_t tableSum;
+-	if (!readU16(tableList + 2, tableSum)) return false;
+-	uint16_t actualSum = 0;
+-	for (size_t i = offset + ipdOffset; i < offset + ipdOffset + ipdSize; ++i) actualSum = static_cast<uint16_t>(actualSum + data[i]);
+-	if (actualSum != tableSum) return false;
+-	size_t ipd = offset + ipdOffset;
+-	uint32_t sig;
+-	uint16_t numDies;
+-	if (!readU32(ipd, sig) || sig != kIpdsSignature || !readU16(ipd + 12, numDies) || numDies != 1)
+-		return false;
+-	uint32_t tableId;
+-	if (!readU32(ipd + 8, tableId) || tableId != 0) return false;
+-
+-	uint16_t ipVersion, declaredSize;
+-	if (!readU16(ipd + 4, ipVersion) || (ipVersion != 3 && ipVersion != 4) ||
+-	    !readU16(ipd + 6, declaredSize) || declaredSize != ipdSize || data[ipd + 78] || data[ipd + 79]) return false;
+-	// Legacy 32-bit API: reject 64-bit encoding instead of truncation.
+-	uint16_t dieOffset;
+-	if (!readU16(ipd + 16, dieOffset) || dieOffset < ipdOffset + 80 || dieOffset > binSize || 4 > binSize - dieOffset)
+-		return false;
+-
+-	size_t die = offset + dieOffset;
+-	uint16_t nips;
+-	if (!readU16(die + 2, nips) || nips == 0 || nips > 256)
+-		return false;
+-
+-	const size_t tableEnd = ipd + ipdSize;
+-	if (die < ipd + 80 || die > tableEnd || 4 > tableEnd - die) return false;
+-	size_t p = die + 4;
+-	for (uint16_t i = 0; i < nips; ++i) {
+-		if (p > tableEnd || 8 > tableEnd - p) return false;
+-		const uint8_t count = data[p + 3];
+-		if (!count || count > MaxBases || 4u * count > tableEnd - p - 8) return false;
+-		size_t q = die + 4;
+-		for (uint16_t j = 0; j < i; ++j) {
+-			if (data[p] == data[q] && data[p + 1] == data[q + 1] && data[p + 2] == data[q + 2]) return false;
+-			q += 8 + 4u * data[q + 3];
+-		}
+-		p += 8 + 4u * count;
+-	}
+-	binEnd = offset + binSize;
+-	ipEnd = tableEnd;
+-	binBase = offset;
+-	dieBase = die;
+-	numIps = nips;
+-	return true;
++    if (!inside(size, offset, 12)) return fail("out_of_bounds");
++    const uint8_t *d = data + offset;
++    const size_t available = size - offset;
++    if (u32(d) != 0x28211407) return fail("binary_magic");
++    majorVersion = u16(d + 4); minorVersion = u16(d + 6);
++    if ((majorVersion == 1 && minorVersion > 3) ||
++        (majorVersion == 2 && minorVersion != 0) || (majorVersion != 1 && majorVersion != 2))
++        return fail("binary_version");
++    const size_t n = u16(d + 10);
++    if (!inside(available, 0, n)) return fail("out_of_bounds");
++    const size_t start = majorVersion == 1 ? 12 : 16;
++    if (majorVersion == 2 && !inside(available, 12, 2)) return fail("out_of_bounds");
++    const uint16_t count = majorVersion == 1 ? 6 : u16(d + 12);
++    if (!count || count > 6) return fail("table_count");
++    if (!inside(n, start, size_t(count) * 8)) return fail("out_of_bounds");
++    if (sum(d + 10, n - 10) != u16(d + 8)) return fail("binary_checksum");
++    uint16_t offsets[6] {}, lengths[6] {};
++    for (uint16_t i = 0; i < count; ++i) {
++        const uint8_t *t = d + start + i * 8;
++        const uint16_t off = u16(t), checksum = u16(t + 2), length = u16(t + 4);
++        if (!off && !checksum && !length) continue;
++        if (!off || !length || off < start + count * 8) return fail("table_range");
++        if (!inside(n, off, length)) return fail("out_of_bounds");
++        for (uint16_t j = 0; j < i; ++j)
++            if (lengths[j] && off < size_t(offsets[j]) + lengths[j] && offsets[j] < size_t(off) + length)
++                return fail("table_overlap");
++        if (sum(d + off, length) != checksum) return fail("table_checksum");
++        offsets[i] = off; lengths[i] = length;
++    }
++    if (!lengths[0]) return fail("missing_ipds");
++    const size_t off = offsets[0], length = lengths[0], end = off + length;
++    if (length < 80) return fail("out_of_bounds");
++    if (u32(d + off) != 0x53445049 || u32(d + off + 8) != 0) return fail("ipds_magic_or_id");
++    ipVersion = u16(d + off + 4);
++    if (ipVersion != 3 && ipVersion != 4) return fail("ipds_version");
++    if (u16(d + off + 6) != length || u16(d + off + 12) != 1) return fail("ipds_size_or_die_count");
++    const uint8_t flags = d[off + 78];
++    if (d[off + 79] || (flags & ~1u) || (ipVersion == 3 && flags)) return fail("ipds_flags");
++    addressWidth = (flags & 1) ? 8 : 4;
++    const size_t die = u16(d + off + 16);
++    if (die < off + 80) return fail("die_offset");
++    if (!inside(end, die, 4)) return fail("out_of_bounds");
++    const uint16_t ips = u16(d + die + 2);
++    if (u16(d + die) != u16(d + off + 14) || !ips || ips > 256) return fail("die_id_or_ip_count");
++    size_t p = die + 4;
++    for (uint16_t i = 0; i < ips; ++i) {
++        if (!inside(end, p, 8)) return fail("out_of_bounds");
++        const uint8_t bases = d[p + 3];
++        if (!bases || bases > MaxBases) return fail("base_count");
++        if (!inside(end, p + 8, size_t(bases) * addressWidth)) return fail("out_of_bounds");
++        for (uint8_t b = 0; b < bases; ++b) {
++            const uint8_t *base = d + p + 8 + b * addressWidth;
++            const uint64_t value = addressWidth == 8 ? u64(base) : u32(base);
++            if (value > UINT64_MAX / 4) return fail("register_address_overflow");
++        }
++        for (uint16_t j = 0; j < i; ++j) {
++            const uint8_t *previous = data + entryOffsets[j];
++            if (u16(previous) == u16(d + p) && previous[2] == d[p + 2]) return fail("duplicate_ip");
++        }
++        entryOffsets[i] = offset + p;
++        p += 8 + size_t(bases) * addressWidth;
++    }
++    if (count > 1 && lengths[1]) {
++        const size_t gc = offsets[1], glen = lengths[1];
++        if (glen < 28) return fail("out_of_bounds");
++        const uint16_t a = u16(d + gc + 4), b = u16(d + gc + 6);
++        if (u32(d + gc) != 0x4347 || b || (a != 1 && a != 2)) return fail("gc_info_version");
++        if (u32(d + gc + 8) != glen || glen < (a == 1 ? 88u : 80u)) return fail("gc_info_size");
++        gcSe = u32(d + gc + 12); gcRb = u32(d + gc + 24);
++        if (!gcSe || !gcRb) return fail("gc_info_zero");
++        haveGc = true; gcVersion = uint32_t(a) << 16 | b;
++    }
++    binBase = offset; binEnd = offset + n; dieBase = offset + die; ipEnd = offset + end;
++    numIps = ips; valid = true; lastError = nullptr;
++    return true;
+ }
+ 
+-bool IpDiscovery::init(const uint8_t *buffer, size_t bufferSize) {
+-	data = buffer;
+-	size = bufferSize;
+-	valid = false;
+-	numIps = 0; binBase = dieBase = binEnd = ipEnd = 0;
+-	if (!data || size < 512)
+-		return false;
+-
+-	// The binary is not alignment-guaranteed within a flash dump (this ROM:
+-	// 0x34900); scan for the signature on 4-byte steps.
+-	for (size_t off = 0; off + 512 <= size; off += 4) {
+-		uint32_t sig;
+-		if (readU32(off, sig) && sig == kBinarySignature && validateBinary(off)) {
+-			valid = true;
+-			return true;
+-		}
+-	}
+-	return false;
++bool IpDiscovery::ipAt64(uint16_t index, IpEntry64 &out) const {
++    out = IpEntry64 {};
++    if (!valid || index >= numIps) return false;
++    const uint8_t *p = data + entryOffsets[index];
++    out.hwId = u16(p); out.instance = p[2]; out.numBases = p[3];
++    out.major = p[4]; out.minor = p[5]; out.revision = p[6];
++    for (uint8_t i = 0; i < out.numBases; ++i)
++        out.bases[i] = addressWidth == 8 ? u64(p + 8 + i * 8) : u32(p + 8 + i * 4);
++    return true;
+ }
+-
+-bool IpDiscovery::gcInfo(uint32_t &numSe, uint32_t &numRbPerSe, uint32_t *version) const {
+-	if (!valid)
+-		return false;
+-	uint16_t vmajor, tblOff;
+-	if (!readU16(binBase + 4, vmajor))
+-		return false;
+-	uint16_t tableCount = 6;
+-	if (vmajor == 2 && (!readU16(binBase + 12, tableCount) || tableCount < 2 || tableCount > 6))
+-		return false;
+-	// GC is table_list[1] (enum table in discovery.h); table_info is 8 bytes.
+-	const size_t tableList = binBase + (vmajor >= 2 ? 16 : 12);
+-	if (!readU16(tableList + 8, tblOff) || !tblOff)
+-		return false;
+-	// gpu_info_header is 12 bytes (u32 table_id, u16 major, u16 minor, u32
+-	// size); gc_info v1_0 and v2_0 both put gc_num_se right after it and
+-	// gc_num_rb_per_se three dwords on.
+-	uint16_t gcSize, gcCheck;
+-	if (!readU16(tableList + 12, gcSize) || !readU16(tableList + 10, gcCheck) ||
+-	    tblOff > binEnd - binBase || gcSize > binEnd - binBase - tblOff || gcSize < 28) return false;
+-	const size_t gc = binBase + tblOff;
+-	uint16_t ipOffset;
+-	if (!readU16(tableList, ipOffset) || gc < tableList + 8u * tableCount ||
+-	    (gc < ipEnd && gc + gcSize > binBase + ipOffset)) return false;
+-	uint16_t sum = 0;
+-	for (size_t i = gc; i < gc + gcSize; ++i) sum = static_cast<uint16_t>(sum + data[i]);
+-	if (sum != gcCheck) return false;
+-	uint32_t declaredGc;
+-	if (!readU32(gc + 8, declaredGc) || declaredGc != gcSize) return false;
+-	// GC_TABLE_ID (discovery.h:30) is what amdgpu checks the table with
+-	// (amdgpu_discovery.c:648) before it reads a field.
+-	uint32_t tableId;
+-	uint16_t gcMajor, gcMinor;
+-	if (!readU32(gc, tableId) || tableId != 0x4347 || !readU16(gc + 4, gcMajor) ||
+-	    !readU16(gc + 6, gcMinor) || (gcMajor != 1 && gcMajor != 2) || gcMinor != 0 || gcSize < (gcMajor == 1 ? 88 : 80))
+-		return false;
+-	uint32_t se, rb;   // outputs only change on success
+-	if (!readU32(gc + 12, se) || !readU32(gc + 12 + 12, rb))
+-		return false;
+-	if (!se || !rb) return false;
+-	numSe = se;
+-	numRbPerSe = rb;
+-	if (version)
+-		*version = (static_cast<uint32_t>(gcMajor) << 16) | gcMinor;
+-	return true;
++bool IpDiscovery::ipAt(uint16_t index, IpEntry &out) const {
++    out = IpEntry {};
++    IpEntry64 ip;
++    if (!ipAt64(index, ip)) return false;
++    for (uint8_t i = 0; i < ip.numBases; ++i) if (ip.bases[i] > UINT32_MAX) return false;
++    out.hwId = ip.hwId; out.instance = ip.instance; out.numBases = ip.numBases;
++    out.major = ip.major; out.minor = ip.minor; out.revision = ip.revision;
++    for (uint8_t i = 0; i < ip.numBases; ++i) out.bases[i] = uint32_t(ip.bases[i]);
++    return true;
+ }
+-
+-bool IpDiscovery::ipAt(uint16_t index, IpEntry &out) const {
+-	if (!valid || index >= numIps)
+-		return false;
+-
+-	// ip_v3/v4 with 32-bit bases: u16 hw_id, u8 instance, u8 num_base,
+-	// u8 major, u8 minor, u8 revision, u8 sub/variant, u32 bases[].
+-	// Walk the variable-size records to the requested index.
+-	size_t p = dieBase + 4;
+-	for (uint16_t i = 0; ; i++) {
+-		uint16_t hwId;
+-		uint8_t inst, nbase, major, minor, rev;
+-		if (!readU16(p, hwId) || !readU8(p + 2, inst) || !readU8(p + 3, nbase) ||
+-		    !readU8(p + 4, major) || !readU8(p + 5, minor) || !readU8(p + 6, rev))
+-			return false;
+-
+-		if (i == index) {
+-			out.hwId = hwId;
+-			out.instance = inst;
+-			out.major = major;
+-			out.minor = minor;
+-			out.revision = rev;
+-			out.numBases = nbase < MaxBases ? nbase : MaxBases;
+-			for (uint8_t b = 0; b < out.numBases; b++)
+-				if (!readU32(p + 8 + 4u * b, out.bases[b]))
+-					return false;
+-			return true;
+-		}
+-		p += 8 + 4u * nbase;
+-	}
++bool IpDiscovery::findIp64(uint16_t hwId, uint8_t instance, IpEntry64 &out) const {
++    for (uint16_t i = 0; i < numIps; ++i) {
++        if (!ipAt64(i, out)) return false;
++        if (out.hwId == hwId && out.instance == instance) return true;
++    }
++    out = IpEntry64 {}; return false;
+ }
+-
+ bool IpDiscovery::findIp(uint16_t hwId, uint8_t instance, IpEntry &out) const {
+-	for (uint16_t i = 0; i < numIps; i++) {
+-		if (!ipAt(i, out))
+-			return false;
+-		if (out.hwId == hwId && out.instance == instance)
+-			return true;
+-	}
+-	return false;
++    for (uint16_t i = 0; i < numIps; ++i) {
++        IpEntry64 ip;
++        if (!ipAt64(i, ip)) return false;
++        if (ip.hwId == hwId && ip.instance == instance) return ipAt(i, out);
++    }
++    out = IpEntry {}; return false;
+ }
+-
+-bool IpDiscovery::regByteOffset(uint16_t hwId, uint8_t instance, uint8_t segment,
+-                                uint32_t regDwordOffset, uint32_t &byteOffset) const {
+-	IpEntry ip;
+-	if (!findIp(hwId, instance, ip) || segment >= ip.numBases)
+-		return false;
+-	const uint64_t off = (static_cast<uint64_t>(ip.bases[segment]) + regDwordOffset) * 4;
+-	if (off > UINT32_MAX) return false;
+-	byteOffset = static_cast<uint32_t>(off);
+-	return true;
++bool IpDiscovery::gcInfo(uint32_t &se, uint32_t &rb, uint32_t *version) const {
++    if (!valid || !haveGc) return false;
++    se = gcSe; rb = gcRb; if (version) *version = gcVersion; return true;
+ }
++bool IpDiscovery::regByteOffset64(uint16_t hw, uint8_t instance, uint8_t segment,
++                                 uint64_t add, uint64_t &out) const {
++    IpEntry64 ip;
++    if (!findIp64(hw, instance, ip) || segment >= ip.numBases ||
++        add > UINT64_MAX / 4 || ip.bases[segment] > UINT64_MAX / 4 - add) return false;
++    out = (ip.bases[segment] + add) * 4; return true;
++}
++bool IpDiscovery::regByteOffset(uint16_t hw, uint8_t instance, uint8_t segment,
++                               uint32_t add, uint32_t &out) const {
++    uint64_t value;
++    if (!regByteOffset64(hw, instance, segment, add, value) || value > UINT32_MAX) return false;
++    out = uint32_t(value); return true;
++}
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.hpp
+@@ -0,0 +1,30 @@
++// Hardware-independent host validation. BSD-3-Clause; no IOKit/GPU APIs.
++#ifndef Navi44OfflineValidation_hpp
++#define Navi44OfflineValidation_hpp
++#include <stddef.h>
++#include <stdint.h>
++#include "asicprofile.hpp"
++#include "ipdiscovery.hpp"
++namespace Offline {
++bool firmware(const uint8_t *, size_t, uint16_t ipMajor, uint16_t ipMinor,
++              const char *component, const char **error);
++bool elf(const uint8_t *, size_t, Asic::Target, const char **error);
++bool elfKernel(const uint8_t *, size_t, Asic::Target, const char *kernelName, const char **error);
++bool deviceInfo(const uint8_t *, size_t, Asic::Profile &, const char **error);
++struct FirmwareRequirement { const char *block, *component; Asic::IpVersion ip; };
++bool firmwareRequirements(const Asic::Profile &, const IpDiscovery &,
++                          FirmwareRequirement (&out)[16], size_t &count, const char **error);
++enum class State { Unknown, PciMatched, ProfileValidated, DiscoveryValidated,
++                   FirmwareRequirementsValidated, OfflineReady, Failed };
++class Session {
++public:
++    State state { State::Unknown };
++    bool advance(State next) {
++        if (state == State::Failed || state == State::OfflineReady) return false;
++        if (next == State::Failed) { state = next; return true; }
++        if (static_cast<int>(next) != static_cast<int>(state) + 1) { state = State::Failed; return false; }
++        state = next; return true;
++    }
++};
++}
++#endif
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp
+@@ -0,0 +1,255 @@
++// New BSD-3-Clause host layer. STL used only here; not a kernel ABI claim.
++#include "offlinevalidation.hpp"
++#include "codeobj.hpp"
++#include <map>
++#include <string>
++#include <vector>
++#include <stdexcept>
++#include <cstring>
++
++namespace {
++struct Invalid { const char *why; };
++void range(uint64_t n, uint64_t off, uint64_t count) {
++    if (off > n || count > n - off) throw Invalid {"out_of_bounds"};
++}
++uint16_t u16(const uint8_t *p) { return uint16_t(p[0]) | uint16_t(p[1]) << 8; }
++uint32_t u32(const uint8_t *p) { return uint32_t(u16(p)) | uint32_t(u16(p + 2)) << 16; }
++uint64_t u64(const uint8_t *p) { return uint64_t(u32(p)) | uint64_t(u32(p + 4)) << 32; }
++struct Value {
++    enum Kind { Number, String, Map, Array } kind;
++    uint64_t number {0}; std::string string;
++    std::map<std::string, Value> map;
++    std::vector<Value> array;
++    explicit Value(Kind k) : kind(k) {}
++};
++bool utf8(const std::string &s) {
++    for (size_t i = 0; i < s.size();) {
++        uint32_t c = static_cast<uint8_t>(s[i++]);
++        if (c < 0x80) continue;
++        unsigned following; uint32_t minimum;
++        if (c >= 0xc2 && c <= 0xdf) { following = 1; minimum = 0x80; c &= 31; }
++        else if (c >= 0xe0 && c <= 0xef) { following = 2; minimum = 0x800; c &= 15; }
++        else if (c >= 0xf0 && c <= 0xf4) { following = 3; minimum = 0x10000; c &= 7; }
++        else return false;
++        if (following > s.size() - i) return false;
++        while (following--) { uint8_t b = uint8_t(s[i++]); if ((b & 0xc0) != 0x80) return false; c = (c << 6) | (b & 63); }
++        if (c < minimum || c > 0x10ffff || (c >= 0xd800 && c <= 0xdfff)) return false;
++    }
++    return true;
++}
++class Metadata {
++    const uint8_t *d; size_t n, pos {0};
++    uint64_t big(unsigned width) {
++        range(n, pos, width); uint64_t x = 0;
++        while (width--) x = (x << 8) | d[pos++];
++        return x;
++    }
++    Value parse(unsigned depth) {
++        if (depth > 16) throw Invalid {"metadata_depth"};
++        range(n, pos, 1); const uint8_t tag = d[pos++];
++        if (tag < 0x80) { Value v(Value::Number); v.number = tag; return v; }
++        if ((tag >= 0xa0 && tag <= 0xbf) || tag == 0xd9 || tag == 0xda || tag == 0xdb) {
++            const uint64_t count = tag <= 0xbf ? tag & 31 : big(tag == 0xd9 ? 1 : tag == 0xda ? 2 : 4);
++            range(n, pos, count); Value v(Value::String);
++            v.string.assign(reinterpret_cast<const char *>(d + pos), size_t(count)); pos += size_t(count);
++            if (!utf8(v.string)) throw Invalid {"metadata_utf8"};
++            return v;
++        }
++        const bool map = (tag >= 0x80 && tag <= 0x8f) || tag == 0xde || tag == 0xdf;
++        const bool array = (tag >= 0x90 && tag <= 0x9f) || tag == 0xdc || tag == 0xdd;
++        if (map || array) {
++            const uint64_t count = tag < 0xa0 ? tag & 15 : big(tag == 0xdc || tag == 0xde ? 2 : 4);
++            if (count > 4096) throw Invalid {"metadata_count"};
++            Value v(map ? Value::Map : Value::Array);
++            for (uint64_t i = 0; i < count; ++i) {
++                Value x = parse(depth + 1);
++                if (map) {
++                    if (x.kind != Value::String || v.map.count(x.string)) throw Invalid {"metadata_key"};
++                    v.map.emplace(x.string, parse(depth + 1));
++                } else v.array.emplace_back(std::move(x));
++            }
++            return v;
++        }
++        if (tag >= 0xcc && tag <= 0xcf) { Value v(Value::Number); v.number = big(1u << (tag - 0xcc)); return v; }
++        throw Invalid {"metadata_encoding_unsupported"};
++    }
++public:
++    Metadata(const uint8_t *input, size_t length) : d(input), n(length) {}
++    Value validate() {
++        Value v = parse(0);
++        if (pos != n || v.kind != Value::Map) throw Invalid {"metadata_envelope"};
++        const auto version = v.map.find("amdhsa.version"), kernels = v.map.find("amdhsa.kernels");
++        if (version == v.map.end() || version->second.kind != Value::Array || version->second.array.size() != 2 ||
++            version->second.array[0].kind != Value::Number || version->second.array[1].kind != Value::Number)
++            throw Invalid {"metadata_version_missing"};
++        if (version->second.array[0].number != 1 || version->second.array[1].number > 2)
++            throw Invalid {"metadata_version_unsupported"};
++        if (kernels == v.map.end() || kernels->second.kind != Value::Array || kernels->second.array.empty())
++            throw Invalid {"metadata_kernels_missing"};
++        for (const Value &kernel : kernels->second.array) {
++            if (kernel.kind != Value::Map) throw Invalid {"metadata_kernel_identity_missing"};
++            for (const char *key : {".name", ".symbol"}) {
++                const auto it = kernel.map.find(key);
++                if (it == kernel.map.end() || it->second.kind != Value::String || it->second.string.empty())
++                    throw Invalid {"metadata_kernel_identity_missing"};
++            }
++            const auto size = kernel.map.find(".kernarg_segment_size");
++            if (size == kernel.map.end() || size->second.kind != Value::Number || size->second.number > UINT32_MAX)
++                throw Invalid {"metadata_kernarg_missing"};
++        }
++        return v;
++    }
++};
++
++bool validateElf(const uint8_t *d, size_t n, Asic::Target target, const char *kernelName = nullptr) {
++    if (target != Asic::Target::Gfx1200 && target != Asic::Target::Gfx1201) throw Invalid {"unknown_target"};
++    if (!d) throw Invalid {"out_of_bounds"};
++    range(n, 0, 64);
++    const uint8_t ident[] = {0x7f, 'E', 'L', 'F', 2, 1, 1};
++    if (std::memcmp(d, ident, sizeof(ident))) throw Invalid {"elf_ident"};
++    if (u16(d + 16) != 3 || u16(d + 18) != 224 || u32(d + 20) != 1)
++        throw Invalid {"elf_type_machine_version"};
++    if ((u32(d + 48) & 255) != uint32_t(target)) throw Invalid {"elf_target_mismatch"};
++    const uint16_t phSize = u16(d + 54), phCount = u16(d + 56), shSize = u16(d + 58), shCount = u16(d + 60);
++    const uint64_t phOff = u64(d + 32), shOff = u64(d + 40);
++    if (u16(d + 52) != 64 || phSize != 56 || shSize != 64 || !phCount || !shCount)
++        throw Invalid {"elf_tables_missing"};
++    range(n, phOff, uint64_t(phSize) * phCount); range(n, shOff, uint64_t(shSize) * shCount);
++    // Complete section validation must precede metadata -> descriptor lookup.
++    // Otherwise a corrupt later string table is diagnosed only after traversal.
++    for (unsigned i = 0; i < shCount; ++i) {
++        const uint8_t *s = d + shOff + uint64_t(i) * shSize;
++        if (u32(s + 4) != 8) range(n, u64(s + 24), u64(s + 32));
++    }
++    unsigned loads = 0; bool metadata = false;
++    for (unsigned i = 0; i < phCount; ++i) {
++        const uint8_t *p = d + phOff + uint64_t(i) * phSize;
++        if (u32(p) != 1) continue;
++        const uint64_t off = u64(p + 8), va = u64(p + 16), file = u64(p + 32), mem = u64(p + 40);
++        range(n, off, file); range(16u << 20, va, mem);
++        if (!file || file > mem) throw Invalid {"elf_load_size"};
++        ++loads;
++    }
++    for (unsigned i = 0; i < shCount; ++i) {
++        const uint8_t *s = d + shOff + uint64_t(i) * shSize;
++        const uint32_t type = u32(s + 4); const uint64_t off = u64(s + 24), size = u64(s + 32);
++        // Validate every file-backed section, not only SHT_NOTE.
++        if (type != 8) range(n, off, size);
++        if (type != 7) continue;
++        const uint64_t end = off + size; uint64_t p = off;
++        while (p < end) {
++            range(end, p, 12);
++            const uint64_t names = u32(d + p), descs = u32(d + p + 4);
++            const uint32_t noteType = u32(d + p + 8);
++            const uint64_t name = p + 12, desc = name + ((names + 3) & ~uint64_t(3));
++            const uint64_t next = desc + ((descs + 3) & ~uint64_t(3));
++            range(end, name, names); range(end, desc, descs); range(end, p, next - p);
++            if (names == 7 && !std::memcmp(d + name, "AMDGPU\0", 7) && noteType == 32 && descs) {
++                if (metadata) throw Invalid {"elf_duplicate_metadata"};
++                Value decoded = Metadata(d + desc, size_t(descs)).validate(); metadata = true;
++                if (kernelName) {
++                    bool found = false;
++                    for (const auto &k : decoded.map.at("amdhsa.kernels").array) {
++                        if (k.map.at(".name").string != kernelName) continue;
++                        if (found) throw Invalid {"elf_kernel_metadata_duplicate"};
++                        found = true;
++                        if (k.map.at(".symbol").string != std::string(kernelName) + ".kd")
++                            throw Invalid {"elf_kernel_symbol_mismatch"};
++                        CodeObj::Kernel kernel {}; const char *detail = nullptr;
++                        if (!CodeObj::findKernel(d, n, kernelName, kernel, &detail, target))
++                            throw Invalid {"elf_descriptor_invalid"};
++                        if (k.map.at(".kernarg_segment_size").number != kernel.kernargSize)
++                            throw Invalid {"elf_descriptor_mismatch"};
++                        for (auto pair : {std::make_pair(".group_segment_fixed_size",kernel.groupSegmentSize),
++                                          std::make_pair(".private_segment_fixed_size",kernel.privateSegmentSize)}) {
++                            const auto it = k.map.find(pair.first);
++                            if (it != k.map.end() && (it->second.kind != Value::Number || it->second.number != pair.second))
++                                throw Invalid {"elf_descriptor_mismatch"};
++                        }
++                    }
++                    if (!found) throw Invalid {"elf_kernel_metadata_missing"};
++                }
++            }
++            p = next;
++        }
++    }
++    if (!loads || !metadata) throw Invalid {"elf_load_or_metadata_missing"};
++    return true;
++}
++}
++
++bool Offline::elf(const uint8_t *d, size_t n, Asic::Target target, const char **why) {
++    try { validateElf(d, n, target); if (why) *why = nullptr; return true; }
++    catch (const Invalid &e) { if (why) *why = e.why; return false; }
++}
++bool Offline::elfKernel(const uint8_t *d, size_t n, Asic::Target target, const char *name, const char **why) {
++    try {
++        if (!name || !*name) throw Invalid {"elf_kernel_metadata_missing"};
++        validateElf(d, n, target, name); if (why) *why = nullptr; return true;
++    } catch (const Invalid &e) { if (why) *why = e.why; return false; }
++}
++
++bool Offline::firmware(const uint8_t *d, size_t n, uint16_t major, uint16_t minor,
++                       const char *component, const char **why) {
++    try {
++        if (!d) throw Invalid {"out_of_bounds"};
++        range(n, 0, 32);
++        if (u16(d + 8) != 1 || u16(d + 10) != 0) throw Invalid {"firmware_header_version"};
++        const uint32_t size = u32(d), header = u32(d + 4), count = u32(d + 20), off = u32(d + 24);
++        if (size != n || header < 32 || header > size || off < header || !count) throw Invalid {"firmware_size"};
++        range(size, off, count);
++        if (u16(d + 12) != major || u16(d + 14) != minor) throw Invalid {"firmware_ip_mismatch"};
++        bool supported = false;
++        for (const char *s : {"pfp","me","mec","rlc","imu","mes","mes1","sos","ta","smu","sdma","dmub"})
++            if (component && !std::strcmp(s, component)) supported = true;
++        if (!supported) throw Invalid {"firmware_component_unsupported"};
++        // Common header does not encode component ID or revision. Sidecar isn't proof.
++        if (u32(d + 28)) throw Invalid {"firmware_crc_unverified"};
++        if (why) *why = nullptr; return true;
++    } catch (const Invalid &e) { if (why) *why = e.why; return false; }
++}
++
++bool Offline::deviceInfo(const uint8_t *d, size_t n, Asic::Profile &out, const char **why) {
++    out = Asic::identify(0, 0);
++    try {
++        if (!d || n != 32) throw Invalid {"abi_size"};
++        if (std::memcmp(d, "N44I", 4) || u16(d + 4) != 1 || u16(d + 6) != 32 ||
++            d[13] > 1 || u64(d + 16) || u64(d + 24)) throw Invalid {"abi_header_or_capabilities"};
++        if (u16(d + 8) != 0x1002) throw Invalid {"unknown_vendor"};
++        auto p = Asic::identify(u16(d + 8), u16(d + 10), d[12], d[13] != 0);
++        if (p.family == Asic::Family::Unknown) throw Invalid {"unknown_device"};
++        if (u16(d + 14) != uint16_t(p.target) || (!d[13] && d[12])) throw Invalid {"abi_target_or_revision"};
++        out = p; if (why) *why = nullptr; return true;
++    } catch (const Invalid &e) { if (why) *why = e.why; return false; }
++}
++
++bool Offline::firmwareRequirements(const Asic::Profile &p, const IpDiscovery &discovery,
++                                  FirmwareRequirement (&out)[16], size_t &count, const char **why) {
++    count = 0;
++    auto fail = [&](const char *w) { count = 0; if (why) *why = w; return false; };
++    const auto expected = Asic::identify(p.vendor, p.device, p.revision, p.revisionKnown);
++    if (expected.family == Asic::Family::Unknown || p.family != expected.family || p.target != expected.target || p.capabilities)
++        return fail("profile_tampered");
++    IpDiscovery::IpEntry64 gc;
++    if (!discovery.findIp64(11,0,gc) || gc.major != expected.expectedGc.major ||
++        gc.minor != expected.expectedGc.minor || gc.revision != expected.expectedGc.revision) return fail("gc_profile_mismatch");
++    uint32_t se = 0, rb = 0;
++    if (!discovery.gcInfo(se,rb)) return fail("topology_unknown");
++    struct Part { uint16_t hw; const char *block; const char *component; };
++    const Part parts[] = {{11,"gc","pfp"},{11,"gc","me"},{11,"gc","mec"},{11,"gc","rlc"},
++        {11,"gc","imu"},{11,"gc","mes"},{11,"gc","mes1"},{255,"psp","sos"},{255,"psp","ta"},
++        {1,"smu","smu"},{42,"sdma","sdma"},{271,"dcn","dmub"}};
++    for (const auto &part : parts) {
++        IpDiscovery::IpEntry64 ip;
++        if (!discovery.findIp64(part.hw,0,ip)) {
++            if (part.hw == 255) return fail("required_ip_missing:psp");
++            if (part.hw == 1) return fail("required_ip_missing:smu");
++            if (part.hw == 42) return fail("required_ip_missing:sdma");
++            if (part.hw == 271) return fail("required_ip_missing:dcn");
++            return fail("required_ip_missing:gc");
++        }
++        out[count++] = {part.block,part.component,{ip.major,ip.minor,ip.revision,true}};
++    }
++    if (why) *why = nullptr;
++    return true; // Advisory structural requirements; no firmware signature/load.
++}
+--- a/development/AMDRadeonRDNA4-Navi44/host/navi44.py
++++ b/development/AMDRadeonRDNA4-Navi44/host/navi44.py
+@@ -236,6 +236,8 @@
+         bounded(size, offset, payload)
+         if (ia, ib) != need.ip[:2]:
+             raise Invalid("firmware_ip_mismatch")
++        if need.component not in ('pfp','me','mec','rlc','imu','mes','mes1','sos','ta','smu','sdma','dmub'):
++            raise Invalid("firmware_component_unsupported")
+         # Do not invent a CRC convention or claim signature checks.
+         if crc != 0:
+             raise Invalid("firmware_crc_unverified")
+@@ -294,12 +296,14 @@
+     kernels = value.get('amdhsa.kernels')
+     if not isinstance(version, list) or len(version) != 2 or not all(type(x) is int for x in version):
+         raise Invalid("metadata_version_missing")
++    if version[0] != 1 or not 0 <= version[1] <= 2:
++        raise Invalid("metadata_version_unsupported")
+     if not isinstance(kernels, list) or not kernels:
+         raise Invalid("metadata_kernels_missing")
+     for kernel in kernels:
+         if not isinstance(kernel, dict) or not all(isinstance(kernel.get(x), str) and kernel[x] for x in ('.name', '.symbol')):
+             raise Invalid("metadata_kernel_identity_missing")
+-        if type(kernel.get('.kernarg_segment_size')) is not int:
++        if type(kernel.get('.kernarg_segment_size')) is not int or not 0 <= kernel['.kernarg_segment_size'] <= 0xffffffff:
+             raise Invalid("metadata_kernarg_missing")
+     return value
+ 
+@@ -323,6 +327,12 @@
+         raise Invalid("elf_tables_missing")
+     bounded(len(data), phoff, phsize * phnum)
+     bounded(len(data), shoff, shsize * shnum)
++    # Validate the complete file envelope before any semantic metadata lookup.
++    for i in range(shnum):
++        p = shoff + i * shsize
++        if read(data, p + 4, '<I')[0] != 8:
++            off, size = read(data, p + 24, '<QQ')
++            bounded(len(data), off, size)
+     loads, metadata = 0, False
+     for i in range(phnum):
+         p = phoff + i * phsize
+@@ -338,6 +348,8 @@
+         p = shoff + i * shsize
+         kind = read(data, p + 4, "<I")[0]
+         off, size = read(data, p + 24, "<QQ")
++        if kind != 8:
++            bounded(len(data), off, size)
+         if kind == 7:  # SHT_NOTE; check AMDGPU metadata MsgPack envelope.
+             bounded(len(data), off, size)
+             end, n = off + size, off
+@@ -351,12 +363,76 @@
+                 bounded(end, desc, descsz)
+                 bounded(end, n, nxt - n)
+                 if data[name:name + namesz] == b"AMDGPU\0" and note_type == 32 and descsz:
++                    if metadata:
++                        raise Invalid("elf_duplicate_metadata")
+                     decode_metadata(bytes(data[desc:desc+descsz]))
+                     metadata = True
+                 n = nxt
+     if not loads or not metadata:
+         raise Invalid("elf_load_or_metadata_missing")
+     return True  # Mandatory metadata subset, not all AMDHSA/shader semantics.
++
++
++def validate_kernel(data, target, name='synthetic'):
++    """Independent descriptor/symbol consistency checks; never executes code."""
++    validate_elf(data, target)
++    shoff = read(data, 40, '<Q')[0]
++    shsize, shnum = read(data, 58, '<HH')
++    sections = [data[shoff+i*shsize:shoff+(i+1)*shsize] for i in range(shnum)]
++    selected = None
++    for s in sections:
++        if read(s, 4, '<I')[0] != 7: continue
++        off, size = read(s, 24, '<QQ'); end=off+size
++        while off < end:
++            names, descs, kind = read(data, off, '<III')
++            owner=off+12; desc=owner+((names+3)&~3)
++            if data[owner:owner+names] == b'AMDGPU\0' and kind == 32:
++                value=decode_metadata(bytes(data[desc:desc+descs]))
++                matches=[k for k in value['amdhsa.kernels'] if k['.name']==name]
++                if len(matches)>1: raise Invalid('elf_kernel_metadata_duplicate')
++                if not matches: raise Invalid('elf_kernel_metadata_missing')
++                selected=matches[0]
++            off=desc+((descs+3)&~3)
++    if selected is None: raise Invalid('elf_kernel_metadata_missing')
++    if selected['.symbol'] != name+'.kd': raise Invalid('elf_kernel_symbol_mismatch')
++    symbols={}
++    for s in sections:
++        if read(s,4,'<I')[0] not in (2,11): continue
++        off,size=read(s,24,'<QQ'); link=read(s,40,'<I')[0]; entry=read(s,56,'<Q')[0]
++        if entry<24 or link>=len(sections): continue
++        bounded(len(data),off,size)
++        stroff,strsize=read(sections[link],24,'<QQ'); bounded(len(data),stroff,strsize)
++        strings=data[stroff:stroff+strsize]
++        for pos in range(entry,size-size%entry,entry):
++            at=off+pos; index=read(data,at,'<I')[0]
++            if index>=len(strings): continue
++            tail=strings[index:]; stop=tail.find(b'\0')
++            if stop<0: continue
++            symbol=bytes(tail[:stop])
++            if symbol in (name.encode(),(name+'.kd').encode()):
++                symbols[symbol]=(data[at+4]&15,read(data,at+8,'<Q')[0])
++    def file_offset(va,length):
++        for s in sections[1:]:
++            kind=read(s,4,'<I')[0];flags=read(s,8,'<Q')[0];addr=read(s,16,'<Q')[0]
++            off,size=read(s,24,'<QQ')
++            if kind != 8 and flags&2 and va>=addr and va-addr<size:
++                bounded(len(data),off,size)
++                if length<=size-(va-addr): return off+va-addr
++        raise Invalid('elf_descriptor_invalid')
++    kd=symbols.get((name+'.kd').encode())
++    code=symbols.get(name.encode())
++    if not kd or kd[0]!=1: raise Invalid('elf_descriptor_invalid')
++    kdpos=file_offset(kd[1],64)
++    relative=read(data,kdpos+16,'<q')[0]
++    va=kd[1]+relative
++    if not 0<=va<=0xffffffffffffffff: raise Invalid('elf_descriptor_invalid')
++    if code and (code[0]!=2 or code[1]!=va): raise Invalid('elf_descriptor_invalid')
++    file_offset(va,4)
++    group,private,kernarg=read(data,kdpos,'<III')
++    if selected['.kernarg_segment_size'] != kernarg: raise Invalid('elf_descriptor_mismatch')
++    for key,actual in (('.group_segment_fixed_size',group),('.private_segment_fixed_size',private)):
++        if key in selected and selected[key]!=actual: raise Invalid('elf_descriptor_mismatch')
++    return True
+ 
+ 
+ class State(Enum):

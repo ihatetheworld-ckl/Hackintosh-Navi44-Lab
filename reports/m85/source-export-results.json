@@ -1,0 +1,34 @@
+{
+  "stage": "M8.5",
+  "first_exported_files": 381,
+  "windows_host": {
+    "status": "PASS",
+    "kind": "CPU-only Host",
+    "platform": "win32",
+    "Darwin_Native": "NOT RUN",
+    "Kext": "NOT RUN",
+    "GPU": "NOT RUN",
+    "differential": "NOT RUN by portable entry",
+    "sanitizer": "NOT RUN by portable entry",
+    "compiler": "clang version 23.1.3 (https://github.com/llvm/llvm-project.git 0d261d1ca552c95a8f007e061c787ac7132fbcbc)\nTarget: x86_64-w64-windows-gnu\nThread model: posix\nInstalledDir: D:/CodexWorkSpace/黑苹果研究/Hackintosh-Navi44-Lab/tools/toolchains/llvm/llvm-mingw-20261006-ucrt-x86_64/bin\nConfiguration file: D:/CodexWorkSpace/黑苹果研究/Hackintosh-Navi44-Lab/tools/toolchains/llvm/llvm-mingw-20261006-ucrt-x86_64/bin/x86_64-w64-windows-gnu.cfg",
+    "bounded_mutation_output": "M8_FUZZ seed=759080 inputs=2400 accepted=479 rejected=1921 invariants=PASS\nM8_QUERY_FUZZ inputs=800 accepted=10 rejected=790 invariants=PASS",
+    "cpp_unit": {
+      "m65_unit": 34,
+      "m7_unit": 31,
+      "m8_unit": 96
+    },
+    "python_files": [
+      "test_offline.py",
+      "test_m65.py",
+      "test_m7.py",
+      "test_m8.py"
+    ],
+    "kernel_friendly_host_compile": "PASS"
+  },
+  "first_hash_check": "18 CRLF-only mismatches; see first check",
+  "lf_reexport": {
+    "status": "PASS",
+    "files": 385,
+    "sha256_mismatches": []
+  }
+}

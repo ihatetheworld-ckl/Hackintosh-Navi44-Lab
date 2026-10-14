@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "archive_sha256": "317492c456aa27ee607a5919f1d2d38dcdc1112516a24d0bf4b00d078f52d17a",
+  "method": "existing ZIP comparison, no download/extraction",
+  "sha256": {
+    "clang++.exe": "ee85bef2c733e24a26c22be3df94bd631cf9528a048fce91241c182a936737fe",
+    "llvm-nm.exe": "782b029b55d009059826b9b762926b640daade08bad4c1085bd815c927736b10",
+    "llvm-symbolizer.exe": "7c6620730d77c0d44177834df27663c1c121d7f6b642cee1041a82256c884eb6",
+    "x86_64-w64-windows-gnu.cfg": "ee12d9ca9abf3df1bd9312af1175c1751ca23dcbc2c67c70a326ff5679d439f5",
+    "mingw32-common.cfg": "0924577cab6fd9256fdd640f0ff5a7382446e968f2401a3df648d3bf4012bde6",
+    "libclang_rt.asan_dynamic-x86_64.dll": "23f93e1d3f4b13a5a8447f78c2bcd08ab1c98fd891ea785b8fa395030d17c05d",
+    "libc++.dll": "81fb50f0866840d7e5a1d35d48cf31adc02f623a61d8b77daf62881e1e59401b",
+    "libunwind.dll": "b0636a4281610124704adb2be2edf5642e830d86c68b7f27dbc9c8154705a780",
+    "libwinpthread-1.dll": "7658f9e5e89213af287d342c554b8abcb5b2700b4a44d02184b56004b104ceec"
+  }
+}

@@ -1,0 +1,218 @@
+[
+  {
+    "path": "CMakeLists.txt",
+    "kind": "modified",
+    "before_sha256": "0d39c1cbb48afddf9b67d761f4cd02d30c67dfbc77e0ed5ca94ae9945a0fe733",
+    "after_sha256": "ddca6a6fc3ec42d40d1fac36118ff8f75844bf54fc1fb2036953d196f372a8a7"
+  },
+  {
+    "path": "README.md",
+    "kind": "modified",
+    "before_sha256": "544dd8c8877d0ffd398a1d1f03977b5374f44143e964c2e30562510a3eb31e6d",
+    "after_sha256": "ac9a268d3f8bbe20b52ac8748d14ea9a1c2bcbba7cddbc3f291287bbf85c87f0"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/core/display.cpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "c414ef406d271a48e3a13f2d258beeaa7b741b5b5ba27c6e8dad51e6fdad7878"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/core/display.hpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "f3263e6a730c87277a540429080e7bc0bfa84726a228cc7219566eb59d33f0ba"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/core/integrity.cpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "ce5048a9f48c854d8631813d47e383217f8af495c1d93f536cf4e3c064a1abbc"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/core/integrity.hpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "4bf878404865f8278f059fb3a657a335735ae7d42c129bac173effccbb0bf062"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "35f9ab410b2dfdedcc67804f54fa014e3aabf3cad3b8b40cab73e745bb2ba266"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/core/query_candidate.hpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "5026b63a15150d78a2b1b057e2f3979b97701b625780c9893794660fe475e779"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+    "kind": "modified",
+    "before_sha256": "f98fd46e2e855d2082df9f9be5f318021d99f12f1abe17b975d0aff45dc625fe",
+    "after_sha256": "77e8990d2e57bd1479561a48e74133973c8baf24a44b4dc68699a1bf279895b5"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/host/navi44.py",
+    "kind": "modified",
+    "before_sha256": "404425bc188e34a35605ce3d45429620cec85c1f8f2bfb3c1f2e4ea3f60b6405",
+    "after_sha256": "19534f75fe214190950d1bff9d767754e3fbf97b96bd3b87e60ea564508bc8d0"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/host/platform_mock.hpp",
+    "kind": "modified",
+    "before_sha256": "dfe69dd4b82fcfc13fd3eebd7657342a7c74b94b3671ef4a46d0379665974ca6",
+    "after_sha256": "25e36e88bc3fe69946a5223b49ecf3702ba358816eb397569a89caadb3ab4dd0"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/platform/contract.hpp",
+    "kind": "modified",
+    "before_sha256": "9f71a01903ca5fcb213e9d4e5de8e9c6f0327ca9054e874e25b6b8d530f3261f",
+    "after_sha256": "edb48b22329574bf219ca1c9c4f50959b6a32cb309ffa5f28ab58c7e251af277"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp",
+    "kind": "modified",
+    "before_sha256": "ab67bbb2b4210ec30c74e68a5514ff662a9f22cb6c949b196fd7f52f6b073ab2",
+    "after_sha256": "e09b1bc6dea1cfef48375f3b66ccb2e3995ade2572e27363d6bb15669fcd583c"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp",
+    "kind": "modified",
+    "before_sha256": "333f10b97ef52f30aa6aa3ba14d665be0df3f225c168b5ac13af1def2426a994",
+    "after_sha256": "d8d7b2116dfa84b6e65e2fd82c63681a31661daa1b018868ec199ffd007a2e79"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp",
+    "kind": "modified",
+    "before_sha256": "65da296389203b18f3c3568d091a16337688fc508e87e697ae02bdd6b2078487",
+    "after_sha256": "7774a8e6c05d3c7cffdcb16d3627c1b4fc1fd318ee346e7603477c47a5353505"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/src/atombios.hpp",
+    "kind": "modified",
+    "before_sha256": "99c76ff85430027974a4bc8a24cadfb34e2db2ec14dac979b7811c01b4648b48",
+    "after_sha256": "07758019dda1cf5078654a4401aaa1002093187cf55114920df73667b3898e16"
+  },
+  {
+    "path": "development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+    "kind": "modified",
+    "before_sha256": "f2ae463fa29512d85acd0d1150f9addcf05eb6b2d4e79a394c5ca344e1e43245",
+    "after_sha256": "0a2314854c406d2366293cc7ea58658a45314ecb5196cdccce0aa4a5ef603479"
+  },
+  {
+    "path": "docs/atombios-parser-design.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "6e3388199ca6780a85b3e3c1f96aa84af806eccc07ed4a4e21e565f58b30cbac"
+  },
+  {
+    "path": "docs/cobalt-production-abi.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "780794d8e163164c8b2a06f6717317df78edf5293c22c9cf6564cd42ade64ae6"
+  },
+  {
+    "path": "docs/darwin-adapter-m8.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "d18da30df9ad4928cd9eb7c7d7e0f5d30b9c7751faedb2618fc42a25eaf5681b"
+  },
+  {
+    "path": "docs/edid-parser-design.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "81621c65263a56e64aa3f0b109b78beb154a06108413b0e3d260c53acddc4928"
+  },
+  {
+    "path": "docs/macos-build-readiness.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "4a3b53c66e69550e5009bed22f7505185bb054e605b480e64e3710d8100b8356"
+  },
+  {
+    "path": "docs/navi44-display-capability.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "e0d94ff78d6eede82792e290321b4cb9478966d15f1c3f8217890aa1e8461ed5"
+  },
+  {
+    "path": "finalize_m8.py",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "51de7f9050f7bd3278d3050cf969b3b9a5238df01cd1c1c50f20b482202b9eaf"
+  },
+  {
+    "path": "m8_baseline_retry.py",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "3a939f5f18ad910e716df2a67983ff62b9a43c8c5b3eb5cdc1128fbe5e376afc"
+  },
+  {
+    "path": "m8_harden_parsers.py",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "4b2006c5a1b17b75fa62646d9cbf3ae9dc110a5a21db12ff743319e69212adda"
+  },
+  {
+    "path": "m8_prepare.py",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "ef563766163a2b9d223e8a138a6bb06c09fd2f0c38cd1bf49e9825157240aa41"
+  },
+  {
+    "path": "reports/m8/development-report.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "e083646db67f5120b9d3ebed90671688240ce51df26f00af05cdd6ec3e7521b2"
+  },
+  {
+    "path": "reports/m8/remaining-blockers.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "f950a704452f5ccd88ec40bb81de4c69f7a0641e8c7bf176feef286aabb5de37"
+  },
+  {
+    "path": "reports/m8/safety-audit.md",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "1edc21d6dfbed64fa73a40b8d5eae5fea467937a1b1738dbd3a267f3f07bfe6d"
+  },
+  {
+    "path": "run_m8_offline_tests.py",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "9933563b96a1e1b1d56ad803fd4230c27f6909d7d352464d23e5c83c6efd910c"
+  },
+  {
+    "path": "tests/fixtures/m8_display.hpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "f28394da428b59d02c852112b0d277180d2addbf12059db024bf11a5438884ef"
+  },
+  {
+    "path": "tests/test_m8.py",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "58de7c7f96492844dfa259f280ca571899541888fed15dbc9e77090bd037c106"
+  },
+  {
+    "path": "tests/unit/m8_contract_compile.cpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "1a1d35d9997ce75c99fe7cde8c6eb3e9bcd97e47c44ae3ba9c5b148e250107f8"
+  },
+  {
+    "path": "tests/unit/m8_fuzz.cpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "01eb271d3e6b9946fa902e600fb191a2aca6614ec139a40e16570bb589b08db8"
+  },
+  {
+    "path": "tests/unit/m8_unit.cpp",
+    "kind": "added",
+    "before_sha256": null,
+    "after_sha256": "564a808587a3d84ae97988d504c473a1fca634133aa030a6601dfa2b17b8eb98"
+  }
+]

@@ -1,0 +1,97 @@
+{
+  "status": "PASS",
+  "scope": "M7 rerun of M6.5, not new functionality",
+  "result": {
+    "stage": "M6.5",
+    "status": "PASS",
+    "completed_at": "2026-10-14T01:08:39.694374+08:00",
+    "compiler": "clang version 23.1.3 (https://github.com/llvm/llvm-project.git 0d261d1ca552c95a8f007e061c787ac7132fbcbc)\nTarget: x86_64-w64-windows-gnu\nThread model: posix\nInstalledDir: D:/CodexWorkSpace/\u9ed1\u82f9\u679c\u7814\u7a76/Hackintosh-Navi44-Lab/tools/toolchains/llvm/llvm-mingw-20261006-ucrt-x86_64/bin\nConfiguration file: D:/CodexWorkSpace/\u9ed1\u82f9\u679c\u7814\u7a76/Hackintosh-Navi44-Lab/tools/toolchains/llvm/llvm-mingw-20261006-ucrt-x86_64/bin/x86_64-w64-windows-gnu.cfg\n",
+    "source_sha256": {
+      "run_all_offline_tests.py": "2a409a7935a4378a82f9c6d02671fa991fb8b3e566cd31c838236f46ca8ecc94",
+      "CMakeLists.txt": "3eb9439a84b4cb218339329a21813119468fd002fc4071b9609d3f9b2d96a096",
+      "tests/test_offline.py": "d36ca25b282f37be865411f2945b11bd47d0031402236a872418637b9321cd19",
+      "tests/test_m65.py": "59fbfc0d5008a565d58eb0703981594e60f712e8221ef9c20d30b2fdecb664c0",
+      "tests/fixtures/synthetic.py": "e785f76bba05d5d4831c7cf6134fed8f2f3a752fdb50c16b55e21e3031dda5c8",
+      "tests/unit/m65_unit.cpp": "3ffa3fcae2ac4bd41b4e97485c7a78e700396dee3920f98133cc8dfea6775e80",
+      "tests/unit/m65_probe.cpp": "6b0c7a2d3aee4785db4acc153cd8c752c083221559e44cb4c224844667d75456",
+      "tests/unit/sanitizer_canary.cpp": "a3b85a7ba56ac3c5a468a68a048a9c566c19577b545ad3656a67b31d96223290",
+      "development/AMDRadeonRDNA4-Navi44/host/navi44.py": "02ce2279733afe32bdbcc9d1b55985ead825de02f34ed617d5e711a735766871",
+      "development/AMDRadeonRDNA4-Navi44/src/asicprofile.hpp": "6a668afab45dc24be0894dd35b819897752e3661df1b5b781e766fe62018f674",
+      "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.hpp": "7c43d9261c038a230cd703f79292d39db8125413ca1c5ad09f59772b13e736db",
+      "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp": "1daaca11b84cc611890a48e25d2a5dd842b7b3a324b51ae544e2488d4ed8abc6",
+      "development/AMDRadeonRDNA4-Navi44/src/codeobj.hpp": "ad89a2b680d257ee83c1b06b86d8129c811e79bb6b3ff1daa26c4c356f3910eb",
+      "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp": "b90bf1c7b5a842a077b83305e5980af7dd595d9823b5d70ef97f7ddd444c3102",
+      "development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.hpp": "6857c026cbc8befe023248c8652c2ab14f6e80c0a5bc457020ad88b62570bc6d",
+      "development/AMDRadeonRDNA4-Navi44/src/offlinevalidation.cpp": "cb598b6b96c7859773d41cd3156285ff49941399db34a74ff876fc35c1a66267"
+    },
+    "python": {
+      "baseline_tests": 58,
+      "baseline_pass": 56,
+      "baseline_skip": 2,
+      "static_checks_in_baseline": 4,
+      "additional_tests": 11,
+      "FAIL": 0,
+      "baseline_detail": {
+        "tests": 58,
+        "PASS": 56,
+        "FAIL": 0,
+        "SKIP": 2,
+        "static_checks": 4,
+        "behavior_PASS": 52
+      },
+      "additional_detail": {
+        "tests": 11,
+        "PASS": 11,
+        "FAIL": 0,
+        "SKIP": 0,
+        "static_checks": 0,
+        "behavior_PASS": 11
+      }
+    },
+    "static_analysis": [
+      {
+        "source": "ipdiscovery.cpp",
+        "warnings": 0,
+        "exit": 0
+      },
+      {
+        "source": "codeobj.cpp",
+        "warnings": 0,
+        "exit": 0
+      },
+      {
+        "source": "offlinevalidation.cpp",
+        "warnings": 0,
+        "exit": 0
+      }
+    ],
+    "cpp_unit": {
+      "PASS": 34,
+      "FAIL": 0
+    },
+    "differential": {
+      "PASS": 537,
+      "FAIL": 0
+    },
+    "fuzz": {
+      "seed": 759065,
+      "cases": 2400,
+      "status": "PASS",
+      "type": "bounded deterministic mutation; not coverage-guided"
+    },
+    "sanitizers": {
+      "status": "PASS",
+      "flags": "address,undefined",
+      "unit_cases": 34,
+      "corpus_cases": 2937,
+      "leak_detection": "disabled on Windows; NOT VERIFIED"
+    },
+    "sanitizer_canaries": {
+      "asan": "PASS: intentional CPU-only fault detected",
+      "ubsan": "PASS: intentional CPU-only fault detected"
+    },
+    "hardware": "NOT RUN",
+    "kext": "NOT RUN",
+    "actual_gfx1200_elf": "SKIP: portable compiler has no AMDGPU backend"
+  }
+}

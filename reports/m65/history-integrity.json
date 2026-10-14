@@ -1,0 +1,5 @@
+{
+  "reports/test-results.json": true,
+  "reports/test-log.txt": true,
+  "patches/navi44-offline-prototype.patch": true
+}

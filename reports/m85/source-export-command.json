@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "D:/RuntimeEnvironment/Git/cmd/git.exe",
+    "-c",
+    "safe.directory=D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab",
+    "-c",
+    "core.hooksPath=D:\\CodexWorkSpace\\黑苹果研究\\Hackintosh-Navi44-Lab\\reports\\m85\\empty-hooks",
+    "-c",
+    "core.fsmonitor=false",
+    "-c",
+    "core.autocrlf=false",
+    "checkout-index",
+    "--prefix=D:/CodexWorkSpace/黑苹果研究/Hackintosh-Navi44-Lab/build/m85/source-export/",
+    "-a"
+  ],
+  "exit": 0,
+  "files": 381
+}
