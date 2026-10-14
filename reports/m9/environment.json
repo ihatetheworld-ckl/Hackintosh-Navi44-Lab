@@ -1,0 +1,141 @@
+[
+  {
+    "argv": [
+      "uname",
+      "-m"
+    ],
+    "exit": 0,
+    "stdout": "arm64\n",
+    "stderr": "",
+    "seconds": 0.002
+  },
+  {
+    "argv": [
+      "sw_vers"
+    ],
+    "exit": 0,
+    "stdout": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434\n",
+    "stderr": "",
+    "seconds": 0.007
+  },
+  {
+    "argv": [
+      "git",
+      "--version"
+    ],
+    "exit": 0,
+    "stdout": "git version 2.54.0 (Apple Git-157)\n",
+    "stderr": "",
+    "seconds": 0.007
+  },
+  {
+    "argv": [
+      "xcode-select",
+      "-p"
+    ],
+    "exit": 0,
+    "stdout": "/Applications/Xcode.app/Contents/Developer\n",
+    "stderr": "",
+    "seconds": 0.002
+  },
+  {
+    "argv": [
+      "xcrun",
+      "--find",
+      "clang++"
+    ],
+    "exit": 0,
+    "stdout": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++\n",
+    "stderr": "",
+    "seconds": 0.004
+  },
+  {
+    "argv": [
+      "xcrun",
+      "clang++",
+      "--version"
+    ],
+    "exit": 0,
+    "stdout": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+    "stderr": "",
+    "seconds": 0.009
+  },
+  {
+    "argv": [
+      "xcrun",
+      "--sdk",
+      "macosx",
+      "--show-sdk-path"
+    ],
+    "exit": 0,
+    "stdout": "SDK_ROOT\n",
+    "stderr": "",
+    "seconds": 0.004
+  },
+  {
+    "argv": [
+      "xcodebuild",
+      "-version"
+    ],
+    "exit": 0,
+    "stdout": "Xcode 27.0\nBuild version 27A266a\n",
+    "stderr": "",
+    "seconds": 0.084
+  },
+  {
+    "argv": [
+      "git",
+      "status",
+      "--short",
+      "--branch"
+    ],
+    "exit": 0,
+    "stdout": "## m9/macos-native-build\n?? reports/m9/\n",
+    "stderr": "",
+    "seconds": 0.01
+  },
+  {
+    "argv": [
+      "git",
+      "remote",
+      "-v"
+    ],
+    "exit": 0,
+    "stdout": "origin\thttps://github.com/ihatetheworld-ckl/Hackintosh-Navi44-Lab.git (fetch)\norigin\thttps://github.com/ihatetheworld-ckl/Hackintosh-Navi44-Lab.git (push)\n",
+    "stderr": "",
+    "seconds": 0.006
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "exit": 0,
+    "stdout": "6b088ba47a1b9f1bc2493cc03e12e2dae94d1d18\n",
+    "stderr": "",
+    "seconds": 0.006
+  },
+  {
+    "argv": [
+      "git",
+      "fsck",
+      "--full"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "seconds": 0.041
+  },
+  {
+    "argv": [
+      "pkgutil",
+      "--pkg-info",
+      "com.apple.pkg.RosettaUpdateAuto"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "No receipt for 'com.apple.pkg.RosettaUpdateAuto' found at '/'.\n",
+    "seconds": 0.022
+  }
+]

@@ -1,10 +1,15 @@
 # Hackintosh-Navi44-Lab
 
 RX 9060 XT / Navi44 / gfx1200 的 **CPU-only** 驱动研发项目。
-M8 已完成 Windows 离线解析与数据模型验证；M8.5 整理 GitHub 迁移。
-目标仓库由用户创建为 Public，用户已明确接受；首次上传仍须审核确认。
+M8 已完成 Windows 离线解析与数据模型验证；M8.5 已完成 GitHub 迁移。
+M9 已在真实 macOS / Apple Clang 上完成 arm64 CPU 测试、x86_64 Mach-O
+及真实 Kernel.framework 头文件的 Native 独立对象编译。
+M10 已加入 Snapshot/Buffer 生命周期、Host mutex Mock 与两架构非部署型部分链接。
+具体证据见 [M10 报告](reports/m10/development-report.md)；部分链接仍是 MH_OBJECT，
+完整 Kext 链接、内核运行和真实 GPU 功能均 NOT RUN。
+目标仓库由用户创建为 Public，首次上传已确认；后续推送仍需用户确认。
 EDID、AtomBIOS、Discovery、Firmware、ELF、N44I/N44Q 是静态软件模块。
-真实 GPU 显示、Vulkan/Metal、WindowServer、Darwin Native/Kext 构建均未验证。
+真实 GPU 显示、Vulkan/Metal、WindowServer、Native 链接/运行及 Kext 构建均未验证。
 
 ## 代码与证据
 
@@ -46,7 +51,10 @@ Mac 的纯 Host 构建可使用现有 Apple Clang / CMake，或新增的便携�
 python3 -I -B -X utf8 run_host_tests.py --compiler /absolute/path/to/clang++
 ~~~
 
-Mac 命令尚未在真正 macOS 上执行，详见编译准备文档。
+M9 已实际验证 Mac 入口；必须选择现有 Python 3.11+（Xcode 自带 3.9 不满足）。
+入口在 macOS 明确选择真实 SDK，支持 `--arch` 和 `--compile-only`，不自动安装 Rosetta。
+完整串行验证与证据见 [M9 报告](reports/m9/development-report.md) 和
+[M9 复现说明](docs/macos-native-build-m9.md)。x86_64 程序运行为 NOT RUN。
 `CMakeLists.txt` 显式列出 CPU-only 源码，没有 FetchContent/install/GPU/IOKit backend。
 原 Makefile 有立即失败门禁。不得运行衍生目录用户态 GPU 程序或上游安装脚本。
 

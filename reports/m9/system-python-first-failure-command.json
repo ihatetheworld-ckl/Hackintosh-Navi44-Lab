@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "-X",
+    "utf8",
+    "run_host_tests.py",
+    "--compiler",
+    "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+    "--stage",
+    "m9-host"
+  ],
+  "exit": 1,
+  "seconds": 0.651
+}

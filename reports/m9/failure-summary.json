@@ -1,0 +1,51 @@
+{
+  "system_python": {
+    "argv": [
+      "/usr/bin/python3",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "run_host_tests.py",
+      "--compiler",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "--stage",
+      "m9-host"
+    ],
+    "exit": 1,
+    "seconds": 0.651
+  },
+  "host_without_sdk": {
+    "status": "FAIL",
+    "kind": "CPU-only Host",
+    "platform": "darwin",
+    "Darwin_Native": "NOT RUN",
+    "Kext": "NOT RUN",
+    "GPU": "NOT RUN",
+    "differential": "NOT RUN by portable entry",
+    "sanitizer": "NOT RUN by portable entry",
+    "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "error": "build-m65_unit failed; see project report"
+  },
+  "host_diagnostic": "PROJECT_ROOT/tests/unit/m65_unit.cpp:6:10: fatal error: 'iostream' file not found\n    6 | #include <iostream>\n      |          ^~~~~~~~~~\n1 error generated.\n",
+  "sdk_query": {
+    "status": "FAIL",
+    "kind": "CPU-only Host",
+    "platform": "darwin",
+    "host_arch": "arm64",
+    "target_arch": "arm64",
+    "compile": "NOT RUN",
+    "link": "NOT RUN",
+    "runtime": "NOT RUN",
+    "Darwin_Native": "NOT RUN",
+    "Kext": "NOT RUN",
+    "GPU": "NOT RUN",
+    "differential": "NOT RUN by portable entry",
+    "sanitizer": "NOT RUN by portable entry",
+    "python": "PENDING",
+    "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "error": "An existing genuine macOS SDK path is required"
+  },
+  "sdk_query_diagnostic": "SDK_ROOT\n2026-10-14 12:44:48.125 xcodebuild[44719:7556612]  DVTFilePathFSEvents: Failed to start fs event stream.\n2026-10-14 12:44:48.279 xcodebuild[44719:7556577] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 \"Input/output error\". Using NSCachesDirectory instead.\n2026-10-14 12:44:48.683 xcodebuild[44720:7556636]  DVTFilePathFSEvents: Failed to start fs event stream.\n2026-10-14 12:44:48.779 xcodebuild[44720:7556635] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 \"Input/output error\". Using NSCachesDirectory instead.\n",
+  "analyzer": "PROJECT_ROOT/development/AMDRadeonRDNA4-Navi44/core/display.cpp:93:40: warning: Division by zero [core.DivideZero]\n   93 |     out.timing=t;out.refresh={numerator/common,denominator/common};return success();\n      |                               ~~~~~~~~~^~~~~~~\n1 warning generated.\n"
+}

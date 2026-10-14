@@ -90,6 +90,8 @@ Result timing(const Edid::DetailedTiming&input,Mode&out){
     const uint64_t numerator=uint64_t(t.pixelClockKHz)*1000,denominator=uint64_t(t.hTotal())*t.vTotal();
     if(numerator<denominator||numerator>denominator*1000)return failure("mode_rate");
     const uint64_t common=gcd(numerator,denominator);
+    // Keep the divisor explicit for Apple static analysis and fail closed.
+    if(!common)return failure("mode_rate_divisor",Error::Bounds);
     out.timing=t;out.refresh={numerator/common,denominator/common};return success();
 }
 Result edid(View v,Origin o,Monitor&out,Mode*storage,size_t capacity,ExtensionPolicy policy){

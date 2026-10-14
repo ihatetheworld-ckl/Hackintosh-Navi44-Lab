@@ -1,0 +1,2756 @@
+[
+  {
+    "name": "compiler-version",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "--version"
+    ],
+    "exit": 0,
+    "seconds": 0.008
+  },
+  {
+    "name": "find-ld",
+    "argv": [
+      "xcrun",
+      "--find",
+      "ld"
+    ],
+    "exit": 0,
+    "seconds": 0.007
+  },
+  {
+    "name": "find-nm",
+    "argv": [
+      "xcrun",
+      "--find",
+      "nm"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "find-otool",
+    "argv": [
+      "xcrun",
+      "--find",
+      "otool"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "find-lipo",
+    "argv": [
+      "xcrun",
+      "--find",
+      "lipo"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "find-dwarfdump",
+    "argv": [
+      "xcrun",
+      "--find",
+      "dwarfdump"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "linker-version",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+      "-v"
+    ],
+    "exit": 0,
+    "seconds": 0.009
+  },
+  {
+    "name": "proof-compile-m9",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-I<PROJECT_ROOT>/build/m10/regression-proof/platform",
+      "<PROJECT_ROOT>/tests/unit/m10_regression_proof.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/regression-proof/old-behavior"
+    ],
+    "exit": 0,
+    "seconds": 0.314
+  },
+  {
+    "name": "proof-run-m9",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/regression-proof/old-behavior"
+    ],
+    "exit": 1,
+    "seconds": 0.012
+  },
+  {
+    "name": "proof-compile-m10",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform",
+      "<PROJECT_ROOT>/tests/unit/m10_regression_proof.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/regression-proof/fixed-behavior"
+    ],
+    "exit": 0,
+    "seconds": 0.229
+  },
+  {
+    "name": "proof-run-m10",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/regression-proof/fixed-behavior"
+    ],
+    "exit": 0,
+    "seconds": 0.009
+  },
+  {
+    "name": "m9-arm64",
+    "argv": [
+      "<EXISTING_PYTHON>",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "<PROJECT_ROOT>/build/m10/host-helper.py",
+      "--compiler",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "--sdk",
+      "SDK_ROOT",
+      "--stage",
+      "m9-arm64",
+      "--arch",
+      "arm64"
+    ],
+    "exit": 0,
+    "seconds": 1.919
+  },
+  {
+    "name": "m9-x86_64",
+    "argv": [
+      "<EXISTING_PYTHON>",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "<PROJECT_ROOT>/build/m10/host-helper.py",
+      "--compiler",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "--sdk",
+      "SDK_ROOT",
+      "--stage",
+      "m9-x86_64",
+      "--arch",
+      "x86_64",
+      "--compile-only",
+      "--skip-python"
+    ],
+    "exit": 0,
+    "seconds": 1.586
+  },
+  {
+    "name": "m9-sanitized",
+    "argv": [
+      "<EXISTING_PYTHON>",
+      "-I",
+      "-B",
+      "-X",
+      "utf8",
+      "<PROJECT_ROOT>/build/m10/host-helper.py",
+      "--compiler",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "--sdk",
+      "SDK_ROOT",
+      "--stage",
+      "m9-sanitized",
+      "--arch",
+      "arm64",
+      "--sanitize",
+      "--skip-python"
+    ],
+    "exit": 0,
+    "seconds": 2.609
+  },
+  {
+    "name": "m9-arm64-compile-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/lifecycle.o"
+    ],
+    "exit": 0,
+    "seconds": 0.035
+  },
+  {
+    "name": "m9-arm64-link-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "<PROJECT_ROOT>/tests/unit/m10_lifecycle.cpp",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/lifecycle.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/codeobj.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/ipdiscovery.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/validation.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/device_info.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/edid.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/atombios.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/display.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/integrity.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/query_candidate.o",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/m10_lifecycle"
+    ],
+    "exit": 0,
+    "seconds": 0.386
+  },
+  {
+    "name": "m9-arm64-run-lifecycle",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/m10_lifecycle"
+    ],
+    "exit": 0,
+    "seconds": 0.015
+  },
+  {
+    "name": "m9-arm64-link-probe",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "<PROJECT_ROOT>/tests/unit/m65_probe.cpp",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/offlinevalidation.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/codeobj.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/ipdiscovery.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/validation.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/device_info.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/edid.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/atombios.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/display.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/integrity.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/query_candidate.o",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/probe"
+    ],
+    "exit": 0,
+    "seconds": 0.31
+  },
+  {
+    "name": "m9-arm64-differential",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/probe"
+    ],
+    "exit": 0,
+    "seconds": 0.021
+  },
+  {
+    "name": "m9-arm64-mutation",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/probe"
+    ],
+    "exit": 0,
+    "seconds": 0.051
+  },
+  {
+    "name": "m9-sanitized-compile-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/lifecycle.o"
+    ],
+    "exit": 0,
+    "seconds": 0.065
+  },
+  {
+    "name": "m9-sanitized-link-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "<PROJECT_ROOT>/tests/unit/m10_lifecycle.cpp",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/lifecycle.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/codeobj.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/ipdiscovery.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/validation.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/device_info.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/edid.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/atombios.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/display.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/integrity.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/query_candidate.o",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/m10_lifecycle"
+    ],
+    "exit": 0,
+    "seconds": 0.564
+  },
+  {
+    "name": "m9-sanitized-run-lifecycle",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/m10_lifecycle"
+    ],
+    "exit": 0,
+    "seconds": 0.022
+  },
+  {
+    "name": "m9-sanitized-link-probe",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "<PROJECT_ROOT>/tests/unit/m65_probe.cpp",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/offlinevalidation.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/codeobj.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/ipdiscovery.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/validation.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/device_info.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/edid.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/atombios.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/display.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/integrity.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/query_candidate.o",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/probe"
+    ],
+    "exit": 0,
+    "seconds": 0.433
+  },
+  {
+    "name": "m9-sanitized-differential",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/probe"
+    ],
+    "exit": 0,
+    "seconds": 0.043
+  },
+  {
+    "name": "m9-sanitized-mutation",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/host/m9-sanitized/probe"
+    ],
+    "exit": 0,
+    "seconds": 0.102
+  },
+  {
+    "name": "tsan-compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-fsanitize=thread",
+      "-fno-omit-frame-pointer",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/lifecycle-tsan.o"
+    ],
+    "exit": 0,
+    "seconds": 0.039
+  },
+  {
+    "name": "tsan-link",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-fsanitize=thread",
+      "-fno-omit-frame-pointer",
+      "<PROJECT_ROOT>/tests/unit/m10_lifecycle.cpp",
+      "<PROJECT_ROOT>/build/m10/lifecycle-tsan.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/codeobj.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/ipdiscovery.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/validation.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/device_info.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/edid.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/atombios.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/display.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/integrity.o",
+      "<PROJECT_ROOT>/build/m10/host/m9-arm64/query_candidate.o",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/lifetime-tsan"
+    ],
+    "exit": 0,
+    "seconds": 0.396
+  },
+  {
+    "name": "tsan-runtime",
+    "argv": [
+      "<PROJECT_ROOT>/build/m10/lifetime-tsan"
+    ],
+    "exit": 0,
+    "seconds": 0.036
+  },
+  {
+    "name": "policy-negative-compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-c",
+      "<PROJECT_ROOT>/tests/unit/m10_host_dependency.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/host-import-negative.o"
+    ],
+    "exit": 0,
+    "seconds": 0.016
+  },
+  {
+    "name": "policy-negative-symbols",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/host-import-negative.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-compile-codeobj",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/codeobj.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/codeobj.o"
+    ],
+    "exit": 0,
+    "seconds": 0.056
+  },
+  {
+    "name": "x86_64-undefined-codeobj",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/codeobj.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-defined-codeobj",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/codeobj.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-ipdiscovery",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/ipdiscovery.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/ipdiscovery.o"
+    ],
+    "exit": 0,
+    "seconds": 0.044
+  },
+  {
+    "name": "x86_64-undefined-ipdiscovery",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/ipdiscovery.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-defined-ipdiscovery",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/ipdiscovery.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-compile-validation",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/validation.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/validation.o"
+    ],
+    "exit": 0,
+    "seconds": 0.077
+  },
+  {
+    "name": "x86_64-undefined-validation",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/validation.o"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "x86_64-defined-validation",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/validation.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-compile-device_info",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/device_info.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/device_info.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/device_info.o"
+    ],
+    "exit": 0,
+    "seconds": 0.027
+  },
+  {
+    "name": "x86_64-undefined-device_info",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/device_info.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-defined-device_info",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/device_info.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-edid",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/edid.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/edid.o"
+    ],
+    "exit": 0,
+    "seconds": 0.047
+  },
+  {
+    "name": "x86_64-undefined-edid",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/edid.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-defined-edid",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/edid.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-atombios",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/atombios.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/atombios.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/atombios.o"
+    ],
+    "exit": 0,
+    "seconds": 0.052
+  },
+  {
+    "name": "x86_64-undefined-atombios",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/atombios.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-defined-atombios",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/atombios.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-compile-display",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/display.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/display.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/display.o"
+    ],
+    "exit": 0,
+    "seconds": 0.052
+  },
+  {
+    "name": "x86_64-undefined-display",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/display.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-defined-display",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/display.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-integrity",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/integrity.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/integrity.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/integrity.o"
+    ],
+    "exit": 0,
+    "seconds": 0.015
+  },
+  {
+    "name": "x86_64-undefined-integrity",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/integrity.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-defined-integrity",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/integrity.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-query_candidate",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/query_candidate.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/query_candidate.o"
+    ],
+    "exit": 0,
+    "seconds": 0.022
+  },
+  {
+    "name": "x86_64-undefined-query_candidate",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/query_candidate.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-defined-query_candidate",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/query_candidate.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/lifecycle.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/lifecycle.o"
+    ],
+    "exit": 0,
+    "seconds": 0.033
+  },
+  {
+    "name": "x86_64-undefined-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/lifecycle.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-defined-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/lifecycle.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-darwin_native",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_native.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_native.o"
+    ],
+    "exit": 0,
+    "seconds": 0.057
+  },
+  {
+    "name": "x86_64-undefined-darwin_native",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_native.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-defined-darwin_native",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_native.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-darwin_snapshot",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_snapshot.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_snapshot.o"
+    ],
+    "exit": 0,
+    "seconds": 0.049
+  },
+  {
+    "name": "x86_64-undefined-darwin_snapshot",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_snapshot.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-defined-darwin_snapshot",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_snapshot.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-m10_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m10_contract_compile.d",
+      "-c",
+      "<PROJECT_ROOT>/tests/unit/m10_contract_compile.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m10_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.023
+  },
+  {
+    "name": "x86_64-undefined-m10_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m10_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-defined-m10_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m10_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-compile-m8_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m8_contract_compile.d",
+      "-c",
+      "<PROJECT_ROOT>/tests/unit/m8_contract_compile.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m8_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.017
+  },
+  {
+    "name": "x86_64-undefined-m8_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m8_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-defined-m8_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m8_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-verify-dwarf",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/dwarfdump",
+      "--verify",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m10_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-partial-link",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+      "-r",
+      "-arch",
+      "x86_64",
+      "-platform_version",
+      "macos",
+      "13.0",
+      "27.0",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/n44-offline-partial.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/codeobj.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/ipdiscovery.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/validation.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/device_info.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/edid.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/atombios.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/display.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/integrity.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/query_candidate.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/lifecycle.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_native.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/darwin_snapshot.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m10_contract_compile.o",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/m8_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.008
+  },
+  {
+    "name": "x86_64-partial-undefined",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "x86_64-partial-relocations",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/otool",
+      "-r",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "x86_64-partial-load-commands",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/otool",
+      "-h",
+      "-l",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "x86_64-partial-file",
+    "argv": [
+      "file",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "x86_64-partial-lipo",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo",
+      "-archs",
+      "<PROJECT_ROOT>/build/m10/native-x86_64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.006
+  },
+  {
+    "name": "arm64-compile-codeobj",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/codeobj.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/codeobj.o"
+    ],
+    "exit": 0,
+    "seconds": 0.128
+  },
+  {
+    "name": "arm64-undefined-codeobj",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/codeobj.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-defined-codeobj",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/codeobj.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-ipdiscovery",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/ipdiscovery.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/ipdiscovery.o"
+    ],
+    "exit": 0,
+    "seconds": 0.047
+  },
+  {
+    "name": "arm64-undefined-ipdiscovery",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/ipdiscovery.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-defined-ipdiscovery",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/ipdiscovery.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-validation",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/validation.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/validation.o"
+    ],
+    "exit": 0,
+    "seconds": 0.08
+  },
+  {
+    "name": "arm64-undefined-validation",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/validation.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-defined-validation",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/validation.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-device_info",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/device_info.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/device_info.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/device_info.o"
+    ],
+    "exit": 0,
+    "seconds": 0.027
+  },
+  {
+    "name": "arm64-undefined-device_info",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/device_info.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-defined-device_info",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/device_info.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-edid",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/edid.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/edid.o"
+    ],
+    "exit": 0,
+    "seconds": 0.05
+  },
+  {
+    "name": "arm64-undefined-edid",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/edid.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-defined-edid",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/edid.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-atombios",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/atombios.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/atombios.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/atombios.o"
+    ],
+    "exit": 0,
+    "seconds": 0.053
+  },
+  {
+    "name": "arm64-undefined-atombios",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/atombios.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-defined-atombios",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/atombios.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-display",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/display.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/display.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/display.o"
+    ],
+    "exit": 0,
+    "seconds": 0.054
+  },
+  {
+    "name": "arm64-undefined-display",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/display.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-defined-display",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/display.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-integrity",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/integrity.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/integrity.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/integrity.o"
+    ],
+    "exit": 0,
+    "seconds": 0.017
+  },
+  {
+    "name": "arm64-undefined-integrity",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/integrity.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-defined-integrity",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/integrity.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-query_candidate",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/query_candidate.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/query_candidate.o"
+    ],
+    "exit": 0,
+    "seconds": 0.025
+  },
+  {
+    "name": "arm64-undefined-query_candidate",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/query_candidate.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-defined-query_candidate",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/query_candidate.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/lifecycle.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/lifecycle.o"
+    ],
+    "exit": 0,
+    "seconds": 0.035
+  },
+  {
+    "name": "arm64-undefined-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/lifecycle.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-defined-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/lifecycle.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-darwin_native",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_native.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_native.o"
+    ],
+    "exit": 0,
+    "seconds": 0.04
+  },
+  {
+    "name": "arm64-undefined-darwin_native",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_native.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-defined-darwin_native",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_native.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-darwin_snapshot",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_snapshot.d",
+      "-c",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_snapshot.o"
+    ],
+    "exit": 0,
+    "seconds": 0.048
+  },
+  {
+    "name": "arm64-undefined-darwin_snapshot",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_snapshot.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-defined-darwin_snapshot",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_snapshot.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-m10_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m10_contract_compile.d",
+      "-c",
+      "<PROJECT_ROOT>/tests/unit/m10_contract_compile.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m10_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.024
+  },
+  {
+    "name": "arm64-undefined-m10_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m10_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-defined-m10_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m10_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-compile-m8_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-MD",
+      "-MF",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m8_contract_compile.d",
+      "-c",
+      "<PROJECT_ROOT>/tests/unit/m8_contract_compile.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m8_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.02
+  },
+  {
+    "name": "arm64-undefined-m8_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m8_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "arm64-defined-m8_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-gU",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m8_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-verify-dwarf",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/dwarfdump",
+      "--verify",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m10_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-partial-link",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+      "-r",
+      "-arch",
+      "arm64",
+      "-platform_version",
+      "macos",
+      "13.0",
+      "27.0",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/n44-offline-partial.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/codeobj.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/ipdiscovery.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/validation.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/device_info.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/edid.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/atombios.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/display.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/integrity.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/query_candidate.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/lifecycle.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_native.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/darwin_snapshot.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m10_contract_compile.o",
+      "<PROJECT_ROOT>/build/m10/native-arm64/m8_contract_compile.o"
+    ],
+    "exit": 0,
+    "seconds": 0.009
+  },
+  {
+    "name": "arm64-partial-undefined",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/nm",
+      "-u",
+      "<PROJECT_ROOT>/build/m10/native-arm64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-partial-relocations",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/otool",
+      "-r",
+      "<PROJECT_ROOT>/build/m10/native-arm64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "arm64-partial-load-commands",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/otool",
+      "-h",
+      "-l",
+      "<PROJECT_ROOT>/build/m10/native-arm64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.004
+  },
+  {
+    "name": "arm64-partial-file",
+    "argv": [
+      "file",
+      "<PROJECT_ROOT>/build/m10/native-arm64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.003
+  },
+  {
+    "name": "arm64-partial-lipo",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo",
+      "-archs",
+      "<PROJECT_ROOT>/build/m10/native-arm64/n44-offline-partial.o"
+    ],
+    "exit": 0,
+    "seconds": 0.005
+  },
+  {
+    "name": "analyze-codeobj",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/codeobj.plist"
+    ],
+    "exit": 0,
+    "seconds": 0.865
+  },
+  {
+    "name": "analyze-ipdiscovery",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/ipdiscovery.plist"
+    ],
+    "exit": 0,
+    "seconds": 0.212
+  },
+  {
+    "name": "analyze-validation",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/validation.plist"
+    ],
+    "exit": 0,
+    "seconds": 1.152
+  },
+  {
+    "name": "analyze-device_info",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/device_info.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/device_info.plist"
+    ],
+    "exit": 0,
+    "seconds": 0.049
+  },
+  {
+    "name": "analyze-edid",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/edid.plist"
+    ],
+    "exit": 0,
+    "seconds": 2.709
+  },
+  {
+    "name": "analyze-atombios",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src/atombios.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/atombios.plist"
+    ],
+    "exit": 0,
+    "seconds": 1.346
+  },
+  {
+    "name": "analyze-display",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/display.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/display.plist"
+    ],
+    "exit": 0,
+    "seconds": 1.636
+  },
+  {
+    "name": "analyze-integrity",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/integrity.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/integrity.plist"
+    ],
+    "exit": 0,
+    "seconds": 0.017
+  },
+  {
+    "name": "analyze-query_candidate",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/query_candidate.plist"
+    ],
+    "exit": 0,
+    "seconds": 0.023
+  },
+  {
+    "name": "analyze-lifecycle",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/lifecycle.plist"
+    ],
+    "exit": 0,
+    "seconds": 0.058
+  },
+  {
+    "name": "analyze-m8_contract_compile",
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "--analyze",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "<PROJECT_ROOT>/tests/unit/m8_contract_compile.cpp",
+      "-o",
+      "<PROJECT_ROOT>/build/m10/m8_contract_compile.plist"
+    ],
+    "exit": 0,
+    "seconds": 0.019
+  }
+]

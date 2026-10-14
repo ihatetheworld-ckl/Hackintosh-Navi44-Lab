@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "run_host_tests.py",
+    "--help"
+  ],
+  "exit": 1,
+  "stdout": "",
+  "stderr": "Python 3.11+ required; select an existing interpreter, no auto-install\n"
+}

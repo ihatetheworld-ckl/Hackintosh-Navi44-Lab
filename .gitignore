@@ -80,6 +80,12 @@ Thumbs.db
 /reports/host/
 /reports/m85-host/
 /reports/m9-host/
+/reports/m9-arm64/
+/reports/m9-x86_64/
+/reports/m9-sanitized/
+/reports/m9/local-commit.json
+/reports/m9/logs/
+/reports/m10/local/
 *.log
 /reports/m65/asan-canary.*
 /reports/m65/ubsan-canary.*

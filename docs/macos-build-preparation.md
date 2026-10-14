@@ -1,5 +1,11 @@
 # Mac 编译准备与 M9 边界
 
+M9 更新：真实 Apple Clang Host 和 x86_64 Mach-O 已验证；现有 Xcode SDK
+包含 Kernel.framework 公开头文件，独立 Native Object 无需获取 MacKernelSDK/Lilu。
+实际结果与复现见 [M9 报告](../reports/m9/development-report.md) 和
+[Mac 原生编译说明](macos-native-build-m9.md)。下文保留 M8.5 的准备时状态；
+未来完整 Kext 的依赖、链接与硬件边界仍未解除。
+
 ## 当前已经完成的工作
 
 M8 在 Windows 上使用 LLVM-MinGW 20261006 / Clang 23.1.3 完成纯 CPU 构建。

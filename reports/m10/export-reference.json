@@ -1,0 +1,55 @@
+{
+  "pin": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+  "origin": "https://github.com/apple-oss-distributions/xnu",
+  "scope": "Public source export reference only; NOT target kernel binary/link proof",
+  "file_sha256": {
+    "config/Libkern.exports": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+    "config/Libkern.x86_64.exports": "d7a66f639d0aaee9a5e69f5da2c62aff3d36b5760c674261ad5993e3c4fb3e57",
+    "config/IOKit.exports": "5435d901591777679419018e8051d33d614636f078e43aa08ef51bf9e088081d",
+    "config/IOKit.x86_64.exports": "c33616433824a14ded767ff24eb911b3d6499b9a859204f82cbd12c27fa51450",
+    "config/IOKit.arm64.exports": "dd975a53772382e446c4ea886fa2b1d29ed325f93f769fb240aa6d4d73b1b054",
+    "config/Libkern.arm64.exports": "166c204e9399e8832ff80c4b804145140de56cf764d8f6485274176b9491f75e"
+  },
+  "used_symbols": [
+    {
+      "symbol": "_IOFreeAligned",
+      "file": "config/IOKit.exports",
+      "line": "_IOFreeAligned"
+    },
+    {
+      "symbol": "_IOLog",
+      "file": "config/IOKit.exports",
+      "line": "_IOLog"
+    },
+    {
+      "symbol": "_IOMallocAligned",
+      "file": "config/IOKit.exports",
+      "line": "_IOMallocAligned:_IOMallocAligned_external"
+    },
+    {
+      "symbol": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "file": "config/IOKit.arm64.exports",
+      "line": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb"
+    },
+    {
+      "symbol": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "file": "config/IOKit.x86_64.exports",
+      "line": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb"
+    },
+    {
+      "symbol": "__ZN6OSData9withBytesEPKvj",
+      "file": "config/Libkern.exports",
+      "line": "__ZN6OSData9withBytesEPKvj"
+    },
+    {
+      "symbol": "___bzero",
+      "file": "config/Libkern.exports",
+      "line": "___bzero"
+    },
+    {
+      "symbol": "_memcpy",
+      "file": "config/Libkern.exports",
+      "line": "_memcpy"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "profile": "M9/M10 actual clean-publication-tree Host checks",
+  "status": "PASS",
+  "Cxx_original": 161,
+  "Python_PASS": 91,
+  "Python_SKIP": 2,
+  "M10_lifecycle": 74,
+  "failure_injection": 600,
+  "concurrent_attempts": 240,
+  "differential_inputs": 744,
+  "mutation_inputs": 2400,
+  "display_query_mutation": 3200,
+  "ASan_UBSan": "PASS",
+  "TSan": "PASS",
+  "x86_64_compile_link": "PASS",
+  "x86_64_runtime": "NOT RUN",
+  "Native_compile": "NOT RUN in publication QA",
+  "Kernel_runtime": "NOT RUN",
+  "old_private_history_calibration": "NOT RUN"
+}

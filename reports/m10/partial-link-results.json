@@ -1,0 +1,119 @@
+{
+  "x86_64": {
+    "path": "build/m10/native-x86_64/n44-offline-partial.o",
+    "cpu": 16777223,
+    "subtype": 3,
+    "type": "MH_OBJECT",
+    "build_version": [
+      [
+        1,
+        851968,
+        1769472
+      ]
+    ],
+    "sections": [
+      "__text",
+      "__cstring",
+      "__const",
+      "__literal16",
+      "__const"
+    ],
+    "sha256": "5a81929bafa7dc9b89852506994ca935503526a0bc4eff3a7f9276435a9c61fd",
+    "status": "PASS",
+    "remaining_imports": [
+      {
+        "symbol": "_IOFreeAligned",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "_IOLog",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "_IOMallocAligned",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "__ZN6OSData9withBytesEPKvj",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "___bzero",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "_memcpy",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      }
+    ],
+    "deployable": false,
+    "Full_Kext_Link": "NOT RUN"
+  },
+  "arm64": {
+    "path": "build/m10/native-arm64/n44-offline-partial.o",
+    "cpu": 16777228,
+    "subtype": 0,
+    "type": "MH_OBJECT",
+    "build_version": [
+      [
+        1,
+        851968,
+        1769472
+      ]
+    ],
+    "sections": [
+      "__text",
+      "__cstring",
+      "__const",
+      "__literal16",
+      "__const"
+    ],
+    "sha256": "2a32c340381965df65360c14ee581318c2c5d698ede348dace6dd0e8b2eaa570",
+    "status": "PASS",
+    "remaining_imports": [
+      {
+        "symbol": "_IOFreeAligned",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "_IOLog",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "_IOMallocAligned",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "__ZN6OSData9withBytesEPKvj",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      },
+      {
+        "symbol": "_memcpy",
+        "classification": "EXPECTED_KERNEL_IMPORT",
+        "requires_real_kernel_link": true
+      }
+    ],
+    "deployable": false,
+    "Full_Kext_Link": "NOT RUN"
+  }
+}

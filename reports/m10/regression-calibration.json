@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "m9": {
+    "expected_exit": 1,
+    "actual_exit": 1,
+    "output": "LEASE_RELEASES 2 EXPECTED 1\nPOOL_FOREIGN_RETURN_LOCKED 0 EXPECTED 1\n"
+  },
+  "m10": {
+    "expected_exit": 0,
+    "actual_exit": 0,
+    "output": "LEASE_RELEASES 1 EXPECTED 1\nPOOL_FOREIGN_RETURN_LOCKED 1 EXPECTED 1\n"
+  },
+  "count_policy": "two behavior probes, not added to 74 lifetime assertions"
+}

@@ -1,0 +1,244 @@
+[
+  {
+    "path": "build/m9/native-x86_64/darwin_native.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "f6354f30e68a3061869a71072e34d85b54acdafc0e252e2ed1819c42882fc2a7",
+    "flags": 8192,
+    "undefined_symbols": [
+      "_IOFreeAligned",
+      "_IOLog",
+      "_IOMallocAligned"
+    ]
+  },
+  {
+    "path": "build/m9/native-x86_64/m9_native_compile.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "cea329541a018b9697b9d24aec0cf5d4300ff13b89d20a083e5ee5dcc121287c",
+    "flags": 8192,
+    "undefined_symbols": []
+  },
+  {
+    "path": "build/m9/native-x86_64/codeobj.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "a1475a199797004c90b03fd325bb0559a66e6a833754c532861607c377448749",
+    "flags": 8192,
+    "undefined_symbols": [
+      "___bzero"
+    ]
+  },
+  {
+    "path": "build/m9/native-x86_64/ipdiscovery.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "33d8730ae2196289b281a2cfc08ef99b6a86e0bf0a23fcf40240fbb9268dcff1",
+    "flags": 8192,
+    "undefined_symbols": [
+      "___bzero"
+    ]
+  },
+  {
+    "path": "build/m9/native-x86_64/validation.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "1befc7d1492707e83edcf669b2fb03fb1b66081e76dec96460f777079f21ec78",
+    "flags": 8192,
+    "undefined_symbols": [
+      "__ZN7CodeObj10findKernelEPKhmPKcRNS_6KernelEPS3_N4Asic6TargetE",
+      "__ZNK11IpDiscovery6gcInfoERjS0_Pj",
+      "__ZNK11IpDiscovery8findIp64EthRNS_9IpEntry64E",
+      "___bzero",
+      "_memcpy"
+    ]
+  },
+  {
+    "path": "build/m9/native-x86_64/device_info.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "b8c6f136932cdae217437b3eb703dc7137d537040dde42a189f96d0e6d7cd66f",
+    "flags": 8192,
+    "undefined_symbols": []
+  },
+  {
+    "path": "build/m9/native-x86_64/edid.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "23869add7421dee122e239f659761af6e881c6643f62b293b5a900469f0fc2a3",
+    "flags": 8192,
+    "undefined_symbols": [
+      "___bzero",
+      "_memcpy"
+    ]
+  },
+  {
+    "path": "build/m9/native-x86_64/atombios.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "f652eeb8c1dd936fc17bc37537a610f67a4d93250c377d2730246cd774bc68bb",
+    "flags": 8192,
+    "undefined_symbols": [
+      "___bzero"
+    ]
+  },
+  {
+    "path": "build/m9/native-x86_64/display.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "f376ee0b4d75f81c84a61b6628c6bc2015d7f46c94b1fd615aa33843a12ac717",
+    "flags": 8192,
+    "undefined_symbols": [
+      "__ZN4Edid13parseCtaBlockEPKhRNS_7CtaCapsE",
+      "__ZN4Edid14parseBaseBlockEPKhmRNS_8BaseInfoE",
+      "__ZN4Edid14standardTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+      "__ZN4Edid15blockChecksumOkEPKh",
+      "__ZN4Edid17establishedTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+      "__ZN4Edid19parseDetailedTimingEPKhRNS_14DetailedTimingE",
+      "__ZN4Edid9vicTimingEhRNS_14DetailedTimingE",
+      "__ZN8AtomBios13connectorTypeEt",
+      "__ZN8AtomBios4initEPKhm",
+      "__ZNK8AtomBios14getPathRecordsERKNS_11DisplayPathERNS_11PathRecordsE",
+      "__ZNK8AtomBios15getDisplayPathsEPNS_11DisplayPathEm",
+      "___bzero",
+      "_memcpy"
+    ]
+  },
+  {
+    "path": "build/m9/native-x86_64/integrity.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "bc935e6731ee90895583390213a5e86535b6d4c4d0ad903c4a5ffe99549c40fc",
+    "flags": 8192,
+    "undefined_symbols": []
+  },
+  {
+    "path": "build/m9/native-x86_64/query_candidate.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "b73dbb1763f14c0d3a8faca5e124154edcfefa215d1202f648cc7f2d6808b063",
+    "flags": 8192,
+    "undefined_symbols": [
+      "__ZN8NaviCore16decodeDeviceInfoENS_4ViewERNS_10DeviceInfoE",
+      "__ZN8NaviCore16encodeDeviceInfoERKNS_10DeviceInfoEPhm"
+    ]
+  },
+  {
+    "path": "build/m9/native-x86_64/m8_contract_compile.o",
+    "architecture": "x86_64",
+    "cputype": 16777223,
+    "cpusubtype": 3,
+    "filetype": 1,
+    "build_version": [
+      {
+        "platform": 1,
+        "minos": 851968,
+        "sdk": 1769472
+      }
+    ],
+    "sha256": "6237aa44f1d846e82fdc6068c3532c0a33f770364e4f2a175825674bc7f9cef9",
+    "flags": 8192,
+    "undefined_symbols": [
+      "__ZN8NaviCore3elfENS_4ViewEN4Asic6TargetERNS_7ScratchES0_"
+    ]
+  }
+]

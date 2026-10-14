@@ -1,0 +1,18 @@
+{
+  "remote_heads": [
+    {
+      "ref": "refs/heads/main",
+      "sha": "6b088ba47a1b9f1bc2493cc03e12e2dae94d1d18"
+    }
+  ],
+  "M9_original_commit": "498e97fd3e92fbb243e303fcc381a4a6e6bef07b",
+  "M9_already_committed": true,
+  "M9_publication_approval": "PENDING",
+  "M9_pushed": false,
+  "publication_tree": "5cb3cab30f59e817d48b9bcc5d579e1e05f4638f",
+  "publication_files": 19,
+  "target": "m9/macos-native-build",
+  "M10_branch": "m10/darwin-link-lifecycle",
+  "M10_push": "NOT RUN",
+  "source": "authenticated read-only GitHub connector; observed 2026-10-14"
+}

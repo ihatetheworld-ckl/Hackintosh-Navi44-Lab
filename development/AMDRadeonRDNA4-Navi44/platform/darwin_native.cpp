@@ -1,4 +1,5 @@
-// Static integration draft: NOT COMPILED on macOS, NOT linked or executed on Windows.
+// M9: compiled as an x86_64 object with genuine Apple Kernel.framework headers.
+// Compile evidence only: no kernel link, service binding or native execution.
 // Actual IOKit interfaces only; no PCI/device/service/MMIO/DMA methods. BSD-3-Clause.
 #include "darwin_native.hpp"
 #include <IOKit/IOLib.h>

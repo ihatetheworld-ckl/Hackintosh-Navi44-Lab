@@ -25,12 +25,18 @@ struct ExecutionOps {
 };
 struct Contract { MemoryOps memory;LogOps log;SnapshotOps snapshots;ScratchOps scratch{};ExecutionOps execution{}; };
 class NodePool {
-    NaviCore::Node nodes[512]{};bool busy{false};
+    NaviCore::Node nodes[512]{};bool busy{false};size_t activeCount{0};
     static NaviCore::Node*acquire(void*ctx,size_t count){
         auto&p=*static_cast<NodePool*>(ctx);if(p.busy||!count||count>512)return nullptr;
-        p.busy=true;return p.nodes;
+        p.busy=true;p.activeCount=count;return p.nodes;
     }
-    static void release(void*ctx,NaviCore::Node*,size_t){static_cast<NodePool*>(ctx)->busy=false;}
+    static void release(void*ctx,NaviCore::Node*nodes,size_t count){
+        auto&p=*static_cast<NodePool*>(ctx);
+        // A foreign pointer/count or duplicate return must not unlock live scratch.
+        if(!p.busy||nodes!=p.nodes||count!=p.activeCount)return;
+        for(size_t i=0;i<count;++i)p.nodes[i]={};
+        p.activeCount=0;p.busy=false;
+    }
 public:
     NodePool()=default;NodePool(const NodePool&)=delete;NodePool&operator=(const NodePool&)=delete;
     ScratchOps contract(){return {this,acquire,release};}
@@ -38,18 +44,28 @@ public:
 // NodePool is not internally synchronized. Owner constructs it outside the
 // kernel stack and supplies ExecutionOps for thread-context serialized access.
 class Lease {
-    MemoryOps ops;void*pointer{nullptr};size_t bytes{0};
+    MemoryOps ops;void*pointer{nullptr};size_t bytes{0};bool inCallback{false};
 public:
     explicit Lease(MemoryOps m):ops(m){}
     Lease(const Lease&)=delete;Lease&operator=(const Lease&)=delete;
     ~Lease(){close();}
     bool open(size_t n,size_t alignment){
-        if(pointer||!n||!alignment||(alignment&(alignment-1))||!ops.allocate||!ops.release)return false;
-        void*p=ops.allocate(ops.context,n,alignment);if(!p)return false;
-        if(reinterpret_cast<uintptr_t>(p)%alignment){ops.release(ops.context,p,n);return false;}
+        if(inCallback||pointer||!n||!alignment||(alignment&(alignment-1))||!ops.allocate||!ops.release)return false;
+        inCallback=true;void*p=ops.allocate(ops.context,n,alignment);
+        if(!p){inCallback=false;return false;}
+        const uintptr_t address=reinterpret_cast<uintptr_t>(p);
+        if(address%alignment||n-1>UINTPTR_MAX-address){
+            ops.release(ops.context,p,n);inCallback=false;return false;
+        }
+        inCallback=false;
         pointer=p;bytes=n;return true;
     }
-    void close(){if(pointer){ops.release(ops.context,pointer,bytes);pointer=nullptr;bytes=0;}}
+    void close(){
+        if(inCallback||!pointer)return;
+        void*p=pointer;const size_t n=bytes;pointer=nullptr;bytes=0;
+        // Invalidate before invoking foreign code; recursive close cannot free twice.
+        inCallback=true;ops.release(ops.context,p,n);inCallback=false;
+    }
     void*data()const{return pointer;}
     NaviCore::View view()const{return {static_cast<const uint8_t*>(pointer),bytes};}
 };

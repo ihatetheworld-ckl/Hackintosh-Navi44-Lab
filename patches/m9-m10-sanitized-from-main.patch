@@ -1,0 +1,1960 @@
+diff --git a/.gitignore b/.gitignore
+index a64149e..a21386e 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -80,6 +80,12 @@ Thumbs.db
+ /reports/host/
+ /reports/m85-host/
+ /reports/m9-host/
++/reports/m9-arm64/
++/reports/m9-x86_64/
++/reports/m9-sanitized/
++/reports/m9/local-commit.json
++/reports/m9/logs/
++/reports/m10/local/
+ *.log
+ /reports/m65/asan-canary.*
+ /reports/m65/ubsan-canary.*
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9bb041c..fd555e8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,6 +5,7 @@ set(DIR "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/src")
+ set(CORE "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/core")
+ set(CORE_SOURCES "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp" "${CORE}/validation.cpp" "${CORE}/device_info.cpp")
+ set(M8_SOURCES "${DIR}/edid.cpp" "${DIR}/atombios.cpp" "${CORE}/display.cpp" "${CORE}/integrity.cpp" "${CORE}/query_candidate.cpp")
++set(LIFETIME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp")
+ add_executable(navi44_host_tests tests/unit/m65_unit.cpp "${DIR}/codeobj.cpp" "${DIR}/ipdiscovery.cpp" "${DIR}/offlinevalidation.cpp" "${CORE}/validation.cpp" "${CORE}/device_info.cpp")
+ target_include_directories(navi44_host_tests PRIVATE "${DIR}")
+ target_compile_features(navi44_host_tests PRIVATE cxx_std_17)
+@@ -30,13 +31,27 @@ foreach(target navi44_m8_tests navi44_m8_fuzz)
+ endforeach()
+ add_test(NAME m8_cpu_only COMMAND navi44_m8_tests)
+ add_test(NAME m8_bounded_mutation COMMAND navi44_m8_fuzz)
++find_package(Threads REQUIRED)
++add_executable(navi44_m10_lifetime tests/unit/m10_lifecycle.cpp ${CORE_SOURCES} ${LIFETIME_SOURCES})
++target_compile_features(navi44_m10_lifetime PRIVATE cxx_std_17)
++target_link_libraries(navi44_m10_lifetime PRIVATE Threads::Threads)
++if(MSVC)
++  target_compile_options(navi44_m10_lifetime PRIVATE /W4 /UNDEBUG)
++else()
++  target_compile_options(navi44_m10_lifetime PRIVATE -Wall -Wextra -Werror -UNDEBUG)
++endif()
++add_test(NAME m10_lifetime_cpu_only COMMAND navi44_m10_lifetime)
++add_executable(navi44_m10_regression_proof tests/unit/m10_regression_proof.cpp)
++target_include_directories(navi44_m10_regression_proof PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/platform")
++target_compile_features(navi44_m10_regression_proof PRIVATE cxx_std_17)
++add_test(NAME m10_regression_proof_cpu_only COMMAND navi44_m10_regression_proof)
+ set_tests_properties(cpu_only m7_cpu_only m8_cpu_only m8_bounded_mutation
+-  PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
++  m10_lifetime_cpu_only m10_regression_proof_cpu_only PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
+ # Only Core translation units use these flags; Host probe retains its STL/exception API.
+ if(MSVC)
+-  set_source_files_properties(${CORE_SOURCES} ${M8_SOURCES} PROPERTIES COMPILE_OPTIONS "/GR-;/EHs-c-")
++  set_source_files_properties(${CORE_SOURCES} ${M8_SOURCES} ${LIFETIME_SOURCES} PROPERTIES COMPILE_OPTIONS "/GR-;/EHs-c-")
+ else()
+-  set_source_files_properties(${CORE_SOURCES} ${M8_SOURCES} PROPERTIES COMPILE_OPTIONS
++  set_source_files_properties(${CORE_SOURCES} ${M8_SOURCES} ${LIFETIME_SOURCES} PROPERTIES COMPILE_OPTIONS
+     "-fno-exceptions;-fno-rtti;-ffreestanding;-Wframe-larger-than=4096")
+   foreach(target navi44_probe navi44_m7_tests navi44_m8_tests navi44_m8_fuzz)
+     target_compile_options(${target} PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+diff --git a/README.md b/README.md
+index c35df21..e22e358 100644
+--- a/README.md
++++ b/README.md
+@@ -1,10 +1,15 @@
+ # Hackintosh-Navi44-Lab
+ 
+ RX 9060 XT / Navi44 / gfx1200 的 **CPU-only** 驱动研发项目。
+-M8 已完成 Windows 离线解析与数据模型验证；M8.5 整理 GitHub 迁移。
+-目标仓库由用户创建为 Public，用户已明确接受；首次上传仍须审核确认。
++M8 已完成 Windows 离线解析与数据模型验证；M8.5 已完成 GitHub 迁移。
++M9 已在真实 macOS / Apple Clang 上完成 arm64 CPU 测试、x86_64 Mach-O
++及真实 Kernel.framework 头文件的 Native 独立对象编译。
++M10 已加入 Snapshot/Buffer 生命周期、Host mutex Mock 与两架构非部署型部分链接。
++具体证据见 [M10 报告](reports/m10/development-report.md)；部分链接仍是 MH_OBJECT，
++完整 Kext 链接、内核运行和真实 GPU 功能均 NOT RUN。
++目标仓库由用户创建为 Public，首次上传已确认；后续推送仍需用户确认。
+ EDID、AtomBIOS、Discovery、Firmware、ELF、N44I/N44Q 是静态软件模块。
+-真实 GPU 显示、Vulkan/Metal、WindowServer、Darwin Native/Kext 构建均未验证。
++真实 GPU 显示、Vulkan/Metal、WindowServer、Native 链接/运行及 Kext 构建均未验证。
+ 
+ ## 代码与证据
+ 
+@@ -46,7 +51,10 @@ Mac 的纯 Host 构建可使用现有 Apple Clang / CMake，或新增的便携
+ python3 -I -B -X utf8 run_host_tests.py --compiler /absolute/path/to/clang++
+ ~~~
+ 
+-Mac 命令尚未在真正 macOS 上执行，详见编译准备文档。
++M9 已实际验证 Mac 入口；必须选择现有 Python 3.11+（Xcode 自带 3.9 不满足）。
++入口在 macOS 明确选择真实 SDK，支持 `--arch` 和 `--compile-only`，不自动安装 Rosetta。
++完整串行验证与证据见 [M9 报告](reports/m9/development-report.md) 和
++[M9 复现说明](docs/macos-native-build-m9.md)。x86_64 程序运行为 NOT RUN。
+ `CMakeLists.txt` 显式列出 CPU-only 源码，没有 FetchContent/install/GPU/IOKit backend。
+ 原 Makefile 有立即失败门禁。不得运行衍生目录用户态 GPU 程序或上游安装脚本。
+ 
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/display.cpp b/development/AMDRadeonRDNA4-Navi44/core/display.cpp
+index 9c5b52c..20d1a16 100644
+--- a/development/AMDRadeonRDNA4-Navi44/core/display.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/core/display.cpp
+@@ -90,6 +90,8 @@ Result timing(const Edid::DetailedTiming&input,Mode&out){
+     const uint64_t numerator=uint64_t(t.pixelClockKHz)*1000,denominator=uint64_t(t.hTotal())*t.vTotal();
+     if(numerator<denominator||numerator>denominator*1000)return failure("mode_rate");
+     const uint64_t common=gcd(numerator,denominator);
++    // Keep the divisor explicit for Apple static analysis and fail closed.
++    if(!common)return failure("mode_rate_divisor",Error::Bounds);
+     out.timing=t;out.refresh={numerator/common,denominator/common};return success();
+ }
+ Result edid(View v,Origin o,Monitor&out,Mode*storage,size_t capacity,ExtensionPolicy policy){
+diff --git a/development/AMDRadeonRDNA4-Navi44/host/lifecycle_mock.hpp b/development/AMDRadeonRDNA4-Navi44/host/lifecycle_mock.hpp
+new file mode 100644
+index 0000000..d4a4bae
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/host/lifecycle_mock.hpp
+@@ -0,0 +1,55 @@
++// Host-only CPU mutex/reference mock, BSD-3-Clause. Never an IOKit object/lock.
++#ifndef Navi44LifecycleMock_hpp
++#define Navi44LifecycleMock_hpp
++#include "../platform/lifecycle.hpp"
++#include <array>
++#include <mutex>
++namespace NaviHost {
++class ThreadGate {
++    std::mutex mutex;
++    inline static thread_local ThreadGate*current=nullptr;
++    inline static thread_local bool interrupt=false;
++    static bool enter(void*ctx){
++        if(current||interrupt)return false;
++        auto&g=*static_cast<ThreadGate*>(ctx);g.mutex.lock();current=&g;return true;
++    }
++    static void leave(void*ctx){
++        auto&g=*static_cast<ThreadGate*>(ctx);if(current!=&g)return;
++        current=nullptr;g.mutex.unlock();
++    }
++    static bool held(void*ctx){return current==ctx&&!interrupt;}
++public:
++    NaviPlatform::AccessOps access(){return {{this,enter,leave},held};}
++    static void interruptContext(bool value){interrupt=value;}
++};
++class GateScope {
++    NaviPlatform::ExecutionOps ops;bool acquired;
++public:
++    explicit GateScope(NaviPlatform::AccessOps access):ops(access.execution),acquired(ops.enter(ops.context)){}
++    ~GateScope(){if(acquired)ops.leave(ops.context);}
++    explicit operator bool()const{return acquired;}
++    GateScope(const GateScope&)=delete;GateScope&operator=(const GateScope&)=delete;
++};
++struct ReferenceMock {
++    std::array<uint8_t,4096>bytes{};
++    int references{1};unsigned retains{0},releases{0},prepares{0},completes{0};
++    bool failRetain{false},failView{false},failPrepare{false},failComplete{false},alive{true};
++    NaviCore::View overrideView{};bool useOverride{false};
++    void(*onRelease)(void*){nullptr};void*hook{nullptr};
++    static bool retain(void*ctx){auto&r=*static_cast<ReferenceMock*>(ctx);if(r.failRetain||!r.alive)return false;++r.references;++r.retains;return true;}
++    static void release(void*ctx){
++        auto&r=*static_cast<ReferenceMock*>(ctx);++r.releases;--r.references;
++        if(!r.references){r.alive=false;r.bytes.fill(0xdd);}
++        if(r.onRelease)r.onRelease(r.hook);
++    }
++    static NaviCore::Result view(void*ctx,NaviCore::View&out){
++        auto&r=*static_cast<ReferenceMock*>(ctx);out={};
++        if(r.failView||!r.alive)return NaviCore::failure("mock_view_failure");
++        out=r.useOverride?r.overrideView:NaviCore::View{r.bytes.data(),r.bytes.size()};return NaviCore::success();
++    }
++    static NaviCore::Result prepare(void*ctx){auto&r=*static_cast<ReferenceMock*>(ctx);++r.prepares;return r.failPrepare?NaviCore::failure("mock_prepare_failure"):NaviCore::success();}
++    static NaviCore::Result complete(void*ctx){auto&r=*static_cast<ReferenceMock*>(ctx);++r.completes;return r.failComplete?NaviCore::failure("mock_complete_failure"):NaviCore::success();}
++    NaviPlatform::ReferenceOps ops(){return {this,retain,release,view,prepare,complete};}
++};
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp b/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp
+index 4efbabb..3f74d12 100644
+--- a/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/contract.hpp
+@@ -25,12 +25,18 @@ struct ExecutionOps {
+ };
+ struct Contract { MemoryOps memory;LogOps log;SnapshotOps snapshots;ScratchOps scratch{};ExecutionOps execution{}; };
+ class NodePool {
+-    NaviCore::Node nodes[512]{};bool busy{false};
++    NaviCore::Node nodes[512]{};bool busy{false};size_t activeCount{0};
+     static NaviCore::Node*acquire(void*ctx,size_t count){
+         auto&p=*static_cast<NodePool*>(ctx);if(p.busy||!count||count>512)return nullptr;
+-        p.busy=true;return p.nodes;
++        p.busy=true;p.activeCount=count;return p.nodes;
++    }
++    static void release(void*ctx,NaviCore::Node*nodes,size_t count){
++        auto&p=*static_cast<NodePool*>(ctx);
++        // A foreign pointer/count or duplicate return must not unlock live scratch.
++        if(!p.busy||nodes!=p.nodes||count!=p.activeCount)return;
++        for(size_t i=0;i<count;++i)p.nodes[i]={};
++        p.activeCount=0;p.busy=false;
+     }
+-    static void release(void*ctx,NaviCore::Node*,size_t){static_cast<NodePool*>(ctx)->busy=false;}
+ public:
+     NodePool()=default;NodePool(const NodePool&)=delete;NodePool&operator=(const NodePool&)=delete;
+     ScratchOps contract(){return {this,acquire,release};}
+@@ -38,18 +44,28 @@ public:
+ // NodePool is not internally synchronized. Owner constructs it outside the
+ // kernel stack and supplies ExecutionOps for thread-context serialized access.
+ class Lease {
+-    MemoryOps ops;void*pointer{nullptr};size_t bytes{0};
++    MemoryOps ops;void*pointer{nullptr};size_t bytes{0};bool inCallback{false};
+ public:
+     explicit Lease(MemoryOps m):ops(m){}
+     Lease(const Lease&)=delete;Lease&operator=(const Lease&)=delete;
+     ~Lease(){close();}
+     bool open(size_t n,size_t alignment){
+-        if(pointer||!n||!alignment||(alignment&(alignment-1))||!ops.allocate||!ops.release)return false;
+-        void*p=ops.allocate(ops.context,n,alignment);if(!p)return false;
+-        if(reinterpret_cast<uintptr_t>(p)%alignment){ops.release(ops.context,p,n);return false;}
++        if(inCallback||pointer||!n||!alignment||(alignment&(alignment-1))||!ops.allocate||!ops.release)return false;
++        inCallback=true;void*p=ops.allocate(ops.context,n,alignment);
++        if(!p){inCallback=false;return false;}
++        const uintptr_t address=reinterpret_cast<uintptr_t>(p);
++        if(address%alignment||n-1>UINTPTR_MAX-address){
++            ops.release(ops.context,p,n);inCallback=false;return false;
++        }
++        inCallback=false;
+         pointer=p;bytes=n;return true;
+     }
+-    void close(){if(pointer){ops.release(ops.context,pointer,bytes);pointer=nullptr;bytes=0;}}
++    void close(){
++        if(inCallback||!pointer)return;
++        void*p=pointer;const size_t n=bytes;pointer=nullptr;bytes=0;
++        // Invalidate before invoking foreign code; recursive close cannot free twice.
++        inCallback=true;ops.release(ops.context,p,n);inCallback=false;
++    }
+     void*data()const{return pointer;}
+     NaviCore::View view()const{return {static_cast<const uint8_t*>(pointer),bytes};}
+ };
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp
+index 467d699..0082301 100644
+--- a/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp
+@@ -1,4 +1,5 @@
+-// Static integration draft: NOT COMPILED on macOS, NOT linked or executed on Windows.
++// M9: compiled as an x86_64 object with genuine Apple Kernel.framework headers.
++// Compile evidence only: no kernel link, service binding or native execution.
+ // Actual IOKit interfaces only; no PCI/device/service/MMIO/DMA methods. BSD-3-Clause.
+ #include "darwin_native.hpp"
+ #include <IOKit/IOLib.h>
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp
+new file mode 100644
+index 0000000..4d2c394
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp
+@@ -0,0 +1,54 @@
++// Object code only: none of these kernel calls is executed by Host tests.
++#include "darwin_snapshot.hpp"
++#include <libkern/c++/OSData.h>
++#include <IOKit/IOBufferMemoryDescriptor.h>
++namespace NaviDarwin {
++using namespace NaviCore;
++// Public SDK defaults to raw OSPtr, not experimental OSSharedPtr factories.
++static_assert(__is_same(OSPtr<OSData>,OSData*),"use the audited public raw factory ABI");
++static_assert(sizeof(size_t)>=sizeof(IOByteCount),"descriptor length must not narrow");
++bool NativeSnapshot::retain(void*ctx){
++    auto&s=*static_cast<NativeSnapshot*>(ctx);if(!s.object_)return false;
++    s.object_->retain();return true;
++}
++void NativeSnapshot::release(void*ctx){
++    auto&s=*static_cast<NativeSnapshot*>(ctx);OSObject*p=s.object_;s.object_=nullptr;
++    if(p)p->release();
++}
++Result NativeSnapshot::view(void*ctx,View&out){
++    auto&s=*static_cast<NativeSnapshot*>(ctx);out={};
++    if(!s.object_)return failure("native_snapshot_missing",Error::Missing);
++    if(s.kind_==CpuSnapshotStorage::DataCopy){
++        const auto*data=static_cast<const OSData*>(s.object_);
++        out={static_cast<const uint8_t*>(data->getBytesNoCopy()),data->getLength()};
++    }else{
++        auto*buffer=static_cast<IOBufferMemoryDescriptor*>(s.object_);
++        out={static_cast<const uint8_t*>(buffer->getBytesNoCopy()),static_cast<size_t>(buffer->getLength())};
++    }
++    return success();
++}
++Result NativeSnapshot::createCopy(View input,CpuSnapshotStorage kind){
++    NaviPlatform::OwnerState state{};size_t leases=0;
++    Result r=owner_.inspect(state,leases);if(!r.ok())return r;
++    if(state!=NaviPlatform::OwnerState::Created||object_)return failure("native_snapshot_state",Error::Protocol);
++    const uintptr_t address=reinterpret_cast<uintptr_t>(input.data);
++    if(!input.data||!input.size||input.size>NaviPlatform::SnapshotOwner::MaxBytes||input.size-1>UINTPTR_MAX-address)
++        return failure("native_snapshot_bounds",Error::Bounds);
++    kind_=kind;NaviPlatform::ReferenceOps ref{this,retain,release,view,nullptr,nullptr};
++    if(kind==CpuSnapshotStorage::DataCopy){
++        static_assert(NaviPlatform::SnapshotOwner::MaxBytes<=UINT32_MAX,"OSData length narrowing");
++        auto data=OSData::withBytes(input.data,static_cast<unsigned int>(input.size));
++        if(!data)return failure("native_data_allocation",Error::Budget);
++        object_=data;r=owner_.activate(ref);
++        // The public raw factory returns reference count 1. Drop that initial
++        // reference after activate retained its own, including failure cleanup.
++        data->release();if(!r.ok())object_=nullptr;return r;
++    }
++    if(kind==CpuSnapshotStorage::BufferCopy){
++        auto buffer=IOBufferMemoryDescriptor::withBytes(input.data,static_cast<vm_size_t>(input.size),kIODirectionNone);
++        if(!buffer)return failure("native_buffer_allocation",Error::Budget);
++        object_=buffer;r=owner_.activate(ref);buffer->release();if(!r.ok())object_=nullptr;return r;
++    }
++    return failure("native_snapshot_storage",Error::Unsupported);
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.hpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.hpp
+new file mode 100644
+index 0000000..2d21b6f
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.hpp
+@@ -0,0 +1,25 @@
++// Genuine Apple API adapter, compile/partial-link only. BSD-3-Clause.
++#ifndef Navi44DarwinSnapshot_hpp
++#define Navi44DarwinSnapshot_hpp
++#if !defined(__APPLE__) || !defined(KERNEL)
++#error Genuine separately authorized kernel object build required
++#endif
++#include "lifecycle.hpp"
++#include <libkern/c++/OSObject.h>
++namespace NaviDarwin {
++enum class CpuSnapshotStorage:uint8_t { DataCopy,BufferCopy };
++// Caller owns long-lived wrapper/gate storage. No IOService/UserClient/GPU entry.
++// Close/return all leases under gate and require readyToFree before freeing it.
++class NativeSnapshot {
++    NaviPlatform::SnapshotOwner owner_;
++    OSObject*object_{nullptr};CpuSnapshotStorage kind_{CpuSnapshotStorage::DataCopy};
++    static bool retain(void*);static void release(void*);
++    static NaviCore::Result view(void*,NaviCore::View&);
++public:
++    NativeSnapshot(NaviPlatform::AccessOps access,uint64_t generation):owner_(access,generation){}
++    NativeSnapshot(const NativeSnapshot&)=delete;NativeSnapshot&operator=(const NativeSnapshot&)=delete;
++    NaviCore::Result createCopy(NaviCore::View,CpuSnapshotStorage);
++    NaviPlatform::SnapshotOwner&owner(){return owner_;}
++};
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp
+new file mode 100644
+index 0000000..76e5127
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp
+@@ -0,0 +1,106 @@
++#include "lifecycle.hpp"
++namespace NaviPlatform {
++using namespace NaviCore;
++namespace { Result context(){return failure("lifetime_context_or_reentry",Error::Protocol);} }
++bool SnapshotOwner::held()const{
++    return access_.execution.enter&&access_.execution.leave&&access_.isHeld&&
++        access_.isHeld(access_.execution.context);
++}
++SnapshotOwner::Call::Call(SnapshotOwner&o):owner(o),entered(o.held()&&!o.operation_){
++    if(entered)o.operation_=true;
++}
++SnapshotOwner::Call::~Call(){if(entered)owner.operation_=false;}
++bool SnapshotOwner::valid(const SnapshotTicket&t)const{
++    return t.owner==generation_&&t.serial&&t.slot<MaxLeases&&slots_[t.slot]==t.serial;
++}
++Result SnapshotOwner::finish(){
++    if(leases_)return failure("snapshot_shutdown_pending",Error::Protocol);
++    if(prepared_){
++        Result r=reference_.complete(reference_.context);
++        if(!r.ok()){state_=OwnerState::Failed;return r;}
++        prepared_=false;
++    }
++    input_={};state_=OwnerState::Released;
++    if(retained_){retained_=false;reference_.release(reference_.context);}
++    reference_={};return success();
++}
++Result SnapshotOwner::fail(Result error){
++    input_={};Result cleanup=finish();state_=OwnerState::Failed;
++    return cleanup.ok()?error:cleanup;
++}
++Result SnapshotOwner::activate(ReferenceOps ref,bool needsPreparation){
++    Call call{*this};if(!call.entered)return context();
++    if(state_!=OwnerState::Created)return failure("snapshot_activation_state",Error::Protocol);
++    if(!generation_||!ref.retain||!ref.release||!ref.view||
++       (needsPreparation&&(!ref.prepare||!ref.complete))){
++        state_=OwnerState::Failed;return failure("snapshot_reference_contract",Error::Protocol);
++    }
++    reference_=ref;
++    if(!reference_.retain(reference_.context)){state_=OwnerState::Failed;reference_={};return failure("snapshot_retain_failed",Error::Budget);}
++    retained_=true;
++    Result r=reference_.view(reference_.context,input_);if(!r.ok())return fail(r);
++    const uintptr_t address=reinterpret_cast<uintptr_t>(input_.data);
++    if(!input_.data||!input_.size||input_.size>MaxBytes||input_.size-1>UINTPTR_MAX-address)
++        return fail(failure("snapshot_view_bounds",Error::Bounds));
++    if(needsPreparation){r=reference_.prepare(reference_.context);if(!r.ok())return fail(r);prepared_=true;}
++    state_=OwnerState::Active;return success();
++}
++Result SnapshotOwner::borrowHeld(SnapshotTicket&out){
++    out={};if(state_!=OwnerState::Active)return failure("snapshot_not_active",Error::Protocol);
++    if(leases_==MaxLeases||next_==UINT64_MAX)return failure("snapshot_lease_budget",Error::Budget);
++    size_t i=0;while(i<MaxLeases&&slots_[i])++i;
++    if(i==MaxLeases)return failure("snapshot_slot_state",Error::Protocol);
++    slots_[i]=next_++;++leases_;out={generation_,slots_[i],i};return success();
++}
++Result SnapshotOwner::borrow(SnapshotTicket&out){
++    // Do not overwrite an existing obligation to return a live ticket.
++    if(out.owner||out.serial)return failure("snapshot_ticket_output_occupied",Error::Protocol);
++    out={};Call call{*this};return call.entered?borrowHeld(out):context();
++}
++Result SnapshotOwner::readHeld(const SnapshotTicket&t,View&out)const{
++    out={};if(!valid(t))return failure("snapshot_ticket_invalid",Error::Protocol);
++    if(state_!=OwnerState::Active)return failure("snapshot_revoked_or_closing",Error::Protocol);
++    out=input_;return success();
++}
++Result SnapshotOwner::read(const SnapshotTicket&t,View&out){
++    out={};Call call{*this};return call.entered?readHeld(t,out):context();
++}
++Result SnapshotOwner::returnHeld(SnapshotTicket&t){
++    if(!valid(t))return failure("snapshot_ticket_invalid",Error::Protocol);
++    slots_[t.slot]=0;--leases_;t={};
++    if(state_!=OwnerState::Active&&leases_==0)return finish();
++    return success();
++}
++Result SnapshotOwner::giveBack(SnapshotTicket&t){
++    Call call{*this};return call.entered?returnHeld(t):context();
++}
++Result SnapshotOwner::stop(OwnerState state){
++    Call call{*this};if(!call.entered)return context();
++    if(state_==OwnerState::Released)return success();
++    if(state_==OwnerState::Active||state_==OwnerState::Created)state_=state;
++    // Close may follow revoke/failed completion; retry cleanup without reopening.
++    input_={};return finish();
++}
++Result SnapshotOwner::close(){return stop(OwnerState::Closing);}
++Result SnapshotOwner::revoke(){return stop(OwnerState::Revoked);}
++bool SnapshotOwner::readyToFree()const{
++    return held()&&!operation_&&state_==OwnerState::Released&&!leases_&&!retained_&&!prepared_;
++}
++Result SnapshotOwner::inspect(OwnerState&state,size_t&count)const{
++    state=OwnerState::Failed;count=0;if(!held()||operation_)return context();
++    state=state_;count=leases_;return success();
++}
++Result SnapshotOwner::legacyBorrow(void*ctx,SnapshotKind kind,View&out){
++    auto&o=*static_cast<SnapshotOwner*>(ctx);out={};Call call{o};if(!call.entered)return context();
++    if(kind!=o.kind_||o.legacy_)return failure("snapshot_legacy_borrow",Error::Protocol);
++    Result r=o.borrowHeld(o.legacyTicket_);if(!r.ok())return r;
++    r=o.readHeld(o.legacyTicket_,out);
++    if(!r.ok()){o.returnHeld(o.legacyTicket_);return r;}
++    o.legacy_=true;o.legacyView_=out;return success();
++}
++void SnapshotOwner::legacyRelease(void*ctx,View input){
++    auto&o=*static_cast<SnapshotOwner*>(ctx);Call call{o};if(!call.entered)return;
++    if(!o.legacy_||input.data!=o.legacyView_.data||input.size!=o.legacyView_.size)return;
++    o.legacy_=false;o.legacyView_={};o.returnHeld(o.legacyTicket_);
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.hpp b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.hpp
+new file mode 100644
+index 0000000..6ca8286
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.hpp
+@@ -0,0 +1,55 @@
++// Serialized CPU resource ownership; BSD-3-Clause. No hardware or OS types.
++#ifndef Navi44Lifecycle_hpp
++#define Navi44Lifecycle_hpp
++#include "contract.hpp"
++namespace NaviPlatform {
++// Every operation requires this exact execution gate, already held by a thread.
++// Gate implementation owns synchronization; isHeld must validate current thread.
++struct AccessOps { ExecutionOps execution;bool(*isHeld)(void*){nullptr}; };
++struct ReferenceOps {
++    void*context{nullptr};bool(*retain)(void*){nullptr};void(*release)(void*){nullptr};
++    NaviCore::Result(*view)(void*,NaviCore::View&){nullptr};
++    NaviCore::Result(*prepare)(void*){nullptr};NaviCore::Result(*complete)(void*){nullptr};
++};
++enum class OwnerState:uint8_t { Created,Active,Closing,Revoked,Failed,Released };
++struct SnapshotTicket { uint64_t owner{0},serial{0};size_t slot{0}; };
++class SnapshotOwner {
++public:
++    static constexpr size_t MaxLeases=8,MaxBytes=1u<<20;
++    // generation must be unique for this storage lifetime, including address reuse.
++    SnapshotOwner(AccessOps access,uint64_t generation,SnapshotKind kind=SnapshotKind::ElfFile)
++        : access_(access),generation_(generation),kind_(kind){}
++    SnapshotOwner(const SnapshotOwner&)=delete;SnapshotOwner&operator=(const SnapshotOwner&)=delete;
++    // Storage must outlive all tickets and be freed only after readyToFree().
++    // No destructor attempts unsafe teardown without the caller's gate/context.
++    NaviCore::Result activate(ReferenceOps,bool needsPreparation=false);
++    NaviCore::Result borrow(SnapshotTicket&);
++    NaviCore::Result read(const SnapshotTicket&,NaviCore::View&);
++    NaviCore::Result giveBack(SnapshotTicket&);
++    NaviCore::Result close();NaviCore::Result revoke();
++    bool readyToFree()const;
++    NaviCore::Result inspect(OwnerState&,size_t&)const;
++    SnapshotOps snapshots(){return {this,legacyBorrow,legacyRelease};}
++    ExecutionOps execution()const{return access_.execution;}
++private:
++    AccessOps access_;uint64_t generation_,next_{1};SnapshotKind kind_;
++    ReferenceOps reference_{};NaviCore::View input_{};
++    uint64_t slots_[MaxLeases]{};size_t leases_{0};OwnerState state_{OwnerState::Created};
++    bool retained_{false},prepared_{false},operation_{false},legacy_{false};
++    SnapshotTicket legacyTicket_{};NaviCore::View legacyView_{};
++    bool held()const;
++    struct Call {
++        SnapshotOwner&owner;bool entered;
++        explicit Call(SnapshotOwner&);~Call();
++    };
++    bool valid(const SnapshotTicket&)const;
++    NaviCore::Result borrowHeld(SnapshotTicket&);
++    NaviCore::Result readHeld(const SnapshotTicket&,NaviCore::View&)const;
++    NaviCore::Result returnHeld(SnapshotTicket&);
++    NaviCore::Result finish();NaviCore::Result stop(OwnerState);
++    NaviCore::Result fail(NaviCore::Result);
++    static NaviCore::Result legacyBorrow(void*,SnapshotKind,NaviCore::View&);
++    static void legacyRelease(void*,NaviCore::View);
++};
++}
++#endif
+diff --git a/docs/buffer-lifecycle.md b/docs/buffer-lifecycle.md
+new file mode 100644
+index 0000000..ae4b790
+--- /dev/null
++++ b/docs/buffer-lifecycle.md
+@@ -0,0 +1,28 @@
++# M10 Buffer / Snapshot 生命周期
++
++Host使用普通CPU数组与逻辑引用计数；真实Native使用Apple OSData/
++IOBufferMemoryDescriptor类型，只做编译和部分链接。不存在GPU BO/VRAM。
++
++NativeSnapshot::createCopy复制caller提供的有效immutable字节，限1..1MiB，
++拒绝null、长度/地址溢出；caller须保证输入地址实际有效且复制期间不被修改。
++OSData和Buffer工厂均产生独立副本，内部对象指针不对外提供。
++
++真实公开SDK的OSPtr在未启用实验选项时是原始指针。
++工厂返回初始引用1；SnapshotOwner.activate额外retain，然后显式release工厂引用。
++初始化中途失败时配对释放这两个不同的引用义务。没有启用实验宏或虚构Apple类型。
++公开raw ABI及descriptor长度宽度有真实编译断言。
++
++Snapshot借用本身不额外retain每次ticket；owner强引用保护全部未归还tickets。
++revoke/close后read清空View并拒绝，新borrow也拒绝；原持有者归还后才能释放对象。
++实际IOKit retain/release没有在用户态执行；Host逻辑计数不是内核实测。
++
++Apple规定prepare须由caller串行化，complete与已成功prepare配对。
++本轮ReferenceOps支持这些状态：prepare失败不complete；complete失败保留引用和
++prepared状态，不释放/重开，允许在合法gate下重试complete。600组失败注入实际运行。
++来源：[prepare官方文档](https://developer.apple.com/documentation/kernel/iomemorydescriptor/1812845-prepare)，
++及已安装SDK IOMemoryDescriptor/OSData头。
++
++Native CPU副本路径不调用真实prepare/complete；没有DMA、物理段、映射、task权限
++或用户任务地址访问。实际内核准备/完成、映射撤销、并发与停止仍UNVERIFIED。
++逻辑撤销无法让已缓存的裸指针立即失效；所有consumer必须遵守ticket/gate契约。
++已实现长度/地址范围检查不能证明任意裸指针实际指向有效内存。
+diff --git a/docs/concurrency-contract.md b/docs/concurrency-contract.md
+new file mode 100644
+index 0000000..2be8e0f
+--- /dev/null
++++ b/docs/concurrency-contract.md
+@@ -0,0 +1,25 @@
++# M10 并发与关闭契约
++
++普通线程且该owner执行gate已持有，是retain、read、borrow、归还、close、complete、
++release的前提。中断上下文、未持有gate、错误gate或对象回调重入立即拒绝。
++NativeSnapshot复制调用同样先检查owner上下文，不在Host执行内核对象。
++
++Host ThreadGate使用真实用户态std::mutex及thread_local持有者身份。
++不是原M9的bool，也不是IOKit内核锁。GateScope负责配对enter/leave。
++每个线程最多持有一个此类gate，跨gate嵌套也拒绝，避免模型中的锁顺序循环。
++
++模型锁顺序：owner gate→状态/引用/私有字节访问；不能在gate持有期间等待
++其他borrower归还。close先置Closing/Revoked并返回pending，释放gate，
++其他borrower再归还；最后归还在gate下完成清理。
++日志重入由既有ExecutionOps入口拒绝；资源回调重入由owner operation拒绝。
++释放前失效Lease指针，防止release回调再次close造成double release。
++
++实际有界并发：两个worker共240次borrow/read/return，另一个borrower与shutdown
++通过有2秒上限的condition-variable同步，覆盖关闭请求期间仍持ticket的路径。
++worker接受/拒绝数随调度变化，但总数固定240；错误计数必须0，最终complete/release各1。
++本轮TSan实际PASS，覆盖生命周期.cpp与Host同步Mock；不可并发的旧parser对象未做TSan插桩。
++
++Kernel未实现真实工作循环/锁/thread-context识别，因此Kernel Thread Safety UNVERIFIED。
++实际IOLib/OSObject API可能阻塞，未来gate必须适用于普通可阻塞线程，不能持简单/自旋锁
++调用这些API。原NodePool/Lease继续要求caller串行化，不能单独跨线程共享。
++真正IOService引用、stop/free屏障、用户任务撤销、锁顺序和取消需独立内核工程验证。
+diff --git a/docs/darwin-symbol-dependencies.md b/docs/darwin-symbol-dependencies.md
+new file mode 100644
+index 0000000..e98eea6
+--- /dev/null
++++ b/docs/darwin-symbol-dependencies.md
+@@ -0,0 +1,34 @@
++# Darwin 符号依赖：M10
++
++本轮真实 Apple Clang/SDK 编译，Apple ld 部分链接。机器可读条目见
++`reports/m10/symbol-audit.json`、`native-object-results.json` 和 `export-reference.json`。
++对应公开 XNU 固定参考为
++[`f6217f891ac0bb64f3d375211650a4c1ff8ca1ea`](https://github.com/apple-oss-distributions/xnu/tree/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea)。
++这不是已核实与本机/目标 Intel 内核完全匹配的源码版本。
++
++| 分类 | 含义与本轮结果 |
++|---|---|
++| INTERNAL_RESOLVED | 每架构20个跨对象符号，由同一明确源码集实际提供；部分链接后不再 undefined |
++| EXPECTED_KERNEL_IMPORT | x86_64剩7个、arm64剩6个，公开导出参考有对应条目 |
++| HOST_ONLY_DEPENDENCY | 本轮正常内核集0；真实 Host SDK `_puts` 负样本实际被策略拒绝 |
++| UNSUPPORTED_DEPENDENCY | 本轮正常对象未出现；异常/RTTI/Host runtime/stack-check泄漏会停止审查 |
++| UNKNOWN | 最终两架构均0；首次遗漏架构导出表时Buffer工厂曾为UNKNOWN，补齐真实来源后重新审查 |
++| REQUIRES_REAL_KERNEL_LINK | 所有外部导入都具有该标记，即使属于EXPECTED也未验证目标内核最终链接 |
++
++实际剩余符号：`_IOMallocAligned`、`_IOFreeAligned`、`_IOLog`、`_memcpy`、
++`__ZN6OSData9withBytesEPKvj`、`__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb`；
++x86_64额外有`___bzero`。没有为它们创建假的实现。
++
++`config/IOKit.exports` 中 IOMallocAligned 还有外部入口别名，
++`config/Libkern.exports` 提供 memcpy/__bzero，Buffer工厂在对应架构的
++`IOKit.x86_64.exports`/`IOKit.arm64.exports`，不能仅查公共列表就误判其缺失。
++公开参考原文只保留本地；公开报告保存来源、pin、文件SHA及实际用到的条目。
++
++每个对象实际执行 nm undefined/defined，结合定义提供方和架构参考分类。
++使用真实对象验证错误CPU拒绝，真实stdio头编译负样本验证Host导入拒绝。
++检查不支持 C++异常、RTTI、全局new/delete、用户态stdio/heap/pthread依赖。
++普通内核导入不作为编译失败；未知导入不会冒充已解析。
++
++ABI审查覆盖同一SDK、C++17、KERNEL/KERNEL_EXTENSION、fapple-kext、无异常/RTTI、
++无stack protector、x86 no-red-zone、目标/布局断言、Mach-O和DWARF合法性。
++它不能验证目标内核vtable、OSObject二进制布局、arm64e/PAC或真正调用结果。
+diff --git a/docs/kernel-partial-link.md b/docs/kernel-partial-link.md
+new file mode 100644
+index 0000000..f376fd1
+--- /dev/null
++++ b/docs/kernel-partial-link.md
+@@ -0,0 +1,24 @@
++# 非部署型 Kernel Partial Link
++
++本轮使用已安装的 Apple `ld-27037.1`，分别对x86_64和arm64执行真实`ld -r`。
++每架构14个对象：九个原Core/解析单元、lifecycle、darwin_native、darwin_snapshot、
++M10契约探针、M8契约探针。排除device/plugin/fwblobs及硬件程序。
++
++一般形式如下，具体实际argv见M10 commands与本地原始日志：
++
++```text
++ld -r -arch <x86_64|arm64> -platform_version macos 13.0 27.0 \
++  -o build/m10/native-<arch>/n44-offline-partial.o <explicit object allowlist>
++```
++
++结果必须是单架构MH_OBJECT。脚本拒绝错误CPU、非object、dylib加载/运行入口命令、
++全局初始化与异常表；再检查nm、otool load commands/relocations、file、lipo。
++两个CPU各20个内部依赖实际闭合；Kernel外部导入仍然保留。
++
++这是可继续静态链接/分析的Relocatable Object，不是可加载模块或可安装Bundle。
++没有Kext entry/Info.plist/设备匹配表、签名、部署脚本或执行动作。
++Full Kext Link、Kernel Runtime、GPU Runtime全为NOT RUN。
++
++13.0部署标记与27.0 SDK是本次编译参数，不代表macOS13实机兼容或目标内核验证。
++arm64是通用对象目标，不是arm64e/PAC内核验证。
++未知链接器问题应保存错误并停止该目标，不通过伪造导出、stub或系统修改绕过。
+diff --git a/docs/m10-build-readiness.md b/docs/m10-build-readiness.md
+new file mode 100644
+index 0000000..bfc7640
+--- /dev/null
++++ b/docs/m10-build-readiness.md
+@@ -0,0 +1,36 @@
++# M10 构建与 M11 条件
++
++现有Python3.11+、Apple Clang21和macOS27 SDK足以运行本轮验证，不需要新SDK或Lilu。
++先读取安全约束并使用真实项目文件沙箱；路径检查不替代沙箱。
++
++```sh
++python3 -I -B -X utf8 run_m10_checks.py \
++  --compiler "$(xcrun --find clang++)" \
++  --sdk "$(xcrun --sdk macosx --show-sdk-path)" --target all
++```
++
++必须先确认python3>=3.11；本机Xcode Python3.9不能使用，已有其他合格解释器。
++显式安全target：host、native、partial-link、all。无默认部署目标；不调用上游Makefile。
++host分别构建arm64、x86编译/链接、arm64 ASan/UBSan、生命周期与有限TSan；
++native/partial-link根据明确allowlist编译内核对象并审查。每子进程60秒、测试/差分30秒，
++Host外层预算600秒且其每个child另有超时，串行编译，输入量固定。
++
++M9原portable helper来自本地固定M9 Git提交，重定向输出到M10，只读其逻辑。
++基线、原报告和M9日志不覆盖；旧header回归证明也是从该固定提交只读提取。
++当前本地M9历史是复现依赖；将来若发布独立脱敏快照，应明确提供等价公开基线策略。
++原始执行日志仅在reports/m10/local，公开JSON标明路径标签替换。
++build/tmp、日志包、Apple SDK、Object均不进入Git。
++
++现在具备继续准备M11非部署工程的基础：两架构对象、内部闭合、预期KPI清单和CPU
++生命周期模型。尚不能声称完整Kext已可链接/加载。
++进一步Full Kext构建须独立授权，并先具备：
++
++- 明确目标Intel macOS/XNU/SDK版本及合法完整链接资料/导出依赖；公共源码参考不能代替。
++- 无硬件匹配/初始化的服务/入口骨架、真实owner存储及generation发行约束。
++- 真正线程上下文、可阻塞gate、stop/drain/free及IOService引用管理设计。
++- 确认OSObject vtable/布局与OSPtr API配置、栈/符号/初始化/KPI依赖。
++- 对实际内核prepare/complete、错误恢复、映射/权限撤销仍保留未验证边界。
++- 先审查脱敏发布历史；M10本地祖先含原M9私人路径，不能直接推送来满足隐私要求。
++
++本阶段Full Kext Link/Bundle/签名/加载、Kernel/GPU Runtime、Metal、真实显示均NOT RUN。
++M11准备不授予签名、安装、加载、EFI/系统变更或硬件实验权限。
+diff --git a/docs/macos-build-preparation.md b/docs/macos-build-preparation.md
+index f272d8f..498b270 100644
+--- a/docs/macos-build-preparation.md
++++ b/docs/macos-build-preparation.md
+@@ -1,5 +1,11 @@
+ # Mac 编译准备与 M9 边界
+ 
++M9 更新：真实 Apple Clang Host 和 x86_64 Mach-O 已验证；现有 Xcode SDK
++包含 Kernel.framework 公开头文件，独立 Native Object 无需获取 MacKernelSDK/Lilu。
++实际结果与复现见 [M9 报告](../reports/m9/development-report.md) 和
++[Mac 原生编译说明](macos-native-build-m9.md)。下文保留 M8.5 的准备时状态；
++未来完整 Kext 的依赖、链接与硬件边界仍未解除。
++
+ ## 当前已经完成的工作
+ 
+ M8 在 Windows 上使用 LLVM-MinGW 20261006 / Clang 23.1.3 完成纯 CPU 构建。
+diff --git a/docs/macos-native-build-m9.md b/docs/macos-native-build-m9.md
+new file mode 100644
+index 0000000..a1b042b
+--- /dev/null
++++ b/docs/macos-native-build-m9.md
+@@ -0,0 +1,71 @@
++# M9 真实 macOS 编译与复现
++
++本阶段只编译/运行 CPU Host，Native 仅生成 Object。测试必须在授权的项目
++工作区和真实文件沙箱中运行；脚本路径检查不能替代系统沙箱。
++不运行衍生 Makefile，不下载/安装依赖，不签名/加载驱动，不访问 GPU。
++
++## 已验证环境
++
++- macOS 27.0.1 / 26A434，arm64；Xcode 27.0 / 27A266a。
++- Apple Clang 21.0.0 / clang-2100.3.34.2，macOS27.0 SDK。
++- Python 3.14.5 已存在；本次未安装。Xcode 自带 Python 3.9.6 不满足 3.11+。
++- CMake 入口已静态审查，本机 PATH 中没有 CMake，本轮未运行或安装它。
++- x86_64 运行未尝试；没有确认现有 macOS Rosetta，不触发其安装。
++
++## 本机完整复现命令
++
++先读根 AGENTS.md、安全文档与两个入口。只在本轮授权的目录内运行：
++
++```sh
++cd PROJECT_ROOT
++PYTHON_EXECUTABLE \
++  -I -B -X utf8 run_m9_macos_checks.py \
++  --compiler /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ \
++  --sdk SDK_ROOT
++```
++
++其他机器必须先核查其已有 Python、`xcrun --find clang++` 和
++`xcrun --sdk macosx --show-sdk-path`，替换为实际绝对路径。
++此矩阵专用于本轮 arm64 Mac，x86_64 程序始终只编译/链接。
++
++入口依次执行 arm64 Host、x86_64 编译/链接、arm64 ASan/UBSan、744 组差分、
++2400 组固定种子解析变异、实际故障 canary、Native Object 和静态分析。
++每个编译/测试子进程最多 60 秒；差分最多 30 秒；Host 外层预算 600 秒。
++串行且输入规模有限。重复验证不累计为新增测试。
++
++独立 Host 可以使用 `run_host_tests.py` 的 `--arch arm64` 或
++`--arch x86_64 --compile-only --skip-python`；未提供 `--sdk` 时只取
++xcrun 的 stdout 路径，stderr 诊断保存在日志中。
++
++## flags 与输出
++
++Host Core：C++17、`-fno-exceptions -fno-rtti -ffreestanding`、严格警告、
++`-Wframe-larger-than=4096 -O1 -g`、显式 `-arch/-isysroot`、macOS 部署标记 13.0。
++部署标记只用于编译/链接，不是 macOS 13 的运行兼容性证明。
++
++Native 额外使用 `-DKERNEL -DKERNEL_EXTENSION -mkernel -fapple-kext -nostdinc++`
++及 `-fno-stack-protector -mno-red-zone`，真实 Kernel.framework 作为系统头文件路径。
++没有伪造 Apple 类型，也没有将 Native 源码加入 Host 链接。
++
++产物位于 `build/m9-arm64`、`build/m9-x86_64`、`build/m9-sanitized` 和
++`build/m9/native-x86_64`，全部排除于 Git。用户态四个 x86_64 程序已链接，未执行。
++SDK 本体未复制/重分发；头文件依赖及 SHA256 见报告 JSON。
++
++## Native 验收范围
++
++`darwin_native.cpp` 验证真实 IOReturn、IOMallocAligned/IOFreeAligned 和 IOLog。
++`m9_native_compile.cpp` 只检查真实 OSObject、OSData、IOBufferMemoryDescriptor
++引用计数 API 可编译；retain/release 没有在内核运行。另编译九个 Core 和契约，
++合计 12 个 x86_64 内核选项 Object。
++
++原始 Adapter 仍只有内存/日志/NodePool callbacks，没有实现真实 Snapshot owner
++或 ExecutionOps 线程串行化。Buffer prepare/complete、长期输入存活、关闭时借用撤销、
++锁和 stop/free 路径均未验证，不能从编译探针推断这些已完成。
++
++Native 外部引用包含 `_IOMallocAligned`、`_IOFreeAligned`、`_IOLog`，Core 还有
++`_memcpy`、`___bzero` 和跨模块 C++ 符号。未验证目标 Intel 内核导出或最终链接闭合。
++无异常/RTTI 对象检查不等于生产内核 ABI 认证。
++
++证据见 `reports/m9/test-results.json`、`macho-audit.json`、`native-audit.json`、
++`header-dependencies.json` 和 `commands.json`。完整本地原始日志见
++`reports/m9/test-logs.zip` / `log-index.json`，不自动上传。
+diff --git a/docs/ownership-model.md b/docs/ownership-model.md
+new file mode 100644
+index 0000000..eedc985
+--- /dev/null
++++ b/docs/ownership-model.md
+@@ -0,0 +1,32 @@
++# M10 Ownership Model
++
++复用已有MemoryOps/Lease、SnapshotOps、ExecutionOps和NodePool，增加纯CPU
++SnapshotOwner/ReferenceOps；没有第二套GPU或IOService框架。
++
++| 资源 | Owner / borrower | 清理规则 |
++|---|---|---|
++| ReferenceOps资源 | 创建者初始引用；SnapshotOwner另持1个强引用 | activate retain成功后配对release；失败清理；所有tickets归还前不得释放 |
++| SnapshotTicket | caller持有归还义务，最多8个 | generation/serial/slot核对；重复/外来票据拒绝；成功归还后清空 |
++| View | immutable借用，依赖活跃ticket及执行gate | 每次read核查状态；失败清空out；不拥有或提升能力 |
++| NodePool | 长生命周期caller构造真实Node数组 | 外部串行化；只接受本数组/准确数量归还，清空Node；错误归还不解锁 |
++| MemoryOps Lease | 一个caller拥有一个分配 | 释放前清空状态，回调期间拒绝重入；重复close不再次释放 |
++| NativeSnapshot wrapper | caller持有长期wrapper/gate/generation | readyToFree成立且全部tickets归还后才能实际销毁其存储 |
++
++状态：CREATED→ACTIVE→CLOSING或REVOKED→RELEASED；初始化失败到FAILED，
++只允许清理；complete失败也到FAILED并保留资源，成功重试complete后才release。
++ACTIVE不允许重新activate，RELEASED不能重开。新的生命周期须创建新owner/generation。
++
++所有owner操作必须在该AccessOps的gate已由普通线程持有时执行。
++内部operation标记拒绝回调递归，不能替代锁。generation必须由可信caller唯一发行，
++包括跨owner与存储地址复用；ticket不是UserClient权限或安全认证凭据。
++
++Close是非阻塞shutdown请求：禁止新借用/读取，已有tickets仍需归还。
++有未归还tickets时返回shutdown_pending并阻止readyToFree。最后归还执行
++complete→release。重复close/revoke不重复释放。一次资源组中后续创建失败须逆序关闭
++此前成功资源；本轮对两个资源的部分初始化失败做了真实CPU验证。
++
++回调不得抛异常，release须在合法执行上下文完成且不失败。
++Owner不在未知线程析构中擅自执行内核清理；caller必须落实stop/drain/free协议。
++本阶段没有真实IOService stop/free、owner存储引用或generation发行器。
++物理销毁后的C++对象不能合法调用方法；测试验证的是RELEASED状态拒绝重入，
++不是让已销毁的内存变得安全。原始View缓存也无法被逻辑撤销自动抹除。
+diff --git a/run_host_tests.py b/run_host_tests.py
+index d07a946..6e721d5 100644
+--- a/run_host_tests.py
++++ b/run_host_tests.py
+@@ -1,16 +1,21 @@
+ """Portable CPU-only Host build; no SDK downloads, driver targets or GPU backend.
+ 
+-Requires an existing trusted C++17 compiler and Python 3.11+. Mac execution
+-remains NOT RUN until independently validated with real Apple Clang.
++Requires an existing trusted C++17 compiler and Python 3.11+.
++Architecture, compile/link and CPU execution results are recorded separately.
+ """
+ from pathlib import Path
+ import argparse
+ import json
+ import os
++import platform
++import re
+ import subprocess
+ import sys
+ import time
+ 
++if sys.version_info < (3, 11):
++    raise SystemExit("Python 3.11+ required; select an existing interpreter, no auto-install")
++
+ sys.path.insert(0, str(Path(__file__).resolve().parent))
+ import m7_safety as safe
+ 
+@@ -28,11 +33,19 @@ PYTESTS = ["test_offline.py", "test_m65.py", "test_m7.py", "test_m8.py"]
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("--compiler", required=True, help="Existing trusted clang++ absolute path")
+-    parser.add_argument("--stage", default="host", choices=["host", "m85-host", "m9-host"])
++    parser.add_argument("--stage", default="host", choices=["host", "m85-host", "m9-host",
++                        "m9-arm64", "m9-x86_64", "m9-sanitized"])
++    parser.add_argument("--arch", choices=["arm64", "x86_64"], help="macOS target architecture")
++    parser.add_argument("--sdk", help="Existing macOS SDK absolute path; default: xcrun macosx SDK")
++    parser.add_argument("--compile-only", action="store_true", help="Compile and link; never execute target binaries")
++    parser.add_argument("--skip-python", action="store_true", help="Do not duplicate architecture-independent Python tests")
++    parser.add_argument("--sanitize", action="store_true", help="Instrument all CPU objects and tests with ASan/UBSan")
+     args = parser.parse_args()
+     compiler = Path(args.compiler)
+     if not compiler.is_absolute() or not compiler.is_file():
+         raise SystemExit("Supply an existing compiler absolute path; no auto-install")
++    if (args.arch or args.sdk) and sys.platform != "darwin":
++        raise SystemExit("--arch/--sdk require macOS; Windows defaults are unchanged")
+     build = safe.mkdir("build/" + args.stage)
+     out = safe.mkdir("reports/" + args.stage)
+     temp = safe.mkdir("tmp/" + args.stage)
+@@ -40,11 +53,11 @@ def main():
+     env.update(TMP=str(temp), TEMP=str(temp), TMPDIR=str(temp),
+                CLANG_MODULE_CACHE_PATH=str(safe.mkdir(build / "cache")),
+                PYTHONDONTWRITEBYTECODE="1")
++    if args.sanitize:
++        env.update(ASAN_OPTIONS="halt_on_error=1:detect_leaks=0:abort_on_error=0",
++                   UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1")
+     records = []
+-    base = [str(compiler), "-std=c++17", "-Wall", "-Wextra", "-Werror",
+-            "-UNDEBUG", "-O1", "-g", "-I" + str(SRC)]
+-
+-    def run(command, name):
++    def run(command, name, stdout_only=False):
+         command = [str(x) for x in command]
+         if "-o" in command:
+             safe.checked(command[command.index("-o") + 1])
+@@ -53,45 +66,74 @@ def main():
+             result = subprocess.run(command, cwd=safe.ROOT, env=env,
+                                     capture_output=True, text=True,
+                                     encoding="utf-8", timeout=60)
+-        except subprocess.TimeoutExpired:
++        except subprocess.TimeoutExpired as exc:
+             records.append({"name": name, "argv": command, "exit": None,
+                             "status": "TIMEOUT", "seconds": round(time.monotonic()-began, 3)})
++            safe.write(out / (name + ".log"), "TIMEOUT\n" +
++                       (exc.stdout or b"").decode("utf-8", errors="replace") +
++                       (exc.stderr or b"").decode("utf-8", errors="replace"))
+             raise
+         records.append({"name": name, "argv": command, "exit": result.returncode,
+                         "seconds": round(time.monotonic()-began, 3)})
+         safe.write(out / (name + ".log"), result.stdout + result.stderr)
+         if result.returncode:
+             raise RuntimeError(name + " failed; see project report")
+-        return result.stdout + result.stderr
++        return result.stdout if stdout_only else result.stdout + result.stderr
+ 
+     summary = {"status": "RUNNING", "kind": "CPU-only Host", "platform": sys.platform,
++               "host_arch": platform.machine(), "target_arch": args.arch or platform.machine(),
++               "compile": "NOT RUN", "link": "NOT RUN", "runtime": "NOT RUN",
+                "Darwin_Native": "NOT RUN", "Kext": "NOT RUN", "GPU": "NOT RUN",
+                "differential": "NOT RUN by portable entry",
+-               "sanitizer": "NOT RUN by portable entry"}
++               "sanitizer": "ASan/UBSan requested" if args.sanitize else "NOT RUN by portable entry",
++               "python": "NOT RUN" if args.skip_python else "PENDING"}
+     safe.write(out / "results.json", json.dumps(summary, indent=2))
+     try:
+         summary["compiler"] = run([compiler, "--version"], "compiler-version").strip()
+-        for test in PYTESTS:
+-            run([sys.executable, "-I", "-B", "-X", "utf8",
++        base = [str(compiler), "-std=c++17", "-Wall", "-Wextra", "-Werror",
++                "-UNDEBUG", "-O1", "-g", "-I" + str(SRC)]
++        if sys.platform == "darwin":
++            sdk = Path(args.sdk or run(["xcrun", "--sdk", "macosx", "--show-sdk-path"],
++                                      "sdk-path", stdout_only=True).strip())
++            if not sdk.is_absolute() or not sdk.is_dir():
++                raise RuntimeError("An existing genuine macOS SDK path is required")
++            base += ["-isysroot", str(sdk), "-arch", args.arch or platform.machine(),
++                     "-mmacosx-version-min=13.0"]
++            summary["sdk"] = str(sdk)
++        if args.sanitize:
++            base += ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
++        python_counts = {}
++        for test in ([] if args.skip_python else PYTESTS):
++            log = run([sys.executable, "-I", "-B", "-X", "utf8",
+                  safe.checked("tests/" + test)], "python-" + Path(test).stem)
++            total = re.search(r"Ran (\d+) tests?", log)
++            if not total:
++                raise RuntimeError("Missing Python execution summary")
++            skip = re.search(r"OK \(skipped=(\d+)\)", log)
++            count, skipped = int(total[1]), int(skip[1]) if skip else 0
++            python_counts[test] = {"PASS": count - skipped, "SKIP": skipped, "FAIL": 0}
+         objects = []
+         for source in PURE:
+             safe.checked(source)
+             obj = safe.checked(build / (source.stem + ".o"))
+             run(base + ["-fno-exceptions", "-fno-rtti", "-ffreestanding",
+-                        "-Wframe-larger-than=4096", "-c", source, "-o", obj],
++                        "-Wframe-larger-than=4096", "-MD", "-MF", build / (source.stem + ".d"),
++                        "-c", source, "-o", obj],
+                 "core-" + source.stem)
+             objects.append(obj)
+         offline = safe.checked(build / "offlinevalidation.o")
+         run(base + ["-c", SRC / "offlinevalidation.cpp", "-o", offline], "host-adapter")
+         extra = ".exe" if os.name == "nt" else ""
+         unit_counts = {}
++        summary["compile"] = "PASS"
+         for name in TESTS:
+             executable = safe.checked(build / (name + extra))
+             linkage = ["-static"] if os.name == "nt" else []
+             deps = objects + ([offline] if name in ("m65_unit", "m7_unit") else [])
+             run(base + linkage + [safe.checked("tests/unit/" + name + ".cpp"),
+                                    *deps, "-o", executable], "build-" + name)
++            if args.compile_only:
++                continue
+             log = run([executable], "run-" + name)
+             if name.endswith("unit"):
+                 unit_counts[name] = sum(row.startswith("PASS ") for row in log.splitlines())
+@@ -102,8 +144,12 @@ def main():
+         run(base + ["-fno-exceptions", "-fno-rtti", "-ffreestanding",
+                     "-c", safe.checked("tests/unit/m8_contract_compile.cpp"),
+                     "-o", safe.checked(build / "contract.o")], "platform-contract")
+-        summary.update(status="PASS", cpp_unit=unit_counts, python_files=PYTESTS,
++        summary.update(status="PASS", link="PASS", runtime="NOT RUN" if args.compile_only else "PASS",
++                       cpp_unit=unit_counts, python=python_counts if not args.skip_python else "NOT RUN",
++                       python_files=[] if args.skip_python else PYTESTS,
+                        kernel_friendly_host_compile="PASS")
++        if args.sanitize:
++            summary["sanitizer"] = "NOT RUN" if args.compile_only else "PASS; leak detection NOT VERIFIED"
+     except Exception as exc:
+         summary.update(status="FAIL", error=str(exc))
+         raise
+diff --git a/run_m10_checks.py b/run_m10_checks.py
+new file mode 100644
+index 0000000..a29116f
+--- /dev/null
++++ b/run_m10_checks.py
+@@ -0,0 +1,252 @@
++"""M10 reviewed serial CPU/object checks; BSD-3-Clause.
++
++Existing Apple tools only. No download, installation, Makefile, deployable
++bundle, kernel entry, codesign, GPU or native execution. Partial outputs must
++be MH_OBJECT without dynamic-library loads or entry-point load commands.
++Raw execution logs remain local; public JSON replaces private argv prefixes.
++"""
++from pathlib import Path
++import argparse
++import hashlib
++import importlib.util
++import json
++import os
++import platform
++import re
++import resource
++import struct
++import subprocess
++import sys
++import time
++
++if sys.version_info<(3,11):raise SystemExit("Existing Python 3.11+ required")
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++import run_host_tests as host
++PLATFORM=host.SRC.parent/"platform"
++LIFETIME=PLATFORM/"lifecycle.cpp"
++NATIVE=[PLATFORM/"darwin_native.cpp",PLATFORM/"darwin_snapshot.cpp"]
++PROBE=safe.checked("tests/unit/m10_contract_compile.cpp")
++M9="498e97fd3e92fbb243e303fcc381a4a6e6bef07b"
++
++def main():
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--compiler",required=True);parser.add_argument("--sdk",required=True)
++    parser.add_argument("--target",required=True,choices=["host","native","partial-link","all"])
++    args=parser.parse_args()
++    if sys.platform!="darwin" or platform.machine()!="arm64":raise SystemExit("Authorized arm64 Mac required")
++    compiler,sdk=Path(args.compiler),Path(args.sdk)
++    if not compiler.is_absolute() or not compiler.is_file() or not sdk.is_absolute() or not sdk.is_dir():raise SystemExit("Existing tools/SDK required")
++    out=safe.mkdir("reports/m10");local=safe.mkdir(out/"local");build=safe.mkdir("build/m10");tmp=safe.mkdir("tmp/m10")
++    env=os.environ.copy();env.update(TMPDIR=str(tmp),TMP=str(tmp),TEMP=str(tmp),
++        CLANG_MODULE_CACHE_PATH=str(safe.mkdir(build/"cache")),PYTHONDONTWRITEBYTECODE="1",
++        ASAN_OPTIONS="halt_on_error=1:detect_leaks=0:abort_on_error=0",UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1",
++        TSAN_OPTIONS="halt_on_error=1")
++    for key in ("CPATH","CPLUS_INCLUDE_PATH","C_INCLUDE_PATH","LIBRARY_PATH","DYLD_INSERT_LIBRARIES"):env.pop(key,None)
++    resource.setrlimit(resource.RLIMIT_CORE,(0,0))
++    records=[]
++    def public(value):
++        if isinstance(value,str):return value.replace(str(safe.ROOT),"<PROJECT_ROOT>").replace(sys.executable,"<EXISTING_PYTHON>")
++        if isinstance(value,list):return [public(x) for x in value]
++        if isinstance(value,dict):return {k:public(v) for k,v in value.items()}
++        return value
++    def save(name,data):safe.write(out/(name+".json"),json.dumps(public(data),ensure_ascii=False,indent=2))
++    def run(command,name,data=None,timeout=60,allow_failure=False):
++        command=[str(x) for x in command]
++        if "-o" in command:safe.checked(command[command.index("-o")+1])
++        print(name,flush=True);start=time.monotonic()
++        try:p=subprocess.run(command,cwd=safe.ROOT,env=env,input=data,capture_output=True,text=True,timeout=timeout)
++        except subprocess.TimeoutExpired as e:
++            records.append(dict(name=name,argv=command,exit=None,status="TIMEOUT"));save("commands",records)
++            safe.write(local/(name+".log"),"TIMEOUT\n"+str(e.stdout)+str(e.stderr));raise
++        safe.write(local/(name+".log"),p.stdout+p.stderr)
++        records.append(dict(name=name,argv=command,exit=p.returncode,seconds=round(time.monotonic()-start,3)))
++        safe.write(local/"commands-raw.json",json.dumps(records,indent=2));save("commands",records)
++        if p.returncode and not allow_failure:raise RuntimeError(name+" failed; original local log retained")
++        return p
++    summary=dict(stage="M10",status="RUNNING",Core_Compile="NOT RUN",Native_Compile="NOT RUN",
++        Partial_Link="NOT RUN",Symbol_Audit="NOT RUN",ABI_Audit="NOT RUN",Full_Kext_Link="NOT RUN",
++        Kernel_Runtime="NOT RUN",GPU_Runtime="NOT RUN",Windows_Regression="NOT RUN",x86_64_Host_Runtime="NOT RUN")
++    save("test-results",summary)
++    try:
++        version=run([compiler,"--version"],"compiler-version").stdout
++        if "Apple clang" not in version:raise RuntimeError("Apple compiler required")
++        tools={name:run(["xcrun","--find",name],"find-"+name).stdout.strip() for name in ("ld","nm","otool","lipo","dwarfdump")}
++        linker_version=run([tools["ld"],"-v"],"linker-version")
++        save("environment",dict(compiler=version.strip(),sdk=str(sdk),python=sys.version,
++            host_arch=platform.machine(),linker=(linker_version.stdout+linker_version.stderr).strip(),target=args.target))
++        tracked=[x.decode() for x in subprocess.check_output(["git","ls-files","-z"]).split(b"\0") if x]
++        paths=set(p for p in tracked if p.endswith((".cpp",".hpp",".h",".py")) and not p.startswith("reports/"))
++        paths.update(p.relative_to(safe.ROOT).as_posix() for p in [LIFETIME,*NATIVE,PROBE,PLATFORM/"lifecycle.hpp",PLATFORM/"darwin_snapshot.hpp",
++            safe.checked("tests/unit/m10_lifecycle.cpp"),safe.checked("development/AMDRadeonRDNA4-Navi44/host/lifecycle_mock.hpp"),safe.checked(__file__)])
++        before={p:hashlib.sha256(safe.checked(p).read_bytes()).hexdigest() for p in sorted(paths)};save("source-sha256",before)
++        common=[compiler,"-std=c++17","-Wall","-Wextra","-Werror","-UNDEBUG","-O1","-g","-isysroot",sdk,
++                "-mmacosx-version-min=13.0","-I"+str(host.SRC)]
++        cpu=["-fno-exceptions","-fno-rtti","-ffreestanding","-Wframe-larger-than=4096"]
++        if args.target in ("host","all"):
++            summary["Regression_Calibration"]="NOT RUN: original private M9 history intentionally absent; M10 current behavior tested below"
++            original=safe.checked("run_host_tests.py").read_text()
++            helper=original.replace("str(Path(__file__).resolve().parent)",repr(str(safe.ROOT)))
++            for old,new in [('safe.mkdir("build/" + args.stage)','safe.mkdir("build/m10/host/" + args.stage)'),
++                ('safe.mkdir("reports/" + args.stage)','safe.mkdir("reports/m10/local/host/" + args.stage)'),
++                ('safe.mkdir("tmp/" + args.stage)','safe.mkdir("tmp/m10/host/" + args.stage)')]:
++                if helper.count(old)!=1:raise RuntimeError("Historical helper boundary changed")
++                helper=helper.replace(old,new)
++            helper_path=safe.write(build/"host-helper.py",helper)
++            host_results={}
++            for stage,arch,opts in [("m9-arm64","arm64",[]),("m9-x86_64","x86_64",["--compile-only","--skip-python"]),("m9-sanitized","arm64",["--sanitize","--skip-python"])]:
++                run([sys.executable,"-I","-B","-X","utf8",helper_path,"--compiler",compiler,"--sdk",sdk,"--stage",stage,"--arch",arch,*opts],stage,timeout=600)
++                result=json.loads(safe.checked(local/"host"/stage/"results.json").read_text())
++                if result["status"]!="PASS":raise RuntimeError("Regression failed")
++                host_results[stage]=result
++            spec=importlib.util.spec_from_file_location("m10fixtures",safe.checked("tests/fixtures/m9_differential.py"));fixture=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixture)
++            cases=fixture.all_cases;mutations=fixture.fuzz_cases()
++            if len(cases)!=744 or len(mutations)!=2400:raise RuntimeError("Finite corpus changed")
++            lifetime_results={}
++            for stage,sanitized in [("m9-arm64",False),("m9-sanitized",True)]:
++                folder=safe.checked(build/"host"/stage);flags=["-fsanitize=address,undefined","-fno-omit-frame-pointer"] if sanitized else []
++                base=common+["-arch","arm64",*flags]
++                life=folder/"lifecycle.o";run(base+cpu+["-c",LIFETIME,"-o",life],stage+"-compile-lifecycle")
++                objects=[folder/(p.stem+".o") for p in host.PURE]
++                exe=folder/"m10_lifecycle"
++                run(base+[safe.checked("tests/unit/m10_lifecycle.cpp"),life,*objects,"-o",exe],stage+"-link-lifecycle")
++                log=run([exe],stage+"-run-lifecycle",timeout=30).stdout
++                match=re.search(r"SUMMARY (\d+) (\d+)",log)
++                if not match or int(match[2]) or "FAIL " in log:raise RuntimeError("Lifetime assertion failure")
++                lifetime_results[stage]=dict(PASS=int(match[1]),FAIL=int(match[2]),failure_injection_inputs=600,concurrent_attempts=240)
++                probe=folder/"probe"
++                run(base+[safe.checked("tests/unit/m65_probe.cpp"),folder/"offlinevalidation.o",*objects,"-o",probe],stage+"-link-probe")
++                for inputs,name in [(cases,"differential"),(mutations,"mutation")]:
++                    output=run([probe],stage+"-"+name,data="".join(fixture.request(*c) for c in inputs),timeout=30).stdout.splitlines()
++                    if len(output)!=len(inputs):raise RuntimeError("Differential row count mismatch")
++                    differences=[dict(index=i,expected=fixture.canonical(*c),actual=json.loads(row)) for i,(c,row) in enumerate(zip(inputs,output)) if fixture.canonical(*c)!=json.loads(row)]
++                    save(stage+"-"+name+"-differences",differences)
++                    if differences:raise RuntimeError("Differential mismatch")
++            # Compiler instrumentation includes the lifetime state machine and
++            # Host synchronization mock. Pure immutable parsers are not concurrent.
++            tsan_flags=common+["-arch","arm64","-fsanitize=thread","-fno-omit-frame-pointer"]
++            tsan_obj=build/"lifecycle-tsan.o";tsan_exe=build/"lifetime-tsan"
++            p=run(tsan_flags+cpu+["-c",LIFETIME,"-o",tsan_obj],"tsan-compile",allow_failure=True)
++            tsan=dict(status="NOT RUN",scope="Ownership state + Host mock; existing non-concurrent parser objects not instrumented")
++            if p.returncode==0:
++                objects=[build/"host/m9-arm64"/(p.stem+".o") for p in host.PURE]
++                p=run(tsan_flags+[safe.checked("tests/unit/m10_lifecycle.cpp"),tsan_obj,*objects,"-o",tsan_exe],"tsan-link",allow_failure=True)
++                if p.returncode==0:
++                    p=run([tsan_exe],"tsan-runtime",timeout=30,allow_failure=True)
++                    text=p.stdout+p.stderr
++                    if "WARNING: ThreadSanitizer: data race" in text:raise RuntimeError("ThreadSanitizer detected a real race")
++                    if p.returncode==0 and re.search(r"SUMMARY \d+ 0",text):tsan["status"]="PASS"
++                    elif "FATAL: ThreadSanitizer" in text or "Operation not permitted" in text:tsan["status"]="SKIP: runtime unsupported by current sandbox/environment"
++                    else:raise RuntimeError("TSan test failed without an environmental blocker")
++                else:tsan["status"]="SKIP: existing toolchain cannot link TSan"
++            else:tsan["status"]="SKIP: existing compiler cannot build TSan"
++            summary.update(Core_Compile="PASS",Host_Regression=host_results,Lifetime=lifetime_results,
++                shared_differential=dict(inputs=744,differences=0),parser_mutation=dict(inputs=2400,seed=759070,differences=0),
++                ASan_UBSan="PASS for current arm64 regression + lifecycle; leak detection NOT VERIFIED",TSan=tsan)
++            save("build-results",dict(Host=host_results,Lifetime=lifetime_results,TSan=tsan))
++
++        def macho(path,arch):
++            raw=safe.checked(path).read_bytes();magic,cpu_type,subtype,kind,count,size,flags,_=struct.unpack_from("<IiiIIIII",raw)
++            if magic!=0xfeedfacf or cpu_type!={"arm64":0x100000c,"x86_64":0x1000007}[arch] or kind!=1:raise RuntimeError("Wrong architecture or non-object artifact")
++            offset=32;platforms=[];sections=[]
++            if offset+size>len(raw):raise RuntimeError("Command range")
++            for _ in range(count):
++                cmd,length=struct.unpack_from("<II",raw,offset)
++                if length<8 or offset+length>32+size:raise RuntimeError("Command bounds")
++                if cmd in (0xc,0x80000018,0x8000001f,0x80000028,0x5):raise RuntimeError("Unexpected runtime entry/dylib command")
++                if cmd==0x32:platforms.append(struct.unpack_from("<III",raw,offset+8))
++                if cmd==0x19:
++                    n=struct.unpack_from("<I",raw,offset+64)[0]
++                    for i in range(n):sections.append(raw[offset+72+i*80:offset+88+i*80].split(b"\0")[0].decode())
++                offset+=length
++            if not platforms or any(p[0]!=1 for p in platforms):raise RuntimeError("Wrong platform")
++            if any(s in sections for s in ("__mod_init_func","__gcc_except_tab","__init")):raise RuntimeError("Unexpected global initialization/EH section")
++            return dict(path=path.relative_to(safe.ROOT).as_posix(),cpu=cpu_type,subtype=subtype,type="MH_OBJECT",build_version=platforms,sections=sections,sha256=hashlib.sha256(raw).hexdigest())
++        native_results={};symbol_results={};partial_results={};kernel=sdk/"System/Library/Frameworks/Kernel.framework/Headers"
++        if args.target in ("native","partial-link","all"):
++            exported=json.loads(safe.checked(local/"export-reference.json").read_text())
++            export_files={}
++            for f in exported["files"]:
++                if hashlib.sha256(f["text"].encode()).hexdigest()!=f["sha256"]:raise RuntimeError("Export source changed")
++                for line in f["text"].splitlines():
++                    line=line.strip()
++                    if line.startswith("_"):
++                        left=line.split()[0].split(":")[0];export_files.setdefault(f["path"],{})[left]=dict(file=f["path"],line=line)
++            public_exports=[]
++            forbidden=("__cxa_","__gxx_personality","_Unwind","__dynamic_cast","_ZTI","_ZTS","_ZNSt","_Znwm","_Znam","_Zdl","_Zda","_malloc","_free","_puts","_printf","_fwrite","_pthread_","stack_chk")
++            negative=build/"host-import-negative.o"
++            run(common+["-arch","arm64","-c",safe.checked("tests/unit/m10_host_dependency.cpp"),"-o",negative],"policy-negative-compile")
++            leaked=run([tools["nm"],"-u",negative],"policy-negative-symbols").stdout.splitlines()
++            if "_puts" not in leaked or not any(t in s for s in leaked for t in forbidden):raise RuntimeError("Host import policy failed to reject genuine puts import")
++            summary["Symbol_Policy_Negative"]="PASS: actual Host SDK puts object rejected; never included in kernel link"
++            for arch in ("x86_64","arm64"):
++                exports={}
++                for path,values in export_files.items():
++                    if path.endswith((".x86_64.exports",".arm64.exports")) and not path.endswith("."+arch+".exports"):continue
++                    exports.update(values)
++                folder=safe.mkdir(build/("native-"+arch));objects=[];object_audit=[];defined={};undefined={}
++                flags=common+["-arch",arch,"-isystem",kernel,"-nostdinc++","-DKERNEL","-DKERNEL_EXTENSION","-mkernel","-fapple-kext","-fno-stack-protector",*cpu]
++                if arch=="x86_64":flags+=["-mno-red-zone"]
++                sources=[*host.PURE,LIFETIME,*NATIVE,PROBE,safe.checked("tests/unit/m8_contract_compile.cpp")]
++                for src in sources:
++                    obj=folder/(src.stem+".o");objects.append(obj)
++                    run(flags+["-MD","-MF",folder/(src.stem+".d"),"-c",src,"-o",obj],arch+"-compile-"+src.stem)
++                    item=macho(obj,arch)
++                    u=run([tools["nm"],"-u",obj],arch+"-undefined-"+src.stem).stdout.splitlines()
++                    d=run([tools["nm"],"-gU",obj],arch+"-defined-"+src.stem).stdout.splitlines()
++                    item["undefined_symbols"]=u;object_audit.append(item)
++                    for symbol in u:undefined.setdefault(symbol,[]).append(src.relative_to(safe.ROOT).as_posix())
++                    for line in d:
++                        parts=line.split()
++                        if len(parts)>=3:defined.setdefault(parts[-1],[]).append(src.relative_to(safe.ROOT).as_posix())
++                    if any(t in s for s in u for t in forbidden):raise RuntimeError("Host/exception/RTTI/stack runtime in kernel object")
++                # An actual correctly formed object must be rejected for the other CPU.
++                try:macho(objects[0],"arm64" if arch=="x86_64" else "x86_64")
++                except RuntimeError:pass
++                else:raise RuntimeError("Architecture audit accepted the wrong CPU")
++                audit=[]
++                for symbol,users in sorted(undefined.items()):
++                    if symbol in defined:classification="INTERNAL_RESOLVED"
++                    elif symbol in exports:classification="EXPECTED_KERNEL_IMPORT"
++                    elif any(t in symbol for t in forbidden):classification="HOST_ONLY_DEPENDENCY"
++                    else:classification="UNKNOWN"
++                    row=dict(symbol=symbol,classification=classification,users=users,providers=defined.get(symbol,[]),requires_real_kernel_link=symbol not in defined)
++                    if symbol in exports:
++                        row["export_reference"]=exports[symbol];public_exports.append(dict(symbol=symbol,**exports[symbol]))
++                    audit.append(row)
++                native_results[arch]=dict(status="PASS",objects=object_audit,flags=[str(x) for x in flags])
++                symbol_results[arch]=dict(per_symbol=audit,unknown=[r["symbol"] for r in audit if r["classification"]=="UNKNOWN"])
++                run([tools["dwarfdump"],"--verify",folder/(PROBE.stem+".o")],arch+"-verify-dwarf")
++                if args.target in ("partial-link","all"):
++                    combined=folder/"n44-offline-partial.o"
++                    p=run([tools["ld"],"-r","-arch",arch,"-platform_version","macos","13.0","27.0","-o",combined,*objects],arch+"-partial-link",allow_failure=True)
++                    if p.returncode:
++                        partial_results[arch]=dict(status="FAIL",reason="Apple linker error; no unsafe fallback");continue
++                    item=macho(combined,arch);remaining=run([tools["nm"],"-u",combined],arch+"-partial-undefined").stdout.splitlines()
++                    if any(s in defined for s in remaining):raise RuntimeError("Unresolved internal symbol after partial link")
++                    run([tools["otool"],"-r",combined],arch+"-partial-relocations")
++                    run([tools["otool"],"-h","-l",combined],arch+"-partial-load-commands")
++                    run(["file",combined],arch+"-partial-file");run([tools["lipo"],"-archs",combined],arch+"-partial-lipo")
++                    item.update(status="PASS",remaining_imports=[dict(symbol=s,classification="EXPECTED_KERNEL_IMPORT" if s in exports else "UNKNOWN",requires_real_kernel_link=True) for s in remaining],deployable=False,Full_Kext_Link="NOT RUN")
++                    partial_results[arch]=item
++            save("native-object-results",native_results);save("symbol-audit",symbol_results);save("partial-link-results",partial_results)
++            references={(r["symbol"],r["file"],r["line"]) for r in public_exports}
++            save("export-reference",dict(pin=exported["pin"],origin=exported["origin"],scope=exported["scope"],file_sha256={f["path"]:f["sha256"] for f in exported["files"]},used_symbols=[dict(symbol=s,file=f,line=line) for s,f,line in sorted(references)]))
++            summary.update(Core_Compile="PASS",Native_Compile="PASS",Symbol_Audit="PASS: classified; real kernel link remains required",
++                ABI_Audit="PASS: arch/options/layout/DWARF/object invariants; kernel ABI runtime UNVERIFIED",
++                Partial_Link="PASS" if partial_results and all(x["status"]=="PASS" for x in partial_results.values()) else "NOT RUN" if not partial_results else "FAIL")
++        analysis=[]
++        if args.target=="all":
++            for src in [*host.PURE,LIFETIME,safe.checked("tests/unit/m8_contract_compile.cpp")]:
++                p=run(common+["-arch","arm64","--analyze",*cpu,src,"-o",build/(src.stem+".plist")],"analyze-"+src.stem)
++                if "warning:" in p.stdout+p.stderr:raise RuntimeError("Static analyzer warning")
++                analysis.append(src.relative_to(safe.ROOT).as_posix())
++            summary["Static_Analysis"]=dict(status="PASS",files=analysis)
++        if any(hashlib.sha256(safe.checked(p).read_bytes()).hexdigest()!=v for p,v in before.items()):raise RuntimeError("Source changed during checks")
++        summary["source_stability"]="PASS";summary["status"]="PASS" if summary["Partial_Link"]!="FAIL" else "PARTIAL"
++    except Exception as exc:
++        summary.update(status="FAIL",error=str(exc));raise
++    finally:save("test-results",summary)
++    print(json.dumps(public(summary),ensure_ascii=False,indent=2))
++
++if __name__=="__main__":main()
+diff --git a/run_m9_macos_checks.py b/run_m9_macos_checks.py
+new file mode 100644
+index 0000000..872177d
+--- /dev/null
++++ b/run_m9_macos_checks.py
+@@ -0,0 +1,280 @@
++"""M9 Apple-only, serial CPU verification. BSD-3-Clause.
++
++Uses existing tools/SDK only. No download, install, Makefile, device, native
++execution, Kext link, signing or loading. x86_64 executables are never run.
++All explicit writes, temporary files, module caches and logs stay in the lab.
++Run inside the session's filesystem sandbox; path checks do not replace it.
++"""
++from pathlib import Path
++import argparse
++import hashlib
++import importlib.util
++import json
++import os
++import platform
++import re
++import resource
++import shlex
++import struct
++import subprocess
++import sys
++import time
++
++if sys.version_info < (3, 11):
++    raise SystemExit("Select an existing Python 3.11+ interpreter; no auto-install")
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++import m7_safety as safe
++import run_host_tests as host
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--compiler", required=True)
++    parser.add_argument("--sdk", required=True)
++    args = parser.parse_args()
++    if sys.platform != "darwin" or platform.machine() != "arm64":
++        raise SystemExit("This M9 matrix requires the authorized arm64 Mac; x86 runtime NOT RUN")
++    compiler, sdk = Path(args.compiler), Path(args.sdk)
++    if not compiler.is_absolute() or not compiler.is_file() or not sdk.is_absolute() or not sdk.is_dir():
++        raise SystemExit("Existing absolute compiler and SDK paths are required")
++    out = safe.mkdir("reports/m9")
++    logs = safe.mkdir(out / "logs")
++    build = safe.mkdir("build/m9")
++    temp = safe.mkdir("tmp/m9")
++    env = os.environ.copy()
++    env.update(TMPDIR=str(temp), TMP=str(temp), TEMP=str(temp),
++               CLANG_MODULE_CACHE_PATH=str(safe.mkdir(build / "cache")),
++               PYTHONDONTWRITEBYTECODE="1", ASAN_OPTIONS="halt_on_error=1:detect_leaks=0:abort_on_error=0",
++               UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1")
++    # Avoid inherited injected headers, libraries or runtimes changing evidence.
++    for key in ("CPATH", "C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "LIBRARY_PATH", "DYLD_INSERT_LIBRARIES"):
++        env.pop(key, None)
++    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
++    commands = []
++
++    def run(command, name, *, timeout=60, data=None, allow_failure=False):
++        command = [str(x) for x in command]
++        if "-o" in command:
++            safe.checked(command[command.index("-o") + 1])
++        start = time.monotonic()
++        print(name, flush=True)
++        try:
++            p = subprocess.run(command, cwd=safe.ROOT, env=env, input=data,
++                               capture_output=True, text=True, encoding="utf-8", timeout=timeout)
++        except subprocess.TimeoutExpired as exc:
++            commands.append(dict(name=name, argv=command, exit=None, status="TIMEOUT"))
++            safe.write(logs / (name + ".log"), "TIMEOUT\n" +
++                       (exc.stdout or b"").decode("utf-8", errors="replace") +
++                       (exc.stderr or b"").decode("utf-8", errors="replace"))
++            safe.write(out / "commands.json", json.dumps(commands, indent=2))
++            raise
++        commands.append(dict(name=name, argv=command, exit=p.returncode,
++                             seconds=round(time.monotonic() - start, 3)))
++        safe.write(logs / (name + ".log"), p.stdout + p.stderr)
++        safe.write(out / "commands.json", json.dumps(commands, indent=2))
++        if p.returncode and not allow_failure:
++            raise RuntimeError(name + " failed; see project log")
++        return p
++
++    summary = dict(stage="M9", status="RUNNING", Kext="NOT RUN", GPU="NOT RUN",
++                   Metal="NOT RUN", Windows_execution="NOT RUN", x86_64_runtime="NOT RUN",
++                   x86_64_sanitizer_runtime="NOT RUN", CMake="NOT RUN: not installed in PATH")
++    safe.write(out / "test-results.json", json.dumps(summary, indent=2))
++    try:
++        version = run([compiler, "--version"], "apple-clang-version").stdout
++        if "Apple clang" not in version:
++            raise RuntimeError("A genuine Apple Clang is required")
++        summary.update(compiler=version.strip(), sdk=str(sdk), python=sys.version,
++                       python_executable=sys.executable)
++        source_paths = host.PURE + [host.SRC / "offlinevalidation.cpp",
++                                    safe.checked("run_host_tests.py"), safe.checked(__file__),
++                                    safe.checked("tests/fixtures/m9_differential.py")]
++        # Snapshot all project sources involved, not historical report hashes.
++        source_paths += list((host.SRC.parent / "core").glob("*.hpp"))
++        source_paths += list((host.SRC.parent / "platform").glob("*.hpp"))
++        source_paths += list((host.SRC.parent / "host").glob("*.hpp"))
++        source_paths += list((safe.ROOT / "tests/unit").glob("*.cpp"))
++        source_paths += [host.SRC.parent / "platform/darwin_native.cpp",
++                         host.SRC.parent / "host/navi44.py", safe.checked("tests/fixtures/synthetic.py"),
++                         safe.checked("tests/fixtures/m8_display.hpp")]
++        source_paths += [host.SRC / (p.stem + ".hpp") for p in host.PURE if p.parent == host.SRC]
++        source_paths += [host.SRC / "asicprofile.hpp", host.SRC / "offlinevalidation.hpp"]
++        before = {p.relative_to(safe.ROOT).as_posix(): hashlib.sha256(safe.checked(p).read_bytes()).hexdigest()
++                  for p in source_paths}
++        safe.write(out / "source-sha256.json", json.dumps(before, indent=2))
++        for stage, arch, options in (("m9-arm64", "arm64", []),
++                                     ("m9-x86_64", "x86_64", ["--compile-only", "--skip-python"]),
++                                     ("m9-sanitized", "arm64", ["--sanitize", "--skip-python"])):
++            run([sys.executable, "-I", "-B", "-X", "utf8", safe.checked("run_host_tests.py"),
++                 "--compiler", compiler, "--sdk", sdk, "--stage", stage, "--arch", arch, *options],
++                stage, timeout=600)  # each child compile/test has its own 60s timeout
++            result = json.loads(safe.checked("reports/" + stage + "/results.json").read_text())
++            if result["status"] != "PASS" or result["target_arch"] != arch:
++                raise RuntimeError("Host result mismatch")
++            summary[stage] = result
++        tools = {}
++        for name in ("nm", "otool", "lipo"):
++            tools[name] = run(["xcrun", "--find", name], "find-" + name).stdout.strip()
++
++        def macho(path, arch, filetype):
++            raw = safe.checked(path).read_bytes()
++            magic, cpu, subtype, kind, count, command_bytes, flags, _ = struct.unpack_from("<IiiIIIII", raw)
++            expected = {"arm64": 0x100000c, "x86_64": 0x1000007}[arch]
++            if magic != 0xfeedfacf or cpu != expected or kind != filetype:
++                raise RuntimeError("Mach-O architecture/type mismatch: " + str(path))
++            offset, platforms = 32, []
++            if offset + command_bytes > len(raw):
++                raise RuntimeError("Mach-O command bounds")
++            for _ in range(count):
++                cmd, size = struct.unpack_from("<II", raw, offset)
++                if size < 8 or offset + size > 32 + command_bytes:
++                    raise RuntimeError("Mach-O load command bounds")
++                if cmd == 0x32:
++                    plat, minimum, sdk_version = struct.unpack_from("<III", raw, offset + 8)
++                    platforms.append(dict(platform=plat, minos=minimum, sdk=sdk_version))
++                offset += size
++            if not platforms or any(p["platform"] != 1 for p in platforms):
++                raise RuntimeError("Expected LC_BUILD_VERSION macOS")
++            return dict(path=path.relative_to(safe.ROOT).as_posix(), architecture=arch,
++                        cputype=cpu, cpusubtype=subtype, filetype=kind, build_version=platforms,
++                        sha256=hashlib.sha256(raw).hexdigest(), flags=flags)
++
++        audit = []
++        forbidden = ("__cxa_throw", "__cxa_allocate_exception", "__gxx_personality", "_Unwind",
++                     "__dynamic_cast", "_ZSt", "_Znwm", "_Znam", "_ZTI", "_ZTS")
++        for arch, stage in (("arm64", "m9-arm64"), ("x86_64", "m9-x86_64")):
++            for source in host.PURE:
++                obj = safe.checked("build/" + stage + "/" + source.stem + ".o")
++                record = macho(obj, arch, 1)
++                symbols = run([tools["nm"], "-u", obj], arch + "-symbols-" + obj.stem).stdout
++                if any(token in symbols for token in forbidden):
++                    raise RuntimeError("Core exception/RTTI/heap/STL dependency: " + str(obj))
++                record["undefined_symbols"] = symbols.splitlines()
++                audit.append(record)
++            obj = safe.checked("build/" + stage + "/contract.o")
++            audit.append(macho(obj, arch, 1))
++            for name in host.TESTS:
++                audit.append(macho(safe.checked("build/" + stage + "/" + name), arch, 2))
++            run(["file", *[safe.checked("build/" + stage + "/" + p.stem + ".o") for p in host.PURE]],
++                arch + "-file-types")
++            run([tools["lipo"], "-archs", safe.checked("build/" + stage + "/validation.o")], arch + "-lipo")
++            run([tools["otool"], "-h", "-l", safe.checked("build/" + stage + "/validation.o")], arch + "-load-commands")
++        safe.write(out / "macho-audit.json", json.dumps(audit, indent=2))
++        summary["object_audit"] = "PASS: CPU, MH_OBJECT/MH_EXECUTE, macOS build version, core symbols"
++
++        common = [compiler, "-std=c++17", "-Wall", "-Wextra", "-Werror", "-UNDEBUG", "-O1", "-g",
++                  "-arch", "arm64", "-isysroot", sdk, "-mmacosx-version-min=13.0", "-I" + str(host.SRC)]
++        fixture_path = safe.checked("tests/fixtures/m9_differential.py")
++        spec = importlib.util.spec_from_file_location("m9differential", fixture_path)
++        fixtures = importlib.util.module_from_spec(spec)
++        spec.loader.exec_module(fixtures)
++        cases, mutations = fixtures.all_cases, fixtures.fuzz_cases()
++        if len(cases) != 744 or len(mutations) != 2400:
++            raise RuntimeError("Reviewed finite corpus count changed")
++
++        def compare(exe, inputs, name):
++            p = run([exe], name, timeout=30, data="".join(fixtures.request(*c) for c in inputs))
++            rows = p.stdout.splitlines()
++            if len(rows) != len(inputs):
++                raise RuntimeError("Differential output count mismatch")
++            differences = []
++            for i, (case, row) in enumerate(zip(inputs, rows)):
++                expected, actual = fixtures.canonical(*case), json.loads(row)
++                if expected != actual:
++                    differences.append(dict(index=i, mode=case[0], params=case[2],
++                                            hex=bytes(case[1]).hex(), python=expected, cpp=actual))
++            safe.write(out / (name + "-differences.json"), json.dumps(differences, indent=2))
++            if differences:
++                raise RuntimeError(name + " has semantic differences")
++
++        for stage, sanitized in (("m9-arm64", False), ("m9-sanitized", True)):
++            base = safe.checked("build/" + stage)
++            probe = safe.checked(base / "m65_probe")
++            flags = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"] if sanitized else []
++            objects = [safe.checked(base / (p.stem + ".o")) for p in host.PURE]
++            run(common + flags + [safe.checked("tests/unit/m65_probe.cpp"), base / "offlinevalidation.o",
++                                  *objects, "-o", probe], stage + "-link-probe")
++            compare(probe, cases, stage + "-differential")
++            compare(probe, mutations, stage + "-bounded-mutation")
++        summary["differential"] = dict(cases=744, differences=0, status="PASS")
++        summary["parser_mutation"] = dict(inputs=2400, seed=759070, differences=0, status="PASS")
++        summary["sanitizer"] = dict(status="PASS", architecture="arm64", cpp_assertions=161,
++                                    parser_inputs=3144, display_inputs=2400, query_inputs=800,
++                                    leaks="NOT VERIFIED", x86_64_runtime="NOT RUN")
++        for kind, mode, diagnostic in (("address", "asan", "heap-buffer-overflow"),
++                                       ("undefined", "ubsan", "signed integer overflow")):
++            exe = safe.checked(build / ("canary-" + kind))
++            run(common + ["-fsanitize=" + kind, "-fno-omit-frame-pointer",
++                          safe.checked("tests/unit/sanitizer_canary.cpp"), "-o", exe], "link-canary-" + kind)
++            p = run([exe, mode], "canary-" + kind, allow_failure=True)
++            if p.returncode == 0 or diagnostic not in p.stdout + p.stderr:
++                raise RuntimeError("Sanitizer failed to detect intentional CPU fault")
++        summary["sanitizer"]["canaries"] = "PASS: actual heap overflow and signed overflow detected"
++
++        kernel = sdk / "System/Library/Frameworks/Kernel.framework/Headers"
++        native = dict(compile="NOT RUN", link="NOT RUN", runtime="NOT RUN", headers=str(kernel))
++        if not (kernel / "IOKit/IOLib.h").is_file():
++            native["blocker"] = "Existing genuine Kernel.framework headers unavailable; no download attempted"
++        else:
++            native_build = safe.mkdir(build / "native-x86_64")
++            native_flags = [compiler, "-std=c++17", "-arch", "x86_64", "-isysroot", sdk,
++                            "-mmacosx-version-min=13.0", "-isystem", kernel, "-nostdinc++",
++                            "-DKERNEL", "-DKERNEL_EXTENSION", "-mkernel", "-fapple-kext",
++                            "-fno-exceptions", "-fno-rtti", "-ffreestanding", "-fno-stack-protector",
++                            "-mno-red-zone", "-Wall", "-Wextra", "-Werror", "-Wframe-larger-than=4096",
++                            "-O1", "-g"]
++            sources = [safe.checked("development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"),
++                       safe.checked("tests/unit/m9_native_compile.cpp"), *host.PURE,
++                       safe.checked("tests/unit/m8_contract_compile.cpp")]
++            native_audit = []
++            for source in sources:
++                obj = safe.checked(native_build / (source.stem + ".o"))
++                dep = safe.checked(native_build / (source.stem + ".d"))
++                p = run(native_flags + ["-MD", "-MF", dep, "-c", source, "-o", obj],
++                        "kernel-compile-" + source.stem, allow_failure=True)
++                if p.returncode:
++                    native.update(compile="FAIL", blocker=source.relative_to(safe.ROOT).as_posix())
++                    break
++                record = macho(obj, "x86_64", 1)
++                symbols = run([tools["nm"], "-u", obj], "kernel-symbols-" + source.stem).stdout
++                if any(token in symbols for token in forbidden):
++                    raise RuntimeError("Kernel object exception/RTTI/heap/STL dependency")
++                record["undefined_symbols"] = symbols.splitlines()
++                native_audit.append(record)
++            else:
++                native.update(compile="PASS", objects=len(native_audit),
++                              source="Existing Apple Xcode macOS SDK; no MacKernelSDK or Lilu required for this object scope")
++            safe.write(out / "native-audit.json", json.dumps(native_audit, indent=2))
++        summary["Darwin_Native"] = native
++
++        dependencies = {}
++        for folder in (safe.ROOT / "build/m9-arm64", safe.ROOT / "build/m9-x86_64", build / "native-x86_64"):
++            for dep in folder.glob("*.d"):
++                text = safe.checked(dep).read_text().replace("\\\n", " ")
++                dependencies[dep.relative_to(safe.ROOT).as_posix()] = shlex.split(text.split(": ", 1)[1])
++        sdk_headers = sorted({p for paths in dependencies.values() for p in paths if p.startswith(str(sdk))})
++        hashes = {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sdk_headers}
++        safe.write(out / "header-dependencies.json", json.dumps(dict(dependencies=dependencies,
++                   sdk_files_sha256=hashes), indent=2))
++        summary["headers"] = dict(status="PASS", sdk_files=len(hashes), sdk_redistributed=False)
++        for source in host.PURE + [safe.checked("tests/unit/m8_contract_compile.cpp")]:
++            dest = safe.checked(build / (source.stem + ".plist"))
++            p = run(common + ["--analyze", "-fno-exceptions", "-fno-rtti", source, "-o", dest],
++                    "analyze-" + source.stem)
++            if "warning:" in p.stdout + p.stderr:
++                raise RuntimeError("Unresolved static analyzer warning")
++        summary["static_analysis"] = "PASS: ten CPU translation units, zero warnings"
++        if any(hashlib.sha256(safe.checked(p).read_bytes()).hexdigest() != digest for p, digest in before.items()):
++            raise RuntimeError("Sources changed during verification")
++        summary["source_stability"] = "PASS"
++        summary["status"] = "PASS" if native["compile"] == "PASS" else "PARTIAL"
++    except Exception as exc:
++        summary.update(status="FAIL", error=str(exc))
++        raise
++    finally:
++        safe.write(out / "test-results.json", json.dumps(summary, ensure_ascii=False, indent=2))
++    print(json.dumps(summary, ensure_ascii=False, indent=2))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/fixtures/m9_differential.py b/tests/fixtures/m9_differential.py
+new file mode 100644
+index 0000000..e661f0f
+--- /dev/null
++++ b/tests/fixtures/m9_differential.py
+@@ -0,0 +1,147 @@
++"""M9 CPU-only differential fixtures, BSD-3-Clause.
++
++Migrates the reviewed M6.5 corpus/canonical/request and M7 extensions without
++importing/executing historical runners or their report writers. All byte inputs
++are synthetic; the existing invalid-strtab fixture is read-only and checked.
++"""
++from pathlib import Path
++import importlib.util
++import random
++import struct
++import sys
++ROOT = Path(__file__).resolve().parents[2]
++
++def load(name, path):
++    spec = importlib.util.spec_from_file_location(name, path)
++    module = importlib.util.module_from_spec(spec)
++    sys.modules[name] = module
++    spec.loader.exec_module(module)
++    return module
++
++n=load("m9logic",ROOT/"development/AMDRadeonRDNA4-Navi44/host/navi44.py")
++f=load("m9fixture",ROOT/"tests/fixtures/synthetic.py")
++extra=load("m9extras",ROOT/"tests/test_m7.py")
++
++
++def base_canonical(mode,data,params=()):
++    try:
++        if mode=='discovery':
++            d=n.parse_discovery(data)
++            return {'ok':True,'binary_version':list(d.binary_version),'ipds_version':d.ipds_version,
++                    'address_bits':d.address_bits,'ips':[[x.hw_id,x.instance,*x.version,list(x.bases)] for x in d.ips],
++                    'gc_info':list(d.gc_info) if d.gc_info else None}
++        if mode=='elf':
++            target={0x48:n.Target.GFX1200,0x4e:n.Target.GFX1201}.get(params[0],n.Target.UNKNOWN)
++            n.validate_elf(data,target);return {'ok':True}
++        if mode=='kernel':
++            target={0x48:n.Target.GFX1200,0x4e:n.Target.GFX1201}.get(params[0],n.Target.UNKNOWN)
++            n.validate_kernel(data,target);return {'ok':True}
++        if mode=='manifest':
++            d=n.parse_discovery(data);p=n.identify(0x1002,params[0])
++            needs=n.firmware_requirements(p,d)
++            return {'ok':True,'requirements':[[x.block,x.component,*x.ip] for x in needs]}
++        if mode=='firmware':
++            need=n.FirmwareNeed('synthetic',(params[0],params[1],0),params[2])
++            n.validate_firmware([need],[n.FirmwareBlob(need,data,'synthetic')]);return {'ok':True}
++        if mode=='abi':
++            p=n.decode_device_info(data);return {'ok':True,'target':p.target.value,'capabilities':0}
++        if mode=='profile':
++            p=n.identify(params[0],params[1],None if params[2]==256 else params[2])
++            return {'ok':True,'asic':p.asic,'target':p.target.value,'revision':p.revision,'capabilities':0}
++        raise ValueError(mode)
++    except n.Invalid as e:return {'ok':False,'error':str(e)}
++
++def request(mode,data,params):
++    tail='' if mode=='profile' else data.hex()
++    return ' '.join([mode,*[str(x) for x in params],tail])+'\n'
++
++def base_corpus():
++    cases=[]
++    for binary in (1,2):
++        for width in (4,8):
++            for gc in ((12,0,0),(12,0,1)):
++                cases.append(('discovery',f.discovery(binary=binary,width=width,gc=gc),()))
++    cases += [('discovery',f.discovery(width=8,extra=((999,0,(1,0,0),(0x100000000,)),)),()),
++              ('discovery',f.discovery(topology=False),()),
++              ('discovery',f.discovery(extra=((11,0,(12,0,0),(10,)),)),())]
++    d=f.discovery()
++    cases += [('discovery',d[:i],()) for i in range(len(d))]
++    for offset,value,width in ((0,0,4),(4,9,2),(132,5,2),(144,1,2),(215,17,1),(128+12,2,2)):
++        b=bytearray(d);struct.pack_into({1:'<B',2:'<H',4:'<I'}[width],b,offset,value)
++        f.reseal(b);cases.append(('discovery',b,()))
++    for target in (0x48,0x4e,0):
++        cases += [('elf',f.elf(machine), (target,)) for machine in (0x48,0x4e)]
++    cases += [('elf',f.elf()[:i],(0x48,)) for i in range(64)]
++    cases += [('elf',f.elf(metadata=False),(0x48,)),('elf',f.elf(metadata_value={}),(0x48,))]
++    for component in ('pfp','unknown'):
++        need=n.FirmwareNeed('gc',(12,0,0),component)
++        cases += [('firmware',f.firmware(need),(12,0,component))]
++    need=n.FirmwareNeed('gc',(12,0,0),'pfp');fw=f.firmware(need)
++    cases += [('firmware',fw[:i],(12,0,'pfp')) for i in range(len(fw))]
++    for v,dv,rev in ((0x1002,0x7590,256),(0x1002,0x7550,0),(0x1002,0x7551,3),
++                     (0x1002,0xffff,256),(0,0x7590,256),(0x1002,0x7590,257)):
++        cases.append(('profile',b'',(v,dv,rev)))
++    abi=n.encode_device_info(n.identify(0x1002,0x7590))
++    cases += [('abi',abi[:i],()) for i in range(len(abi))]
++    cases.append(('abi',abi,()))
++    cases += [('kernel',f.kernel_elf(t),(t,)) for t in (0x48,0x4e)]
++    for at,value,fmt in ((840,9,'<I'),(832,17,'<I'),(848,-0x2000,'<q'),(1060,0,'<B')):
++        d=f.kernel_elf();struct.pack_into(fmt,d,at,value);cases.append(('kernel',d,(0x48,)))
++    d=f.kernel_elf(0x4e);d[486]=230
++    cases.append(('kernel',d,(0x4e,)))
++    regression=ROOT/'tests/fixtures/m65-invalid-strtab.bin'
++    if not regression.is_file() or regression.read_bytes() != bytes(d):
++        raise RuntimeError("Historical synthetic regression fixture missing or changed")
++    cases += [('manifest',f.discovery(gc=gc),(device,)) for gc,device in
++              (((12,0,0),0x7590),((12,0,1),0x7550),((12,0,1),0x7590))]
++    cases += [('manifest',f.discovery(topology=False),(0x7590,))]
++    return cases
++
++def canonical(mode,data,params=()):
++    try:
++        if mode=='psp':
++            p=n.parse_psp_package(data)
++            return {'ok':True,'signature_verified':False,'parts':[[k,x['version'],x['offset'],x['size']] for k,x in sorted(p['parts'].items())]}
++        if mode=='abi2':
++            p=n.decode_device_info_v2(data);return {'ok':True,**{k:list(v) if isinstance(v,tuple) else v for k,v in p.items()}}
++        if mode=='elfbudget':
++            t={72:n.Target.GFX1200,78:n.Target.GFX1201}.get(params[0],n.Target.UNKNOWN)
++            n.validate_elf(data,t,node_budget=params[1]);return {'ok':True}
++        return base_canonical(mode,data,params)
++    except n.Invalid as e:return {'ok':False,'error':str(e)}
++
++def cases():
++    result=base_corpus()
++    result += [('psp',extra.package(m),()) for m in (0,1)]
++    result += [('psp',extra.package()[:i],()) for i in range(len(extra.package()))]
++    for offset,value,fmt in ((52,1,'<I'),(60,2,'<I'),(10,9,'<H'),(28,1,'<I'),(64,0xffff,'<I')):
++        data=extra.package();extra.struct.pack_into(fmt,data,offset,value);result.append(('psp',data,()))
++    result += [('abi2',extra.abi2(device,present),()) for device in (0x7590,0x7550) for present in (0,1,2,4,7)]
++    result += [('abi2',extra.abi2()[:i],()) for i in range(96)]
++    for offset in (13,20,27,28,68,95):
++        data=extra.abi2();data[offset]=3;result.append(('abi2',data,()))
++    result += [('elfbudget',f.elf(),(72,budget)) for budget in (0,1,128)]
++    for binary,off in ((1,18),(2,14)):
++        data=f.discovery(binary=binary);data[off]=1;f.reseal(data);result.append(('discovery',data,()))
++    result += [('elf',extra.relocation(allocated),(72,)) for allocated in (False,True)]
++    for offset,value,fmt in ((1096,3<<32,'<Q'),(192+6*64+56,8,'<Q')):
++        data=extra.relocation();extra.struct.pack_into(fmt,data,offset,value);result.append(('elf',data,(72,)))
++    for offset,value,fmt in ((192+5*64+40,1,'<I'),(192+5*64+56,8,'<Q')):
++        data=f.kernel_elf();extra.struct.pack_into(fmt,data,offset,value);result.append(('elf',data,(72,)))
++    raw=f.elf();struct.pack_into("<H",raw,56,5000)
++    result.append(("elf",raw,(72,)))
++    return result
++
++all_cases=cases()
++
++def fuzz_cases(count=2400):
++    # Preserve M7's exact mutation seed set; the final case is M8's new budget check.
++    rng=random.Random(759070);seeds=[x for x in all_cases[:-1] if len(x[1])>=32 and x[0] not in ('profile','elfbudget')]
++    result=[]
++    for i in range(count):
++        mode,data,params=rng.choice(seeds);data=bytearray(data)
++        for _ in range(rng.randrange(1,5)):data[rng.randrange(len(data))]^=rng.randrange(1,256)
++        if mode=='discovery' and len(data)>=128 and i%2==0:
++            if len(data)==struct.unpack_from('<H',data,10)[0] and struct.unpack_from('<H',data,4)[0] in (1,2):f.reseal(data)
++        result.append((mode,data,params))
++    return result
+diff --git a/tests/unit/m10_contract_compile.cpp b/tests/unit/m10_contract_compile.cpp
+new file mode 100644
+index 0000000..f0039a2
+--- /dev/null
++++ b/tests/unit/m10_contract_compile.cpp
+@@ -0,0 +1,11 @@
++// Kernel-options compile only. No entry point, OS service, or deployment.
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp"
++static_assert(sizeof(NaviCore::Error)==1,"fixed errors");
++static_assert(sizeof(NaviPlatform::OwnerState)==1,"fixed states");
++static_assert(sizeof(void*)==8,"64-bit Darwin");
++static_assert(sizeof(NaviPlatform::SnapshotOwner)<4096,"small ownership metadata");
++static_assert(sizeof(NaviPlatform::NodePool)<65536,"separate caller-owned scratch");
++NaviCore::Result m10CompileContract(NaviDarwin::NativeSnapshot&source,NaviCore::View input){
++    return source.createCopy(input,NaviDarwin::CpuSnapshotStorage::DataCopy);
++}
+diff --git a/tests/unit/m10_host_dependency.cpp b/tests/unit/m10_host_dependency.cpp
+new file mode 100644
+index 0000000..ae31dbb
+--- /dev/null
++++ b/tests/unit/m10_host_dependency.cpp
+@@ -0,0 +1,4 @@
++// Actual Host-only import negative fixture; never linked or executed.
++// Genuine user SDK header, not a counterfeit kernel symbol/type. BSD-3-Clause.
++#include <cstdio>
++void hostOnlySymbolNegativeProbe(){std::puts("Host-only dependency policy fixture");}
+diff --git a/tests/unit/m10_lifecycle.cpp b/tests/unit/m10_lifecycle.cpp
+new file mode 100644
+index 0000000..3bd6eec
+--- /dev/null
++++ b/tests/unit/m10_lifecycle.cpp
+@@ -0,0 +1,198 @@
++// CPU-only behavior tests; BSD-3-Clause. No Apple types or kernel calls.
++#include "../../development/AMDRadeonRDNA4-Navi44/host/lifecycle_mock.hpp"
++#include <atomic>
++#include <thread>
++#include <iostream>
++#include <cstring>
++#include <condition_variable>
++#include <chrono>
++using namespace NaviPlatform;using namespace NaviCore;using namespace NaviHost;
++int main(){
++    unsigned pass=0,fail=0;
++    auto check=[&](const char*name,bool ok){std::cout<<(ok?"PASS ":"FAIL ")<<name<<'\n';ok?++pass:++fail;};
++    {
++        ThreadGate gate;SnapshotOwner owner(gate.access(),1);ReferenceMock resource;
++        SnapshotTicket ticket{};View view{resource.bytes.data(),1};
++        check("wrong_context_activation",!owner.activate(resource.ops()).ok()&&resource.retains==0);
++        check("wrong_context_borrow",!owner.borrow(ticket).ok()&&!ticket.serial);
++        check("wrong_context_read_clears",!owner.read(ticket,view).ok()&&!view.data&&!view.size);
++        {GateScope scope(gate.access());
++            check("gate_thread_entry",bool(scope));GateScope nested(gate.access());
++            check("gate_nested_reentry_rejected",!nested);
++            check("owner_activate_retains_once",owner.activate(resource.ops()).ok()&&resource.references==2&&resource.retains==1);
++            check("duplicate_activate_rejected",!owner.activate(resource.ops()).ok()&&resource.retains==1);
++            check("owner_borrow",owner.borrow(ticket).ok()&&ticket.owner==1);
++            const auto copy=ticket;
++            check("occupied_ticket_preserved",!owner.borrow(ticket).ok()&&ticket.serial==copy.serial);
++            check("owner_read",owner.read(ticket,view).ok()&&view.data==resource.bytes.data());
++            SnapshotTicket foreign=copy;foreign.owner=2;
++            check("foreign_ticket_rejected",!owner.read(foreign,view).ok()&&!view.data);
++            check("foreign_return_no_reference_change",!owner.giveBack(foreign).ok()&&resource.releases==0);
++            check("close_with_borrow_waits",!owner.close().ok()&&resource.releases==0&&!owner.readyToFree());
++            SnapshotTicket fresh{};check("borrow_after_close_rejected",!owner.borrow(fresh).ok()&&!fresh.serial);
++            check("read_after_close_clears",!owner.read(ticket,view).ok()&&!view.data&&!view.size);
++            check("return_completes_shutdown",owner.giveBack(ticket).ok()&&!ticket.serial&&resource.releases==1&&owner.readyToFree());
++            auto duplicate=copy;
++            check("double_return_rejected",!owner.giveBack(duplicate).ok()&&resource.releases==1);
++            check("repeat_close_idempotent",owner.close().ok()&&owner.close().ok()&&resource.releases==1);
++            check("released_owner_cannot_reopen",!owner.activate(resource.ops()).ok()&&!owner.borrow(fresh).ok());
++        }
++        check("destroy_ready_requires_context",!owner.readyToFree());
++    }
++    {
++        ThreadGate gate;ReferenceMock resource;SnapshotOwner owner(gate.access(),2);
++        GateScope scope(gate.access());check("prepared_owner_active",owner.activate(resource.ops(),true).ok()&&resource.prepares==1);
++        SnapshotTicket tickets[SnapshotOwner::MaxLeases]{};bool borrowed=true;
++        for(auto&t:tickets)borrowed&=owner.borrow(t).ok();
++        check("bounded_ticket_capacity",borrowed);SnapshotTicket extra{};
++        check("capacity_failure_clears_output",!owner.borrow(extra).ok()&&!extra.serial);
++        check("revoke_waits_for_borrowers",!owner.revoke().ok()&&resource.completes==0&&resource.releases==0);
++        View view{resource.bytes.data(),7};
++        check("borrow_after_revoke_rejected",!owner.borrow(extra).ok());
++        check("read_after_revoke_clears",!owner.read(tickets[0],view).ok()&&!view.data);
++        bool returned=true;for(size_t i=0;i<SnapshotOwner::MaxLeases-1;++i)returned&=owner.giveBack(tickets[i]).ok();
++        check("pending_missing_return_blocks_free",returned&&!owner.readyToFree()&&resource.releases==0);
++        check("last_return_complete_before_release",owner.giveBack(tickets[7]).ok()&&resource.completes==1&&resource.releases==1&&owner.readyToFree());
++        check("repeat_revoke_no_double_complete",owner.revoke().ok()&&resource.completes==1&&resource.releases==1);
++    }
++    {
++        ThreadGate gate;GateScope scope(gate.access());ReferenceMock resource;SnapshotOwner owner(gate.access(),3);
++        resource.failRetain=true;check("retain_failure_no_release",!owner.activate(resource.ops()).ok()&&resource.references==1&&resource.releases==0);
++        check("failed_owner_cleanup",owner.close().ok()&&owner.readyToFree());
++        ReferenceMock readFailure;readFailure.failView=true;SnapshotOwner viewOwner(gate.access(),4);
++        check("view_failure_pairs_retain_release",!viewOwner.activate(readFailure.ops()).ok()&&readFailure.retains==1&&readFailure.releases==1);
++        check("failed_view_owner_terminal",!viewOwner.activate(readFailure.ops()).ok()&&viewOwner.close().ok());
++        ReferenceMock prepareFailure;prepareFailure.failPrepare=true;SnapshotOwner prepOwner(gate.access(),5);
++        check("prepare_failure_does_not_complete",!prepOwner.activate(prepareFailure.ops(),true).ok()&&prepareFailure.prepares==1&&prepareFailure.completes==0&&prepareFailure.releases==1);
++        check("prepare_failure_close",prepOwner.close().ok());
++        ReferenceMock completion;SnapshotOwner completionOwner(gate.access(),6);
++        check("completion_setup",completionOwner.activate(completion.ops(),true).ok());completion.failComplete=true;
++        check("complete_failure_retains_resource",!completionOwner.close().ok()&&completion.references==2&&completion.releases==0&&!completionOwner.readyToFree());
++        SnapshotTicket out{};check("failed_completion_no_new_borrows",!completionOwner.borrow(out).ok());completion.failComplete=false;
++        check("complete_retry_then_release",completionOwner.close().ok()&&completion.completes==2&&completion.releases==1&&completionOwner.readyToFree());
++        check("close_after_completion_no_retry",completionOwner.close().ok()&&completion.completes==2);
++        ReferenceMock empty;auto ops=empty.ops();ops.complete=nullptr;SnapshotOwner pairOwner(gate.access(),7);
++        check("missing_complete_rejected_before_retain",!pairOwner.activate(ops,true).ok()&&empty.retains==0&&pairOwner.close().ok());
++        SnapshotOwner noGeneration(gate.access(),0);check("zero_generation_rejected",!noGeneration.activate(empty.ops()).ok()&&noGeneration.close().ok());
++        ReferenceMock recycled;SnapshotOwner old(gate.access(),8),replacement(gate.access(),9);
++        old.activate(recycled.ops());SnapshotTicket oldTicket{};old.borrow(oldTicket);auto stale=oldTicket;
++        old.close();old.giveBack(oldTicket);replacement.activate(recycled.ops());View staleView{recycled.bytes.data(),1};
++        check("generation_reuse_rejects_old_ticket",!replacement.read(stale,staleView).ok()&&!staleView.data&&replacement.close().ok());
++    }
++    {
++        ThreadGate gate;GateScope scope(gate.access());
++        for(unsigned variant=0;variant<4;++variant){
++            ReferenceMock resource;resource.useOverride=true;
++            resource.overrideView=variant==0?View{nullptr,9}:variant==1?View{resource.bytes.data(),0}:variant==2?View{resource.bytes.data(),SnapshotOwner::MaxBytes+1}:View{reinterpret_cast<const uint8_t*>(UINTPTR_MAX-1),8};
++            SnapshotOwner owner(gate.access(),10+variant);
++            const bool rejected=!owner.activate(resource.ops()).ok()&&resource.releases==1&&resource.references==1&&owner.close().ok();
++            check(variant==0?"null_view_rejected":variant==1?"empty_view_rejected":variant==2?"oversized_view_rejected":"address_wrap_rejected",rejected);
++        }
++        ReferenceMock first,second;SnapshotOwner a(gate.access(),20),b(gate.access(),21);
++        check("multi_resource_partial_setup",a.activate(first.ops()).ok());second.failView=true;
++        check("multi_resource_failure_rollback",!b.activate(second.ops()).ok()&&a.close().ok()&&b.close().ok()&&first.releases==1&&second.releases==1);
++    }
++    {
++        ThreadGate gate;GateScope scope(gate.access());ReferenceMock resource;SnapshotOwner owner(gate.access(),30);
++        check("creator_lifetime_setup",owner.activate(resource.ops()).ok());SnapshotTicket t{};owner.borrow(t);
++        ReferenceMock::release(&resource);View v{};
++        check("creator_release_keeps_borrow_alive",resource.references==1&&resource.alive&&owner.read(t,v).ok());
++        owner.revoke();check("resource_survives_shutdown_barrier",resource.alive&&resource.references==1);
++        check("final_borrow_return_releases_last_reference",owner.giveBack(t).ok()&&!resource.alive&&resource.references==0);
++    }
++    {
++        ThreadGate gate;GateScope scope(gate.access());ReferenceMock resource;SnapshotOwner owner(gate.access(),40);
++        owner.activate(resource.ops());NodePool pool;unsigned logs=0;
++        Contract c{{},{&logs,[](void*ctx,Result){++*static_cast<unsigned*>(ctx);}},owner.snapshots(),pool.contract(),owner.execution()};
++        // Reenter gate via validateSnapshot is correctly rejected while already held.
++        check("nested_parser_context_rejected",validateSnapshot(c,Asic::Target::Gfx1200).code==Error::Protocol&&logs==0);
++        View v{};auto callbacks=owner.snapshots();check("legacy_borrow_callback",callbacks.borrow(callbacks.context,SnapshotKind::ElfFile,v).ok());
++        View wrong=v;--wrong.size;callbacks.release(callbacks.context,wrong);
++        check("foreign_legacy_release_blocks_cleanup",!owner.close().ok()&&!owner.readyToFree());
++        callbacks.release(callbacks.context,v);callbacks.release(callbacks.context,v);
++        check("legacy_valid_release_once",resource.releases==1&&owner.readyToFree());
++    }
++    {
++        ThreadGate gate;ReferenceMock resource;SnapshotOwner owner(gate.access(),41);NodePool pool;unsigned logs=0;
++        {GateScope scope(gate.access());owner.activate(resource.ops());}
++        Contract c{{},{&logs,[](void*ctx,Result){++*static_cast<unsigned*>(ctx);}},owner.snapshots(),pool.contract(),owner.execution()};
++        check("existing_parser_bridge_cleanup",!validateSnapshot(c,Asic::Target::Gfx1200).ok()&&logs==1);
++        {GateScope scope(gate.access());OwnerState state;size_t leases=1;
++            check("parser_returns_snapshot_ticket",owner.inspect(state,leases).ok()&&leases==0&&owner.close().ok()&&resource.releases==1);}
++        ThreadGate::interruptContext(true);SnapshotTicket t{};
++        check("interrupt_gate_rejected",!GateScope(gate.access())&&!owner.borrow(t).ok());ThreadGate::interruptContext(false);
++    }
++    {
++        ThreadGate gate;GateScope scope(gate.access());ReferenceMock resource;SnapshotOwner owner(gate.access(),50);
++        struct Hook {SnapshotOwner*owner;bool denied{false};} hook{&owner};
++        resource.hook=&hook;resource.onRelease=[](void*ctx){auto&h=*static_cast<Hook*>(ctx);h.denied=!h.owner->close().ok();};
++        owner.activate(resource.ops());check("release_callback_reentry_rejected",owner.close().ok()&&hook.denied&&resource.releases==1);
++    }
++    {
++        NodePool pool;auto ops=pool.contract();Node foreign[1]{};Node*p=ops.acquire(ops.context,8);
++        check("pool_acquire_constructed_nodes",p!=nullptr);ops.release(ops.context,foreign,8);
++        check("pool_foreign_return_does_not_unlock",!ops.acquire(ops.context,8));ops.release(ops.context,p,7);
++        check("pool_wrong_count_does_not_unlock",!ops.acquire(ops.context,8));p[0].number=99;ops.release(ops.context,p,8);
++        p=ops.acquire(ops.context,8);check("pool_correct_return_clears_nodes",p&&p[0].number==0);ops.release(ops.context,p,8);ops.release(ops.context,p,8);
++        check("pool_duplicate_return_safe",ops.acquire(ops.context,1)!=nullptr);ops.release(ops.context,p,1);
++        check("pool_capacity_rejected",!ops.acquire(ops.context,513));
++    }
++    {
++        struct Memory {alignas(16) uint8_t bytes[32]{};Lease*lease{nullptr};unsigned frees{0},allocations{0};bool nestedRejected{false};} memory;
++        MemoryOps ops{&memory,[](void*ctx,size_t,size_t)->void*{auto&m=*static_cast<Memory*>(ctx);++m.allocations;if(m.allocations==1)m.nestedRejected=!m.lease->open(1,1);return m.bytes;},
++            [](void*ctx,void*,size_t){auto&m=*static_cast<Memory*>(ctx);++m.frees;if(m.frees==1)m.lease->close();}};
++        Lease lease(ops);memory.lease=&lease;
++        check("lease_allocate_callback_reentry",lease.open(16,16)&&memory.nestedRejected&&memory.allocations==1);lease.close();
++        check("lease_recursive_release_once",memory.frees==1&&!lease.data()&&!lease.view().size);
++        MemoryOps wrap{&memory,[](void*,size_t,size_t)->void*{return reinterpret_cast<void*>(UINTPTR_MAX-1);},[](void*ctx,void*,size_t){++static_cast<Memory*>(ctx)->frees;}};
++        Lease bad(wrap);check("lease_address_wrap_releases",!bad.open(8,1)&&memory.frees==2&&!bad.data());
++        MemoryOps align{&memory,[](void*ctx,size_t,size_t)->void*{return static_cast<Memory*>(ctx)->bytes+1;},wrap.release};
++        Lease misaligned(align);check("lease_alignment_rejects_and_releases",!misaligned.open(16,16)&&memory.frees==3);
++    }
++    {
++        bool invariant=true;
++        for(unsigned i=0;i<600;++i){
++            ThreadGate gate;GateScope scope(gate.access());ReferenceMock r;SnapshotOwner owner(gate.access(),1000+i);
++            r.failRetain=i%5==0;r.failView=i%5==1;r.failPrepare=i%5==2;
++            bool active=owner.activate(r.ops(),true).ok();SnapshotTicket t{};
++            if(active){invariant&=owner.borrow(t).ok();owner.revoke();invariant&=owner.giveBack(t).ok();}
++            invariant&=owner.close().ok()&&owner.readyToFree()&&r.references==1&&r.retains==r.releases;
++        }
++        check("bounded_initialization_failure_injection",invariant);
++        std::cout<<"M10_FAILURE_INJECTION inputs=600 invariants="<<(invariant?"PASS":"FAIL")<<'\n';
++    }
++    {
++        ThreadGate gate;ReferenceMock resource;SnapshotOwner owner(gate.access(),2000);
++        {GateScope scope(gate.access());owner.activate(resource.ops(),true);}
++        std::atomic<unsigned> successes{0},denied{0},errors{0};std::atomic<bool> firstReady{false},shutdown{false};
++        std::mutex signalMutex;std::condition_variable signal;
++        auto worker=[&](){
++            for(unsigned i=0;i<120;++i){
++                GateScope scope(gate.access());if(!scope){++errors;continue;}
++                SnapshotTicket t{};auto r=owner.borrow(t);
++                if(r.ok()){View v{};if(!owner.read(t,v).ok()||!v.data||!owner.giveBack(t).ok())++errors;else ++successes;}
++                else ++denied;
++            }
++        };
++        // Hold one ticket while stop requests shutdown; no raw pointer access outside gate.
++        std::thread borrower([&](){SnapshotTicket t{};
++            {GateScope scope(gate.access());if(!owner.borrow(t).ok())++errors;}
++            {std::unique_lock<std::mutex> lock(signalMutex);firstReady=true;signal.notify_all();
++                if(!signal.wait_for(lock,std::chrono::seconds(2),[&](){return shutdown.load();}))++errors;}
++            {GateScope scope(gate.access());View v{resource.bytes.data(),1};
++                if(shutdown&&owner.read(t,v).ok())++errors;
++                if(!owner.giveBack(t).ok())++errors;}
++        });
++        {std::unique_lock<std::mutex> lock(signalMutex);
++            if(!signal.wait_for(lock,std::chrono::seconds(2),[&](){return firstReady.load();}))++errors;}
++        std::thread a(worker),b(worker);
++        {GateScope scope(gate.access());owner.revoke();}
++        {std::lock_guard<std::mutex> lock(signalMutex);shutdown=true;signal.notify_all();}
++        a.join();b.join();borrower.join();
++        {GateScope scope(gate.access());
++            check("bounded_concurrency_shutdown_barrier",firstReady&&owner.close().ok()&&owner.readyToFree()&&errors==0&&resource.releases==1&&resource.completes==1);
++            check("bounded_concurrency_counts",successes+denied==240);}
++        std::cout<<"M10_CONCURRENCY attempts=240 accepted="<<successes<<" rejected="<<denied<<" errors="<<errors<<'\n';
++    }
++    std::cout<<"SUMMARY "<<pass<<' '<<fail<<'\n';return fail?1:0;
++}
+diff --git a/tests/unit/m10_regression_proof.cpp b/tests/unit/m10_regression_proof.cpp
+new file mode 100644
+index 0000000..b3ce94e
+--- /dev/null
++++ b/tests/unit/m10_regression_proof.cpp
+@@ -0,0 +1,20 @@
++// Bounded actual behavior calibration against M9/current pure headers.
++// No kernel/GPU calls. BSD-3-Clause.
++#include "contract.hpp"
++#include <iostream>
++int main(){
++    using namespace NaviPlatform;
++    struct Memory {alignas(16) uint8_t bytes[32]{};Lease*lease{nullptr};unsigned releases{0};} memory;
++    MemoryOps ops{&memory,[](void*ctx,size_t,size_t)->void*{return static_cast<Memory*>(ctx)->bytes;},
++        [](void*ctx,void*,size_t){auto&m=*static_cast<Memory*>(ctx);++m.releases;if(m.releases==1)m.lease->close();}};
++    Lease lease(ops);memory.lease=&lease;if(!lease.open(16,16))return 2;lease.close();
++    const bool single=memory.releases==1;
++    NodePool pool;auto scratch=pool.contract();NaviCore::Node foreign[1]{};
++    auto*p=scratch.acquire(scratch.context,8);if(!p)return 2;
++    scratch.release(scratch.context,foreign,8);
++    const bool stillLocked=scratch.acquire(scratch.context,8)==nullptr;
++    scratch.release(scratch.context,p,8);
++    std::cout<<"LEASE_RELEASES "<<memory.releases<<" EXPECTED 1\n"
++             <<"POOL_FOREIGN_RETURN_LOCKED "<<stillLocked<<" EXPECTED 1\n";
++    return single&&stillLocked?0:1;
++}
+diff --git a/tests/unit/m9_native_compile.cpp b/tests/unit/m9_native_compile.cpp
+new file mode 100644
+index 0000000..4ee4c57
+--- /dev/null
++++ b/tests/unit/m9_native_compile.cpp
+@@ -0,0 +1,28 @@
++// Genuine Kernel.framework API/ownership compile probe, BSD-3-Clause.
++// Object only. Never linked, loaded or called; not a runtime lifetime test.
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/darwin_native.hpp"
++#include <libkern/c++/OSObject.h>
++#include <libkern/c++/OSData.h>
++#include <IOKit/IOBufferMemoryDescriptor.h>
++
++static_assert(sizeof(IOReturn) == 4, "real IOReturn width");
++static_assert(sizeof(void*) == 8, "64-bit kernel target");
++static_assert(sizeof(NaviPlatform::NodePool) <= 65536, "owner storage budget");
++
++namespace NaviDarwin {
++// Validate actual OSObject and buffer reference APIs without mock Apple types.
++void descriptorReferenceCompileCheck(IOBufferMemoryDescriptor& buffer) {
++    buffer.retain();
++    buffer.release();
++}
++NaviCore::View dataReferenceCompileCheck(const OSData& data) {
++    data.retain();
++    const auto size = data.getLength();
++    const auto bytes = data.getBytesNoCopy();
++    // The returned View is deliberately empty after release: no dangling lease.
++    (void)size;
++    (void)bytes;
++    data.release();
++    return {nullptr, 0};
++}
++}

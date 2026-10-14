@@ -1,0 +1,991 @@
+{
+  "x86_64": {
+    "status": "PASS",
+    "objects": [
+      {
+        "path": "build/m10/native-x86_64/codeobj.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "a1475a199797004c90b03fd325bb0559a66e6a833754c532861607c377448749",
+        "undefined_symbols": [
+          "___bzero"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/ipdiscovery.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "33d8730ae2196289b281a2cfc08ef99b6a86e0bf0a23fcf40240fbb9268dcff1",
+        "undefined_symbols": [
+          "___bzero"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/validation.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__const",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "1befc7d1492707e83edcf669b2fb03fb1b66081e76dec96460f777079f21ec78",
+        "undefined_symbols": [
+          "__ZN7CodeObj10findKernelEPKhmPKcRNS_6KernelEPS3_N4Asic6TargetE",
+          "__ZNK11IpDiscovery6gcInfoERjS0_Pj",
+          "__ZNK11IpDiscovery8findIp64EthRNS_9IpEntry64E",
+          "___bzero",
+          "_memcpy"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/device_info.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "b8c6f136932cdae217437b3eb703dc7137d537040dde42a189f96d0e6d7cd66f",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-x86_64/edid.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "23869add7421dee122e239f659761af6e881c6643f62b293b5a900469f0fc2a3",
+        "undefined_symbols": [
+          "___bzero",
+          "_memcpy"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/atombios.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__literal16",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "f652eeb8c1dd936fc17bc37537a610f67a4d93250c377d2730246cd774bc68bb",
+        "undefined_symbols": [
+          "___bzero"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/display.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "f376ee0b4d75f81c84a61b6628c6bc2015d7f46c94b1fd615aa33843a12ac717",
+        "undefined_symbols": [
+          "__ZN4Edid13parseCtaBlockEPKhRNS_7CtaCapsE",
+          "__ZN4Edid14parseBaseBlockEPKhmRNS_8BaseInfoE",
+          "__ZN4Edid14standardTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+          "__ZN4Edid15blockChecksumOkEPKh",
+          "__ZN4Edid17establishedTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+          "__ZN4Edid19parseDetailedTimingEPKhRNS_14DetailedTimingE",
+          "__ZN4Edid9vicTimingEhRNS_14DetailedTimingE",
+          "__ZN8AtomBios13connectorTypeEt",
+          "__ZN8AtomBios4initEPKhm",
+          "__ZNK8AtomBios14getPathRecordsERKNS_11DisplayPathERNS_11PathRecordsE",
+          "__ZNK8AtomBios15getDisplayPathsEPNS_11DisplayPathEm",
+          "___bzero",
+          "_memcpy"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/integrity.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "bc935e6731ee90895583390213a5e86535b6d4c4d0ad903c4a5ffe99549c40fc",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-x86_64/query_candidate.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "b73dbb1763f14c0d3a8faca5e124154edcfefa215d1202f648cc7f2d6808b063",
+        "undefined_symbols": [
+          "__ZN8NaviCore16decodeDeviceInfoENS_4ViewERNS_10DeviceInfoE",
+          "__ZN8NaviCore16encodeDeviceInfoERKNS_10DeviceInfoEPhm"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/lifecycle.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "7a7262b6039fa7115d164096d1b6404b296b17f0139f0e3c7756f61ff42dcec9",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-x86_64/darwin_native.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "f3ad2b7dcf18aafe9c6a4e5f402d31a00bc761ef059c4f326da0576b0917beab",
+        "undefined_symbols": [
+          "_IOFreeAligned",
+          "_IOLog",
+          "_IOMallocAligned"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/darwin_snapshot.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "007acc97c8c60e0ec35aa7019d1479abaac2a300c1b4f07ec61488aca529fc54",
+        "undefined_symbols": [
+          "__ZN12NaviPlatform13SnapshotOwner8activateENS_12ReferenceOpsEb",
+          "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+          "__ZN6OSData9withBytesEPKvj",
+          "__ZNK12NaviPlatform13SnapshotOwner7inspectERNS_10OwnerStateERm"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/m10_contract_compile.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "afe0af37defd580c6ba372f2d25817efe0a81d3a3de87d26c72b226ee970ee9d",
+        "undefined_symbols": [
+          "__ZN10NaviDarwin14NativeSnapshot10createCopyEN8NaviCore4ViewENS_18CpuSnapshotStorageE"
+        ]
+      },
+      {
+        "path": "build/m10/native-x86_64/m8_contract_compile.o",
+        "cpu": 16777223,
+        "subtype": 3,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "d424dcfbf6405bd7f2fb5a47d2ae97b3a83d93956bea7fa34761ce436dfbfed1",
+        "undefined_symbols": [
+          "__ZN8NaviCore3elfENS_4ViewEN4Asic6TargetERNS_7ScratchES0_"
+        ]
+      }
+    ],
+    "flags": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "x86_64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096",
+      "-mno-red-zone"
+    ]
+  },
+  "arm64": {
+    "status": "PASS",
+    "objects": [
+      {
+        "path": "build/m10/native-arm64/codeobj.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "f71f2946a9fcf1a11c823b3f0c56ddf7dfbbaaa6d1a821dd6528c7836cddd9b7",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-arm64/ipdiscovery.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "e45fb413f28e543f2deac88969918ebee07352d3cf41ac0385c5e560234016de",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-arm64/validation.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__const",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "75ea9d42d0a7d03a9c0686ee3526545e1fa439278fd5c37aaeb07692df9951a5",
+        "undefined_symbols": [
+          "__ZN7CodeObj10findKernelEPKhmPKcRNS_6KernelEPS3_N4Asic6TargetE",
+          "__ZNK11IpDiscovery6gcInfoERjS0_Pj",
+          "__ZNK11IpDiscovery8findIp64EthRNS_9IpEntry64E",
+          "_memcpy"
+        ]
+      },
+      {
+        "path": "build/m10/native-arm64/device_info.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "94f9235a5b7ef4ebb7a7c4f5a942d7bcccecc66f9c2bcd46fff8a312f037bdff",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-arm64/edid.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "a72042ee3d848db039ca97f8ab14e5d20aa98853830ffbcc1add8027a71857e2",
+        "undefined_symbols": [
+          "_memcpy"
+        ]
+      },
+      {
+        "path": "build/m10/native-arm64/atombios.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__literal16",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "f1ca391deaa53c6ec3d92d269913fb8b97cc573b03e1d4d56fb1775ae2227e54",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-arm64/display.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "64f7f3cf3110621a34ba259c1c06470672fd5f053b11ba7f7bbfaf4d3d1f9c19",
+        "undefined_symbols": [
+          "__ZN4Edid13parseCtaBlockEPKhRNS_7CtaCapsE",
+          "__ZN4Edid14parseBaseBlockEPKhmRNS_8BaseInfoE",
+          "__ZN4Edid14standardTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+          "__ZN4Edid15blockChecksumOkEPKh",
+          "__ZN4Edid17establishedTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+          "__ZN4Edid19parseDetailedTimingEPKhRNS_14DetailedTimingE",
+          "__ZN4Edid9vicTimingEhRNS_14DetailedTimingE",
+          "__ZN8AtomBios13connectorTypeEt",
+          "__ZN8AtomBios4initEPKhm",
+          "__ZNK8AtomBios14getPathRecordsERKNS_11DisplayPathERNS_11PathRecordsE",
+          "__ZNK8AtomBios15getDisplayPathsEPNS_11DisplayPathEm"
+        ]
+      },
+      {
+        "path": "build/m10/native-arm64/integrity.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "7e98060533c3091fbca7ac7c707f43ea207bfddce4693141ae4daf57740d4bb3",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-arm64/query_candidate.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "fcd0a95ef27bb313a4dc6eefdb6e65b748a40243c3734aad85885e7046f73d77",
+        "undefined_symbols": [
+          "__ZN8NaviCore16decodeDeviceInfoENS_4ViewERNS_10DeviceInfoE",
+          "__ZN8NaviCore16encodeDeviceInfoERKNS_10DeviceInfoEPhm"
+        ]
+      },
+      {
+        "path": "build/m10/native-arm64/lifecycle.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "3560f710dddc1054fcc4f67ea2c5530633b5737fe697a5270b293e2c86d662ca",
+        "undefined_symbols": []
+      },
+      {
+        "path": "build/m10/native-arm64/darwin_native.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "55b96ee246ec480342d249347bb2164fa8f1555626e70374615e80dfac8a896f",
+        "undefined_symbols": [
+          "_IOFreeAligned",
+          "_IOLog",
+          "_IOMallocAligned"
+        ]
+      },
+      {
+        "path": "build/m10/native-arm64/darwin_snapshot.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "6d6aa32af1cf855235f3971974b38531648f3cf141815628d78a66d0b130ab30",
+        "undefined_symbols": [
+          "__ZN12NaviPlatform13SnapshotOwner8activateENS_12ReferenceOpsEb",
+          "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+          "__ZN6OSData9withBytesEPKvj",
+          "__ZNK12NaviPlatform13SnapshotOwner7inspectERNS_10OwnerStateERm"
+        ]
+      },
+      {
+        "path": "build/m10/native-arm64/m10_contract_compile.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "c0c3a6a209650ba819746dc4e497b2f4687d97964962357c5cc7367f3bffe497",
+        "undefined_symbols": [
+          "__ZN10NaviDarwin14NativeSnapshot10createCopyEN8NaviCore4ViewENS_18CpuSnapshotStorageE"
+        ]
+      },
+      {
+        "path": "build/m10/native-arm64/m8_contract_compile.o",
+        "cpu": 16777228,
+        "subtype": 0,
+        "type": "MH_OBJECT",
+        "build_version": [
+          [
+            1,
+            851968,
+            1769472
+          ]
+        ],
+        "sections": [
+          "__text",
+          "__cstring",
+          "__const",
+          "__debug_loc",
+          "__debug_abbrev",
+          "__debug_info",
+          "__debug_ranges",
+          "__debug_str",
+          "__apple_names",
+          "__apple_objc",
+          "__apple_namespac",
+          "__apple_types",
+          "__debug_frame",
+          "__debug_line"
+        ],
+        "sha256": "80c21215134b92d166e56226d5fd28399deca980fc4d12883591d521b4b2b722",
+        "undefined_symbols": [
+          "__ZN8NaviCore3elfENS_4ViewEN4Asic6TargetERNS_7ScratchES0_"
+        ]
+      }
+    ],
+    "flags": [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O1",
+      "-g",
+      "-isysroot",
+      "SDK_ROOT",
+      "-mmacosx-version-min=13.0",
+      "-I<PROJECT_ROOT>/development/AMDRadeonRDNA4-Navi44/src",
+      "-arch",
+      "arm64",
+      "-isystem",
+      "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+      "-nostdinc++",
+      "-DKERNEL",
+      "-DKERNEL_EXTENSION",
+      "-mkernel",
+      "-fapple-kext",
+      "-fno-stack-protector",
+      "-fno-exceptions",
+      "-fno-rtti",
+      "-ffreestanding",
+      "-Wframe-larger-than=4096"
+    ]
+  }
+}
