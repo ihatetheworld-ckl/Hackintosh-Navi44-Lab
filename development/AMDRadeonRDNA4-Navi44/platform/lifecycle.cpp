@@ -11,7 +11,7 @@ SnapshotOwner::Call::Call(SnapshotOwner&o):owner(o),entered(o.held()&&!o.operati
 }
 SnapshotOwner::Call::~Call(){if(entered)owner.operation_=false;}
 bool SnapshotOwner::valid(const SnapshotTicket&t)const{
-    return t.owner==generation_&&t.serial&&t.slot<MaxLeases&&slots_[t.slot]==t.serial;
+    return t.identity==this&&t.owner==generation_&&t.serial&&t.slot<MaxLeases&&slots_[t.slot]==t.serial;
 }
 Result SnapshotOwner::finish(){
     if(leases_)return failure("snapshot_shutdown_pending",Error::Protocol);
@@ -50,11 +50,11 @@ Result SnapshotOwner::borrowHeld(SnapshotTicket&out){
     if(leases_==MaxLeases||next_==UINT64_MAX)return failure("snapshot_lease_budget",Error::Budget);
     size_t i=0;while(i<MaxLeases&&slots_[i])++i;
     if(i==MaxLeases)return failure("snapshot_slot_state",Error::Protocol);
-    slots_[i]=next_++;++leases_;out={generation_,slots_[i],i};return success();
+    slots_[i]=next_++;++leases_;out={generation_,slots_[i],i,this};return success();
 }
 Result SnapshotOwner::borrow(SnapshotTicket&out){
     // Do not overwrite an existing obligation to return a live ticket.
-    if(out.owner||out.serial)return failure("snapshot_ticket_output_occupied",Error::Protocol);
+    if(out.owner||out.serial||out.identity)return failure("snapshot_ticket_output_occupied",Error::Protocol);
     out={};Call call{*this};return call.entered?borrowHeld(out):context();
 }
 Result SnapshotOwner::readHeld(const SnapshotTicket&t,View&out)const{

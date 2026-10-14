@@ -86,6 +86,7 @@ Thumbs.db
 /reports/m9/local-commit.json
 /reports/m9/logs/
 /reports/m10/local/
+/reports/m11/local/
 *.log
 /reports/m65/asan-canary.*
 /reports/m65/ubsan-canary.*
@@ -111,3 +112,5 @@ id_ed25519*
 credentials.json
 token.json
 secrets.*
+
+/reports/publication/local/

@@ -1,0 +1,191 @@
+{
+  "stage": "M11",
+  "status": "COMPLETE_WITH_BLOCKERS",
+  "Core_Compile": "PASS",
+  "Native_Compile": "PASS",
+  "Partial_Link": "PASS",
+  "KPI_Audit": "PASS reference classification; target ABI UNVERIFIED",
+  "Full_Link_Attempt": "EXECUTED",
+  "Full_Kext_Link": "UNVERIFIED: target ABI/KPI resolution blocked",
+  "Bundle": "NOT RUN",
+  "Sign": "NOT RUN",
+  "Install": "NOT RUN",
+  "Load": "NOT RUN",
+  "Kernel_Runtime": "NOT RUN",
+  "GPU_Runtime": "NOT RUN",
+  "Windows_Regression": "NOT RUN",
+  "x86_64_Host_Runtime": "NOT RUN",
+  "Host_Regression": {
+    "m9-arm64": {
+      "status": "PASS",
+      "kind": "CPU-only Host",
+      "platform": "darwin",
+      "host_arch": "arm64",
+      "target_arch": "arm64",
+      "compile": "PASS",
+      "link": "PASS",
+      "runtime": "PASS",
+      "Darwin_Native": "NOT RUN",
+      "Kext": "NOT RUN",
+      "GPU": "NOT RUN",
+      "differential": "NOT RUN by portable entry",
+      "sanitizer": "NOT RUN by portable entry",
+      "python": {
+        "test_offline.py": {
+          "PASS": 56,
+          "SKIP": 2,
+          "FAIL": 0
+        },
+        "test_m65.py": {
+          "PASS": 11,
+          "SKIP": 0,
+          "FAIL": 0
+        },
+        "test_m7.py": {
+          "PASS": 22,
+          "SKIP": 0,
+          "FAIL": 0
+        },
+        "test_m8.py": {
+          "PASS": 2,
+          "SKIP": 0,
+          "FAIL": 0
+        }
+      },
+      "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+      "sdk": "SDK_ROOT",
+      "bounded_mutation_output": "M8_FUZZ seed=759080 inputs=2400 accepted=479 rejected=1921 invariants=PASS\nM8_QUERY_FUZZ inputs=800 accepted=10 rejected=790 invariants=PASS",
+      "cpp_unit": {
+        "m65_unit": 34,
+        "m7_unit": 31,
+        "m8_unit": 96
+      },
+      "python_files": [
+        "test_offline.py",
+        "test_m65.py",
+        "test_m7.py",
+        "test_m8.py"
+      ],
+      "kernel_friendly_host_compile": "PASS"
+    },
+    "m9-x86_64": {
+      "status": "PASS",
+      "kind": "CPU-only Host",
+      "platform": "darwin",
+      "host_arch": "arm64",
+      "target_arch": "x86_64",
+      "compile": "PASS",
+      "link": "PASS",
+      "runtime": "NOT RUN",
+      "Darwin_Native": "NOT RUN",
+      "Kext": "NOT RUN",
+      "GPU": "NOT RUN",
+      "differential": "NOT RUN by portable entry",
+      "sanitizer": "NOT RUN by portable entry",
+      "python": "NOT RUN",
+      "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+      "sdk": "SDK_ROOT",
+      "cpp_unit": {},
+      "python_files": [],
+      "kernel_friendly_host_compile": "PASS"
+    },
+    "m9-sanitized": {
+      "status": "PASS",
+      "kind": "CPU-only Host",
+      "platform": "darwin",
+      "host_arch": "arm64",
+      "target_arch": "arm64",
+      "compile": "PASS",
+      "link": "PASS",
+      "runtime": "PASS",
+      "Darwin_Native": "NOT RUN",
+      "Kext": "NOT RUN",
+      "GPU": "NOT RUN",
+      "differential": "NOT RUN by portable entry",
+      "sanitizer": "PASS; leak detection NOT VERIFIED",
+      "python": "NOT RUN",
+      "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+      "sdk": "SDK_ROOT",
+      "bounded_mutation_output": "M8_FUZZ seed=759080 inputs=2400 accepted=479 rejected=1921 invariants=PASS\nM8_QUERY_FUZZ inputs=800 accepted=10 rejected=790 invariants=PASS",
+      "cpp_unit": {
+        "m65_unit": 34,
+        "m7_unit": 31,
+        "m8_unit": 96
+      },
+      "python_files": [],
+      "kernel_friendly_host_compile": "PASS"
+    }
+  },
+  "behavior": {
+    "normal/m10_lifecycle": {
+      "PASS": 74,
+      "FAIL": 0
+    },
+    "normal/m11_lifecycle": {
+      "PASS": 59,
+      "FAIL": 0
+    },
+    "asan-ubsan/m10_lifecycle": {
+      "PASS": 74,
+      "FAIL": 0
+    },
+    "asan-ubsan/m11_lifecycle": {
+      "PASS": 59,
+      "FAIL": 0
+    },
+    "tsan/m10_lifecycle": {
+      "PASS": 74,
+      "FAIL": 0
+    },
+    "tsan/m11_lifecycle": {
+      "PASS": 59,
+      "FAIL": 0
+    }
+  },
+  "differential": {
+    "m9-arm64/shared": {
+      "inputs": 744,
+      "differences": 0
+    },
+    "m9-arm64/mutation": {
+      "inputs": 2400,
+      "differences": 0
+    },
+    "m9-sanitized/shared": {
+      "inputs": 744,
+      "differences": 0
+    },
+    "m9-sanitized/mutation": {
+      "inputs": 2400,
+      "differences": 0
+    }
+  },
+  "ASan_UBSan": "PASS; leak detection NOT VERIFIED",
+  "TSan": "PASS covered Host state/gate paths; kernel synchronization UNVERIFIED",
+  "source_stability": "PASS",
+  "Offline_Image": "PASS: static MH_KEXT_BUNDLE; no Bundle/runtime",
+  "Static_Analyzer": {
+    "status": "PASS",
+    "units": 11,
+    "files": [
+      "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp",
+      "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp",
+      "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+      "development/AMDRadeonRDNA4-Navi44/core/device_info.cpp",
+      "development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+      "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp",
+      "development/AMDRadeonRDNA4-Navi44/core/display.cpp",
+      "development/AMDRadeonRDNA4-Navi44/core/integrity.cpp",
+      "development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp",
+      "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp",
+      "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+    ]
+  },
+  "Native_Static_Analyzer": {
+    "status": "PASS",
+    "units": 3,
+    "warnings": 0,
+    "API_runtime": "NOT RUN"
+  },
+  "result_composition": "Independent final Host and Native runs; source unchanged except Native probe and runner, both recompiled after fixes"
+}

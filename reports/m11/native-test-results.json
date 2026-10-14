@@ -1,0 +1,20 @@
+{
+  "stage": "M11",
+  "status": "COMPLETE_WITH_BLOCKERS",
+  "Core_Compile": "NOT RUN",
+  "Native_Compile": "PASS",
+  "Partial_Link": "PASS",
+  "KPI_Audit": "PASS reference classification; target ABI UNVERIFIED",
+  "Full_Link_Attempt": "EXECUTED",
+  "Full_Kext_Link": "UNVERIFIED: target ABI/KPI resolution blocked",
+  "Bundle": "NOT RUN",
+  "Sign": "NOT RUN",
+  "Install": "NOT RUN",
+  "Load": "NOT RUN",
+  "Kernel_Runtime": "NOT RUN",
+  "GPU_Runtime": "NOT RUN",
+  "Windows_Regression": "NOT RUN",
+  "x86_64_Host_Runtime": "NOT RUN",
+  "Offline_Image": "PASS: static MH_KEXT_BUNDLE; no Bundle/runtime",
+  "source_stability": "PASS"
+}

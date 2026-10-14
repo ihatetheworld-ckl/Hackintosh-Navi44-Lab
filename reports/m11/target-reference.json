@@ -1,0 +1,80 @@
+{
+  "pin": "8d741a5de7ff4191bf97d57b9f54c2f6d4a15585",
+  "release": "macOS 15.0 / xnu-11215.1.10",
+  "files": [
+    {
+      "path": "config/IOKit.exports",
+      "sha256": "5ad4cb0a476595698f06b0ffe850c5bb5604dc385ab844054a6ffb2437cddada"
+    },
+    {
+      "path": "config/IOKit.x86_64.exports",
+      "sha256": "2d970900f4eafd2478f825ce7220ad11a8090a46b06af75ab0e3ca695ed0fbbe"
+    },
+    {
+      "path": "config/Libkern.exports",
+      "sha256": "2f96a09412ce5e070ff02317ee36eeba32fad2d471aa29bc2c1724e917127d68"
+    },
+    {
+      "path": "config/Libkern.x86_64.exports",
+      "sha256": "d7a66f639d0aaee9a5e69f5da2c62aff3d36b5760c674261ad5993e3c4fb3e57"
+    }
+  ],
+  "header_reference": [
+    {
+      "path": "iokit/IOKit/IOLib.h",
+      "sha256": "087ba9d8ee59bc9743e5fe8a8f03ed99521434d2dfdf5bfa04b1591aaecbec77",
+      "signature_line_numbers": [
+        210,
+        215,
+        241,
+        613
+      ]
+    },
+    {
+      "path": "iokit/IOKit/IOBufferMemoryDescriptor.h",
+      "sha256": "6b8b53802d51b719d7da678f4ec1697c00b9f86b24018f614b460b3e47270a1f",
+      "signature_line_numbers": [
+        91,
+        99,
+        168,
+        180,
+        282,
+        285,
+        294
+      ]
+    },
+    {
+      "path": "libkern/libkern/c++/OSData.h",
+      "sha256": "2d0694f507d94133683c10a54e73224c95f6011b74a6e07ec4d236f68de92636",
+      "signature_line_numbers": [
+        171,
+        201,
+        356,
+        380,
+        441,
+        510,
+        538,
+        559
+      ]
+    },
+    {
+      "path": "iokit/IOKit/IOService.h",
+      "sha256": "90f30d7d8fc5547c702c12429c0ac25e1bc826f5d8363b3fa02f26b583d6fe7d",
+      "signature_line_numbers": [
+        487,
+        497,
+        672,
+        678,
+        758,
+        762,
+        768
+      ]
+    }
+  ],
+  "distribution_tag": "macos-150",
+  "distribution_tag_object": "dbaf5f8d604f45dce406bb6592608f1196533adb",
+  "distribution_commit": "fafa0d30e9943c16e82740488dc0750c24355562",
+  "XNU_version": "11215.1.10",
+  "SDK_for_target": "macOS 15 SDK / Xcode 16 (absent locally)",
+  "reference_not_included_in_build": true
+}

@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "units": 11,
+  "files": [
+    "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp",
+    "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp",
+    "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+    "development/AMDRadeonRDNA4-Navi44/core/device_info.cpp",
+    "development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+    "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp",
+    "development/AMDRadeonRDNA4-Navi44/core/display.cpp",
+    "development/AMDRadeonRDNA4-Navi44/core/integrity.cpp",
+    "development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp",
+    "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp",
+    "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+  ],
+  "source_hashes": {
+    "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp": "b90bf1c7b5a842a077b83305e5980af7dd595d9823b5d70ef97f7ddd444c3102",
+    "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp": "e92e58c7163e8de02a3ec97387c46b23203410a865087f0796b40e14d1bc63c8",
+    "development/AMDRadeonRDNA4-Navi44/core/validation.cpp": "77e8990d2e57bd1479561a48e74133973c8baf24a44b4dc68699a1bf279895b5",
+    "development/AMDRadeonRDNA4-Navi44/core/device_info.cpp": "47d4ffbdb95acdde1d1334a23675f2bd4fb62cc4dcc4392471a4bac0f85a13ed",
+    "development/AMDRadeonRDNA4-Navi44/src/edid.cpp": "0a2314854c406d2366293cc7ea58658a45314ecb5196cdccce0aa4a5ef603479",
+    "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp": "7774a8e6c05d3c7cffdcb16d3627c1b4fc1fd318ee346e7603477c47a5353505",
+    "development/AMDRadeonRDNA4-Navi44/core/display.cpp": "c7dfa2fd1506159172159d4bd89d073460bb2f7ddf24043c19b3172948d4ef80",
+    "development/AMDRadeonRDNA4-Navi44/core/integrity.cpp": "ce5048a9f48c854d8631813d47e383217f8af495c1d93f536cf4e3c064a1abbc",
+    "development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp": "35f9ab410b2dfdedcc67804f54fa014e3aabf3cad3b8b40cab73e745bb2ba266",
+    "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp": "8a439ccae00959ad31d39faacd5d6c41b0e3a16df7cfc0d434a83afdd1672a2d",
+    "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp": "5da19f6fd408991e5b4067f1de457681340dc6fc2f236eb050f988ad04114bec"
+  },
+  "warnings": 0,
+  "scope": "Actual completed all-target pass; CPU source unchanged in later Native-only fix"
+}

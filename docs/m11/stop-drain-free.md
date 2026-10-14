@@ -1,0 +1,23 @@
+# M11 Stop–Drain–Free
+
+复用M10 SnapshotOwner；ShutdownBarrier只协调最多八个已绑定owner，不复制其引用算法。
+CREATED绑定→全部ACTIVE后start→stop先标STOPPING→已有tickets时DRAINING→
+全部owner关闭且零borrowers后RELEASED。FAILED用于清理错误，不重新开放。
+
+stop拒绝新获取/读取，逐个逆序close所有owner；一个pending owner不能阻止其他owner关闭。
+旧ticket仍可归还；最后return才complete/release。poll只是一次有界检查，不持gate等待。
+readyToFree要求gate、无callback重入、RELEASED和所有owner自身ready；存储必须一直存活。
+外来/错误index/重复ticket不能消耗合法归还义务。snapshot ticket增加live owner身份，
+阻止两个误用同generation/serial的独立实例接受对方ticket。
+
+GenerationClock在同一gate下发行非零单调uint64；occupied输出和溢出拒绝，永不wrap/reset。
+每个domain的issuer须长期保留，禁止有stale ticket时重建issuer。generation和指针不是权限凭据。
+实际同地址placement reuse测试使用同一issuer的不同generation拒绝stale token。
+
+complete失败保留prepared/引用，不提前release。最多四轮失败清理，pending borrowers不
+消耗该预算；预算耗尽保持FAILED且不自动free，需独立有条件恢复或隔离资源。
+测试中的显式owner恢复与自动retry有区分，未声称真实内核失败可以这样直接恢复。
+关闭重入、部分初始化、旧借用、错归还、容量、issuer、临界条件均由CPU模型执行。
+
+逻辑revoke不能撤销已缓存的裸View指针，caller仍必须遵守受gate保护的访问协议。
+不允许调用已物理销毁对象的方法；停止并不代替最后OSObject release。

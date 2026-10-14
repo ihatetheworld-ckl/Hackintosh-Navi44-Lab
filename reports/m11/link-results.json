@@ -1,0 +1,135 @@
+{
+  "x86_64": {
+    "Partial_Link": "PASS",
+    "artifact": {
+      "path": "build/m11/checks/darwin-x86_64/n44-offline-linked.macho",
+      "arch": "x86_64",
+      "cpu": 16777223,
+      "subtype": 3,
+      "type": "MH_KEXT_BUNDLE",
+      "build_version": [],
+      "sections": [
+        "__text",
+        "__cstring",
+        "__const",
+        "__const",
+        "__data",
+        "__got"
+      ],
+      "bytes": 93320,
+      "sha256": "671182f1a02a9402560972bed24f6cb906b32ff343b0fff6fa9e31a52a7ec9e6"
+    },
+    "partial_artifact": {
+      "path": "build/m11/checks/darwin-x86_64/n44-offline-partial.o",
+      "arch": "x86_64",
+      "cpu": 16777223,
+      "subtype": 3,
+      "type": "MH_OBJECT",
+      "build_version": [
+        [
+          1,
+          983040,
+          1769472
+        ]
+      ],
+      "sections": [
+        "__text",
+        "__cstring",
+        "__const",
+        "__literal16",
+        "__const",
+        "__data"
+      ],
+      "bytes": 95584,
+      "sha256": "235b40f39b0c78a82c6a7cfcbfc95a55ca5826376176e8e3a806a2f389985123"
+    },
+    "remaining": [
+      "_IOFreeAligned",
+      "_IOLog",
+      "_IOMallocAligned",
+      "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "__ZN6OSData9withBytesEPKvj",
+      "__ZTV9IOService",
+      "___bzero",
+      "_memcpy"
+    ],
+    "Full_Link_Attempt": "EXECUTED",
+    "exit": 0,
+    "Link_Result": "PASS: static MH_KEXT_BUNDLE construction only",
+    "explicit_undefined_tolerance": false,
+    "linker_retains_kernel_imports": true,
+    "Bundle": "NOT RUN",
+    "Sign": "NOT RUN",
+    "Install": "NOT RUN",
+    "Load": "NOT RUN",
+    "Target_ABI": "BLOCKED: target SDK/kernel binary absent",
+    "KPI_Resolution": "UNVERIFIED: imports retained",
+    "negative_policy": {
+      "actual_host_import": "_puts",
+      "independent_audit": "REJECTED",
+      "linker_exit": 0,
+      "meaning": "Kext linker construction can retain unsupported imports; linker exit is not KPI validation",
+      "negative_image_never_executed": true
+    }
+  },
+  "arm64": {
+    "Partial_Link": "PASS",
+    "artifact": {
+      "path": "build/m11/checks/darwin-arm64/n44-offline-partial.o",
+      "arch": "arm64",
+      "cpu": 16777228,
+      "subtype": 0,
+      "type": "MH_OBJECT",
+      "build_version": [
+        [
+          1,
+          983040,
+          1769472
+        ]
+      ],
+      "sections": [
+        "__text",
+        "__cstring",
+        "__const",
+        "__literal16",
+        "__const",
+        "__data"
+      ],
+      "bytes": 88616,
+      "sha256": "2fd1f65814680eaebe2dcd7a3ec408735125b488bdcb9ebd7a495e52352e0bd9"
+    },
+    "partial_artifact": {
+      "path": "build/m11/checks/darwin-arm64/n44-offline-partial.o",
+      "arch": "arm64",
+      "cpu": 16777228,
+      "subtype": 0,
+      "type": "MH_OBJECT",
+      "build_version": [
+        [
+          1,
+          983040,
+          1769472
+        ]
+      ],
+      "sections": [
+        "__text",
+        "__cstring",
+        "__const",
+        "__literal16",
+        "__const",
+        "__data"
+      ],
+      "bytes": 88616,
+      "sha256": "2fd1f65814680eaebe2dcd7a3ec408735125b488bdcb9ebd7a495e52352e0bd9"
+    },
+    "remaining": [
+      "_IOFreeAligned",
+      "_IOLog",
+      "_IOMallocAligned",
+      "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "__ZN6OSData9withBytesEPKvj",
+      "__ZTV9IOService",
+      "_memcpy"
+    ]
+  }
+}

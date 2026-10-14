@@ -5,11 +5,14 @@ M8 已完成 Windows 离线解析与数据模型验证；M8.5 已完成 GitHub �
 M9 已在真实 macOS / Apple Clang 上完成 arm64 CPU 测试、x86_64 Mach-O
 及真实 Kernel.framework 头文件的 Native 独立对象编译。
 M10 已加入 Snapshot/Buffer 生命周期、Host mutex Mock 与两架构非部署型部分链接。
+M11 已加入 Stop/Drain/Free、generation发行及owner身份检查，并实际生成独立x86_64
+MH_KEXT_BUNDLE分析文件。目标macOS15 SDK/内核ABI尚不匹配，KPI最终解析仍UNVERIFIED；
+没有Bundle、签名、安装、加载或真实GPU功能。[M11证据](reports/m11/development-report.md)。
 具体证据见 [M10 报告](reports/m10/development-report.md)；部分链接仍是 MH_OBJECT，
-完整 Kext 链接、内核运行和真实 GPU 功能均 NOT RUN。
+M10完整Kext链接、内核运行和真实GPU功能均NOT RUN。M11文件构造边界另列。
 目标仓库由用户创建为 Public，首次上传已确认；后续推送仍需用户确认。
 EDID、AtomBIOS、Discovery、Firmware、ELF、N44I/N44Q 是静态软件模块。
-真实 GPU 显示、Vulkan/Metal、WindowServer、Native 链接/运行及 Kext 构建均未验证。
+真实 GPU 显示、Vulkan/Metal、WindowServer、Native运行与目标KPI闭合均未验证。
 
 ## 代码与证据
 

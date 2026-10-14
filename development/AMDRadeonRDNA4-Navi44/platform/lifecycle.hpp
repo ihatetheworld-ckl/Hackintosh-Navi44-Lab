@@ -12,7 +12,10 @@ struct ReferenceOps {
     NaviCore::Result(*prepare)(void*){nullptr};NaviCore::Result(*complete)(void*){nullptr};
 };
 enum class OwnerState:uint8_t { Created,Active,Closing,Revoked,Failed,Released };
-struct SnapshotTicket { uint64_t owner{0},serial{0};size_t slot{0}; };
+class SnapshotOwner;
+// Identity binds obligations to their live owner as well as its generation.
+// This is an in-process lifetime token, never an authorization credential.
+struct SnapshotTicket { uint64_t owner{0},serial{0};size_t slot{0};const SnapshotOwner*identity{nullptr}; };
 class SnapshotOwner {
 public:
     static constexpr size_t MaxLeases=8,MaxBytes=1u<<20;

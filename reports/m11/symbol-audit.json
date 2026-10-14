@@ -1,0 +1,899 @@
+{
+  "x86_64": {
+    "per_symbol": [
+      {
+        "symbol": "_IOFreeAligned",
+        "classification": "VERIFIED_EXPORT_REFERENCE",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+        ],
+        "providers": [],
+        "export_reference": {
+          "file": "config/IOKit.exports",
+          "entry": "_IOFreeAligned",
+          "file_sha256": "5ad4cb0a476595698f06b0ffe850c5bb5604dc385ab844054a6ffb2437cddada"
+        },
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "_IOLog",
+        "classification": "VERIFIED_EXPORT_REFERENCE",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+        ],
+        "providers": [],
+        "export_reference": {
+          "file": "config/IOKit.exports",
+          "entry": "_IOLog",
+          "file_sha256": "5ad4cb0a476595698f06b0ffe850c5bb5604dc385ab844054a6ffb2437cddada"
+        },
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "_IOMallocAligned",
+        "classification": "VERIFIED_EXPORT_REFERENCE",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+        ],
+        "providers": [],
+        "export_reference": {
+          "file": "config/IOKit.exports",
+          "entry": "_IOMallocAligned:_IOMallocAligned_external",
+          "file_sha256": "5ad4cb0a476595698f06b0ffe850c5bb5604dc385ab844054a6ffb2437cddada"
+        },
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN10NaviDarwin14NativeSnapshot10createCopyEN8NaviCore4ViewENS_18CpuSnapshotStorageE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m10_contract_compile.cpp",
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner4readERKNS_14SnapshotTicketERN8NaviCore4ViewE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner5closeEv",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner6borrowERNS_14SnapshotTicketE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner8activateENS_12ReferenceOpsEb",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner8giveBackERNS_14SnapshotTicketE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform15ShutdownBarrier4bindERNS_13SnapshotOwnerE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform15ShutdownBarrier4stopEv",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform15ShutdownBarrier5startEv",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "classification": "VERIFIED_EXPORT_REFERENCE",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "providers": [],
+        "export_reference": {
+          "file": "config/IOKit.x86_64.exports",
+          "entry": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+          "file_sha256": "2d970900f4eafd2478f825ce7220ad11a8090a46b06af75ab0e3ca695ed0fbbe"
+        },
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid13parseCtaBlockEPKhRNS_7CtaCapsE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid14parseBaseBlockEPKhmRNS_8BaseInfoE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid14standardTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid15blockChecksumOkEPKh",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid17establishedTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid19parseDetailedTimingEPKhRNS_14DetailedTimingE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid9vicTimingEhRNS_14DetailedTimingE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN6OSData9withBytesEPKvj",
+        "classification": "VERIFIED_EXPORT_REFERENCE",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "providers": [],
+        "export_reference": {
+          "file": "config/Libkern.exports",
+          "entry": "__ZN6OSData9withBytesEPKvj",
+          "file_sha256": "2f96a09412ce5e070ff02317ee36eeba32fad2d471aa29bc2c1724e917127d68"
+        },
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN7CodeObj10findKernelEPKhmPKcRNS_6KernelEPS3_N4Asic6TargetE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8AtomBios13connectorTypeEt",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8AtomBios4initEPKhm",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8NaviCore16decodeDeviceInfoENS_4ViewERNS_10DeviceInfoE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/core/device_info.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8NaviCore16encodeDeviceInfoERKNS_10DeviceInfoEPhm",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/core/device_info.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8NaviCore3elfENS_4ViewEN4Asic6TargetERNS_7ScratchES0_",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m8_contract_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK11IpDiscovery6gcInfoERjS0_Pj",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK11IpDiscovery8findIp64EthRNS_9IpEntry64E",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK12NaviPlatform13SnapshotOwner11readyToFreeEv",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK12NaviPlatform13SnapshotOwner7inspectERNS_10OwnerStateERm",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp",
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK8AtomBios14getPathRecordsERKNS_11DisplayPathERNS_11PathRecordsE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK8AtomBios15getDisplayPathsEPNS_11DisplayPathEm",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZTV9IOService",
+        "classification": "VERIFIED_EXPORT_REFERENCE",
+        "users": [
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [],
+        "export_reference": {
+          "file": "config/IOKit.exports",
+          "entry": "__ZTV9IOService",
+          "file_sha256": "5ad4cb0a476595698f06b0ffe850c5bb5604dc385ab844054a6ffb2437cddada"
+        },
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "___bzero",
+        "classification": "VERIFIED_EXPORT_REFERENCE",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp",
+          "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp",
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp",
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [],
+        "export_reference": {
+          "file": "config/Libkern.exports",
+          "entry": "___bzero",
+          "file_sha256": "2f96a09412ce5e070ff02317ee36eeba32fad2d471aa29bc2c1724e917127d68"
+        },
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "_memcpy",
+        "classification": "VERIFIED_EXPORT_REFERENCE",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [],
+        "export_reference": {
+          "file": "config/Libkern.exports",
+          "entry": "_memcpy",
+          "file_sha256": "2f96a09412ce5e070ff02317ee36eeba32fad2d471aa29bc2c1724e917127d68"
+        },
+        "target_binary_verified": false
+      }
+    ],
+    "remaining": [
+      "_IOFreeAligned",
+      "_IOLog",
+      "_IOMallocAligned",
+      "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "__ZN6OSData9withBytesEPKvj",
+      "__ZTV9IOService",
+      "___bzero",
+      "_memcpy"
+    ],
+    "unknown": [],
+    "reference_scope": "macOS 15.0 XNU source x86_64 export lists; not a target kernel binary"
+  },
+  "arm64": {
+    "per_symbol": [
+      {
+        "symbol": "_IOFreeAligned",
+        "classification": "UNRESOLVED_ABI_REQUIREMENT",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+        ],
+        "providers": [],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "_IOLog",
+        "classification": "UNRESOLVED_ABI_REQUIREMENT",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+        ],
+        "providers": [],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "_IOMallocAligned",
+        "classification": "UNRESOLVED_ABI_REQUIREMENT",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+        ],
+        "providers": [],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN10NaviDarwin14NativeSnapshot10createCopyEN8NaviCore4ViewENS_18CpuSnapshotStorageE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m10_contract_compile.cpp",
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner4readERKNS_14SnapshotTicketERN8NaviCore4ViewE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner5closeEv",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner6borrowERNS_14SnapshotTicketE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner8activateENS_12ReferenceOpsEb",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform13SnapshotOwner8giveBackERNS_14SnapshotTicketE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform15ShutdownBarrier4bindERNS_13SnapshotOwnerE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform15ShutdownBarrier4stopEv",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN12NaviPlatform15ShutdownBarrier5startEv",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "classification": "UNRESOLVED_ABI_REQUIREMENT",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "providers": [],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid13parseCtaBlockEPKhRNS_7CtaCapsE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid14parseBaseBlockEPKhmRNS_8BaseInfoE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid14standardTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid15blockChecksumOkEPKh",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid17establishedTimingERKNS_8BaseInfoEmRNS_14DetailedTimingE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid19parseDetailedTimingEPKhRNS_14DetailedTimingE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN4Edid9vicTimingEhRNS_14DetailedTimingE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN6OSData9withBytesEPKvj",
+        "classification": "UNRESOLVED_ABI_REQUIREMENT",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "providers": [],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN7CodeObj10findKernelEPKhmPKcRNS_6KernelEPS3_N4Asic6TargetE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8AtomBios13connectorTypeEt",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8AtomBios4initEPKhm",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8NaviCore16decodeDeviceInfoENS_4ViewERNS_10DeviceInfoE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/core/device_info.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8NaviCore16encodeDeviceInfoERKNS_10DeviceInfoEPhm",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/core/device_info.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZN8NaviCore3elfENS_4ViewEN4Asic6TargetERNS_7ScratchES0_",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "tests/unit/m8_contract_compile.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK11IpDiscovery6gcInfoERjS0_Pj",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK11IpDiscovery8findIp64EthRNS_9IpEntry64E",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK12NaviPlatform13SnapshotOwner11readyToFreeEv",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK12NaviPlatform13SnapshotOwner7inspectERNS_10OwnerStateERm",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp",
+          "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK8AtomBios14getPathRecordsERKNS_11DisplayPathERNS_11PathRecordsE",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZNK8AtomBios15getDisplayPathsEPNS_11DisplayPathEm",
+        "classification": "INTERNAL_RESOLVED",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/display.cpp"
+        ],
+        "providers": [
+          "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp"
+        ],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "__ZTV9IOService",
+        "classification": "UNRESOLVED_ABI_REQUIREMENT",
+        "users": [
+          "tests/unit/m11_native_compile.cpp"
+        ],
+        "providers": [],
+        "export_reference": null,
+        "target_binary_verified": false
+      },
+      {
+        "symbol": "_memcpy",
+        "classification": "UNRESOLVED_ABI_REQUIREMENT",
+        "users": [
+          "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+          "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+        ],
+        "providers": [],
+        "export_reference": null,
+        "target_binary_verified": false
+      }
+    ],
+    "remaining": [
+      "_IOFreeAligned",
+      "_IOLog",
+      "_IOMallocAligned",
+      "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "__ZN6OSData9withBytesEPKvj",
+      "__ZTV9IOService",
+      "_memcpy"
+    ],
+    "unknown": [],
+    "reference_scope": "macOS 15.0 XNU source x86_64 export lists; not a target kernel binary"
+  }
+}

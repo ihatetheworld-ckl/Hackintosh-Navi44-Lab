@@ -1,0 +1,11 @@
+{
+  "old_M10": {
+    "exit": 1,
+    "cross_owner_read_allowed": true
+  },
+  "current_M11": {
+    "exit": 0,
+    "cross_owner_read_allowed": false
+  },
+  "status": "PASS: actual previous source reproduces rejected behavior"
+}

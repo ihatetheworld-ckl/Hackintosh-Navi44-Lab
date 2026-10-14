@@ -1,0 +1,16 @@
+{
+  "x86_64": {
+    "object_options_layout": "PASS",
+    "target_sdk_match": "BLOCKED: macOS 15 SDK absent",
+    "target_kernel_binary_exports": "UNVERIFIED",
+    "Cxx_class_vtable_runtime": "NOT RUN",
+    "generic_arm64_not_arm64e": true
+  },
+  "arm64": {
+    "object_options_layout": "PASS",
+    "target_sdk_match": "BLOCKED: macOS 15 SDK absent",
+    "target_kernel_binary_exports": "UNVERIFIED",
+    "Cxx_class_vtable_runtime": "NOT RUN",
+    "generic_arm64_not_arm64e": true
+  }
+}

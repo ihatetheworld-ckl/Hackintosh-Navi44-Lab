@@ -40,6 +40,7 @@ class NodePool {
 public:
     NodePool()=default;NodePool(const NodePool&)=delete;NodePool&operator=(const NodePool&)=delete;
     ScratchOps contract(){return {this,acquire,release};}
+    bool idle()const{return !busy;} // caller must hold its serialization gate
 };
 // NodePool is not internally synchronized. Owner constructs it outside the
 // kernel stack and supplies ExecutionOps for thread-context serialized access.
