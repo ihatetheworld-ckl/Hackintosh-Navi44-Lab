@@ -4,6 +4,8 @@
    用户明确接受 Public，不再阻塞在 Private 要求。
 2. 当前本机 Git 认证未验证：gh/自动化浏览器未提供，GCM store 在沙箱不可用。
    仅允许官方用户认证流程，不安装系统工具、不使用管理员、不索取明文 PAT。
+   GCM none/no-op 模式已核实可用，拟在确认后使用官方 device flow，不持久化 Token；
+   尚未执行登录或取得令牌。命令级 OpenSSL 的只读远程连接已通过。
 3. 展示真实最终 main SHA、作者、上传清单与审查结论，等待首次推送确认。
 4. 有合规认证后仅正常 Git Push；不 force，不触发 Actions，不上传任何未审查内容。
 5. 验证远程分支/HEAD/用户允许的 Public 状态，再更新交接文档，报告最终 SHA。

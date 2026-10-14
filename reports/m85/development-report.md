@@ -146,6 +146,12 @@ visibility=public、private=false、branches=[]。仓库是已授权用户的空
 
 仓库已由用户创建，不再需要创建接口。当前 Windows Git 认证仍未验证，
 连接中的已认证权限不等于本机 Git 已有凭据。
+后续找到官方 GCM v2.9.0 的 none/no-op credential store，实际只读 list 检查 exit=0，
+无需在 Windows Vault 或项目内存储 Token。官方 device/禁 GUI 模式列入候选方案，
+尚未进行 login/get 或推送。
+Git 默认 Schannel 的只读连接失败；命令内使用 OpenSSL、保留证书验证后，
+ls-remote exit=0 且 heads 为空；origin 已配置为唯一目标，不改全局安全设置。
+详见 ../../docs/github-authentication-m85.md；真实只读记录保留于本机 local-history。
 没有下载/安装 gh、扩大权限、冒用连接内部凭据或把 Token 写入项目。
 下一步先展示具体 main/HEAD/数量/体积并获首次推送确认；
 若认证需要用户操作，只允许官方浏览器/设备流程，不索取明文 Token。
@@ -169,7 +175,7 @@ M9 应优先验证真实 Apple Clang/SDK/Native object，避免继续堆积未�
 | GPU ROM/BAR/MMIO/DMA/初始化/显示/计算 | 未执行 |
 | Kext/SYS 安装、签名、加载 | 未执行 |
 | 管理员/安装系统工具/第三方脚本远程执行 | 未执行 |
-| GitHub 创建/上传/推送/Actions/PR/Release | 仓库由用户创建；本代理仅只读核实，未上传/推送/运行 Actions |
+| GitHub 创建/上传/推送/Actions/PR/Release | 仓库由用户创建；本代理仅只读核实/API 和 ls-remote，未上传/推送/运行 Actions |
 | 本地 Git init/config/精确 add/commit | 授权范围内；具体执行见本地 Git 记录 |
 
 仅执行审查后的 CPU 编译/测试和已有 Git/官方 GCM 查询。
