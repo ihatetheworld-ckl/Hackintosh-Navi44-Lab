@@ -24,9 +24,13 @@ public:
     NaviCore::Result initialize(NaviCore::View view,CpuSnapshotStorage kind){
         auto r=barrier_.bind(snapshot_.owner());if(!r.ok())return r;
         r=snapshot_.createCopy(view,kind);if(!r.ok()){barrier_.stop();return r;}
-        return barrier_.start();
+        r=barrier_.initialize();if(!r.ok())barrier_.stop();return r;
     }
-    NaviPlatform::ShutdownBarrier&lifetime(){return barrier_;}
+    // Explicit activation after construction. No public raw View/Ticket path.
+    NaviCore::Result start(){return barrier_.start();}
+    NaviCore::Result stop(){return barrier_.stop();}
+    NaviCore::Result poll(){return barrier_.poll();}
+    NaviCore::Result consume(NaviPlatform::InputConsumer consumer){return barrier_.consume(0,consumer);}
     NaviPlatform::ScratchOps scratch(){return {this,acquire,release};}
     // Caller may destroy storage only under gate when this is true.
     bool readyToFree()const{return barrier_.readyToFree()&&scratch_.idle();}

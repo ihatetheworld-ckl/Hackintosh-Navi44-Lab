@@ -12,7 +12,7 @@ public:
     GenerationClock(const GenerationClock&)=delete;GenerationClock&operator=(const GenerationClock&)=delete;
     NaviCore::Result issue(uint64_t&);
 };
-enum class ShutdownState:uint8_t { Created,Active,Stopping,Draining,Failed,Released };
+enum class ShutdownState:uint8_t { Created,Active,Stopping,Draining,Failed,Released,Initialized };
 class ShutdownBarrier {
     AccessOps access_;SnapshotOwner*owners_[8]{};size_t count_{0};
     ShutdownState state_{ShutdownState::Created};bool operation_{false};unsigned failures_{0};
@@ -23,7 +23,8 @@ public:
     explicit ShutdownBarrier(AccessOps access):access_(access){}
     ShutdownBarrier(const ShutdownBarrier&)=delete;ShutdownBarrier&operator=(const ShutdownBarrier&)=delete;
     // Owner storage and gate must outlive this barrier and every outstanding ticket.
-    NaviCore::Result bind(SnapshotOwner&);NaviCore::Result start();
+    NaviCore::Result bind(SnapshotOwner&);NaviCore::Result initialize();NaviCore::Result start();
+    NaviCore::Result consume(size_t,InputConsumer);
     NaviCore::Result borrow(size_t,SnapshotTicket&);NaviCore::Result read(size_t,const SnapshotTicket&,NaviCore::View&);
     NaviCore::Result giveBack(size_t,SnapshotTicket&);
     NaviCore::Result stop();NaviCore::Result poll();

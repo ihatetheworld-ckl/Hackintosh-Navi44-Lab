@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "old_implementation_exit": 1,
+  "rejected_behavior": "scope_byte_alias_preserves_source",
+  "fixed_implementation": "PASS 34/0 in normal, ASan/UBSan and TSan formal run",
+  "old_source_only_in_ignored_build": true
+}

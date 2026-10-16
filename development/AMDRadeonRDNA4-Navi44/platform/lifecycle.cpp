@@ -2,6 +2,28 @@
 namespace NaviPlatform {
 using namespace NaviCore;
 namespace { Result context(){return failure("lifetime_context_or_reentry",Error::Protocol);} }
+Result ScopedInput::length(size_t&out)const{
+    // Like copy(), metadata outputs must never modify the immutable input.
+    const uintptr_t address=reinterpret_cast<uintptr_t>(&out),source=reinterpret_cast<uintptr_t>(view_.data);
+    if(sizeof(out)-1>UINTPTR_MAX-address||(view_.size&&address<=source+view_.size-1&&source<=address+sizeof(out)-1))
+        return failure("scoped_length_alias",Error::Bounds);
+    out=0;if(!owner_.held()||!owner_.operation_||owner_.state_!=OwnerState::Active)return context();
+    out=view_.size;return success();
+}
+Result ScopedInput::copy(size_t offset,uint8_t*destination,size_t bytes)const{
+    size_t size=0;Result r=length(size);if(!r.ok())return r;
+    if(offset>size||bytes>size-offset)return failure("scoped_copy_bounds",Error::Bounds);
+    if(!bytes)return success();
+    const uintptr_t address=reinterpret_cast<uintptr_t>(destination);
+    if(!destination||bytes-1>UINTPTR_MAX-address)return failure("scoped_destination_bounds",Error::Bounds);
+    const uintptr_t source=reinterpret_cast<uintptr_t>(view_.data);
+    if(address<=source+view_.size-1&&source<=address+bytes-1)
+        return failure("scoped_immutable_overlap",Error::Bounds);
+    for(size_t i=0;i<bytes;++i)destination[i]=view_.data[offset+i];
+    return success();
+}
+// Preserve destination on failure; it may alias the immutable source.
+Result ScopedInput::byte(size_t offset,uint8_t&out)const{return copy(offset,&out,1);}
 bool SnapshotOwner::held()const{
     return access_.execution.enter&&access_.execution.leave&&access_.isHeld&&
         access_.isHeld(access_.execution.context);
@@ -73,6 +95,22 @@ Result SnapshotOwner::returnHeld(SnapshotTicket&t){
 }
 Result SnapshotOwner::giveBack(SnapshotTicket&t){
     Call call{*this};return call.entered?returnHeld(t):context();
+}
+Result SnapshotOwner::withInput(const SnapshotTicket&t,InputConsumer consumer){
+    Call call{*this};if(!call.entered)return context();
+    if(!consumer.consume)return failure("scoped_consumer_missing",Error::Protocol);
+    View v{};Result r=readHeld(t,v);if(!r.ok())return r;
+    ScopedInput input{v,*this};return consumer.consume(consumer.context,input);
+}
+Result SnapshotOwner::consume(InputConsumer consumer){
+    Call call{*this};if(!call.entered)return context();
+    if(!consumer.consume)return failure("scoped_consumer_missing",Error::Protocol);
+    SnapshotTicket ticket{};Result r=borrowHeld(ticket);if(!r.ok())return r;
+    {
+        ScopedInput input{input_,*this};r=consumer.consume(consumer.context,input);
+    }
+    // The noexcept callback must keep the caller's gate held throughout.
+    Result cleanup=returnHeld(ticket);return cleanup.ok()?r:cleanup;
 }
 Result SnapshotOwner::stop(OwnerState state){
     Call call{*this};if(!call.entered)return context();

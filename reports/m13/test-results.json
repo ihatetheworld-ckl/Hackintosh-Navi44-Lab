@@ -1,0 +1,84 @@
+{
+  "stage": "M13",
+  "status": "COMPLETE_WITH_BLOCKERS",
+  "CPU_Host_Build": "PASS",
+  "Kernel_Object_Compile": "PASS",
+  "Partial_Link": "PASS",
+  "MH_KEXT_BUNDLE_Construction": "PASS",
+  "KPI_Reference_Audit": "PASS reference classification only",
+  "Target_ABI_Compatibility": "BLOCKED: target26.5 kernel binary/KDK absent",
+  "Full_Target_Link_Closure": "BLOCKED",
+  "Bundle": "NOT RUN",
+  "Sign": "NOT RUN",
+  "Install": "NOT RUN",
+  "Load": "NOT RUN",
+  "Kernel_Runtime": "NOT RUN",
+  "GPU_Runtime": "NOT RUN",
+  "Windows_Regression": "NOT RUN",
+  "x86_64_Runtime": "NOT RUN",
+  "M12_regression_behavior": {
+    "normal": {
+      "PASS": 34,
+      "FAIL": 0,
+      "error_callbacks": 300,
+      "concurrent_scopes": 1,
+      "post_stop_attempts": 160
+    },
+    "asan-ubsan": {
+      "PASS": 34,
+      "FAIL": 0,
+      "error_callbacks": 300,
+      "concurrent_scopes": 1,
+      "post_stop_attempts": 160
+    },
+    "tsan": {
+      "PASS": 34,
+      "FAIL": 0,
+      "error_callbacks": 300,
+      "concurrent_scopes": 1,
+      "post_stop_attempts": 160
+    }
+  },
+  "M13_behavior": {
+    "normal": {
+      "PASS": 54,
+      "FAIL": 0,
+      "bounded_DisplayID_mutations": 500,
+      "seed": 759013
+    },
+    "asan-ubsan": {
+      "PASS": 54,
+      "FAIL": 0,
+      "bounded_DisplayID_mutations": 500,
+      "seed": 759013
+    },
+    "tsan": {
+      "PASS": 54,
+      "FAIL": 0,
+      "bounded_DisplayID_mutations": 500,
+      "seed": 759013
+    }
+  },
+  "legacy_regression": "PASS",
+  "ASan_UBSan": "PASS; leak detection not verified",
+  "TSan": "PASS covered Host paths only",
+  "Native_Static_Analyzer": {
+    "status": "PASS",
+    "units": 5
+  },
+  "negative_cases": 19,
+  "CPU_Static_Analyzer": {
+    "status": "PASS",
+    "units": 14
+  },
+  "source_stability": "PASS",
+  "OBJECT_COMPILE": "PASS",
+  "PARTIAL_LINK": "PASS",
+  "MACHO_KEXT_CONSTRUCTION": "PASS",
+  "SDK26_ABI_AUDIT": "PASS declarations/object layout only",
+  "TARGET_BINARY_KPI_AUDIT": "BLOCKED: matching target binary/KDK absent",
+  "TARGET_ABI_CLOSURE": "BLOCKED",
+  "LOADABLE_KEXT": "UNVERIFIED",
+  "KERNEL_RUNTIME": "NOT RUN",
+  "GPU_RUNTIME": "NOT RUN"
+}

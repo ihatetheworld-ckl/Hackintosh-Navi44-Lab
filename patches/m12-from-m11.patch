@@ -1,0 +1,1215 @@
+diff --git a/.gitignore b/.gitignore
+index 0e86ac0..dd00e50 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -87,6 +87,9 @@ Thumbs.db
+ /reports/m9/logs/
+ /reports/m10/local/
+ /reports/m11/local/
++/reports/m12/local/
++/reports/m12/baseline/local/
++/reports/m12/regression/local/
+ *.log
+ /reports/m65/asan-canary.*
+ /reports/m65/ubsan-canary.*
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8b4a54f..8919052 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -50,12 +50,21 @@ else()
+   target_compile_options(navi44_m11_lifetime PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+ endif()
+ add_test(NAME m11_lifetime_cpu_only COMMAND navi44_m11_lifetime)
++add_executable(navi44_m12_lifetime tests/unit/m12_lifecycle.cpp ${LIFETIME_SOURCES})
++target_compile_features(navi44_m12_lifetime PRIVATE cxx_std_17)
++target_link_libraries(navi44_m12_lifetime PRIVATE Threads::Threads)
++if(MSVC)
++  target_compile_options(navi44_m12_lifetime PRIVATE /W4 /UNDEBUG)
++else()
++  target_compile_options(navi44_m12_lifetime PRIVATE -Wall -Wextra -Werror -UNDEBUG)
++endif()
++add_test(NAME m12_lifetime_cpu_only COMMAND navi44_m12_lifetime)
+ add_executable(navi44_m10_regression_proof tests/unit/m10_regression_proof.cpp)
+ target_include_directories(navi44_m10_regression_proof PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/platform")
+ target_compile_features(navi44_m10_regression_proof PRIVATE cxx_std_17)
+ add_test(NAME m10_regression_proof_cpu_only COMMAND navi44_m10_regression_proof)
+ set_tests_properties(cpu_only m7_cpu_only m8_cpu_only m8_bounded_mutation
+-  m10_lifetime_cpu_only m11_lifetime_cpu_only m10_regression_proof_cpu_only PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
++  m10_lifetime_cpu_only m11_lifetime_cpu_only m12_lifetime_cpu_only m10_regression_proof_cpu_only PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
+ # Only Core translation units use these flags; Host probe retains its STL/exception API.
+ if(MSVC)
+   set_source_files_properties(${CORE_SOURCES} ${M8_SOURCES} ${LIFETIME_SOURCES} PROPERTIES COMPILE_OPTIONS "/GR-;/EHs-c-")
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp
+new file mode 100644
+index 0000000..49b0b68
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp
+@@ -0,0 +1,18 @@
++#include "darwin_gate.hpp"
++namespace NaviDarwin {
++bool BorrowedKernelGate::ordinary(){return !ml_at_interrupt_context()&&ml_get_interrupts_enabled();}
++bool BorrowedKernelGate::enter(void*ctx){
++    auto&g=*static_cast<BorrowedKernelGate*>(ctx);
++    if(!g.lock_||!ordinary()||IORecursiveLockHaveLock(g.lock_))return false;
++    // Caller must also guarantee a sleepable context with no spin lock held.
++    IORecursiveLockLock(g.lock_);return true;
++}
++void BorrowedKernelGate::leave(void*ctx){
++    auto&g=*static_cast<BorrowedKernelGate*>(ctx);
++    if(g.lock_&&ordinary()&&IORecursiveLockHaveLock(g.lock_))IORecursiveLockUnlock(g.lock_);
++}
++bool BorrowedKernelGate::held(void*ctx){
++    auto&g=*static_cast<BorrowedKernelGate*>(ctx);
++    return g.lock_&&ordinary()&&IORecursiveLockHaveLock(g.lock_);
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.hpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.hpp
+new file mode 100644
+index 0000000..f47b7aa
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.hpp
+@@ -0,0 +1,21 @@
++// Genuine borrowed kernel lock adapter. BSD-3-Clause. Compile only in this lab.
++// The publisher owns lock/adapter storage, removes every callback source and
++// drains all waiters before destroying either. This adapter never frees a lock.
++#ifndef Navi44DarwinGate_hpp
++#define Navi44DarwinGate_hpp
++#if !defined(__APPLE__) || !defined(KERNEL)
++#error Genuine Apple Kernel build required
++#endif
++#include "lifecycle.hpp"
++#include <IOKit/IOLocks.h>
++namespace NaviDarwin {
++class BorrowedKernelGate {
++    IORecursiveLock*const lock_;
++    static bool ordinary();static bool enter(void*);static void leave(void*);static bool held(void*);
++public:
++    explicit BorrowedKernelGate(IORecursiveLock*lock):lock_(lock){}
++    BorrowedKernelGate(const BorrowedKernelGate&)=delete;BorrowedKernelGate&operator=(const BorrowedKernelGate&)=delete;
++    NaviPlatform::AccessOps access(){return {{this,enter,leave},held};}
++};
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/darwin_owner_storage.hpp b/development/AMDRadeonRDNA4-Navi44/platform/darwin_owner_storage.hpp
+index 7849c9f..ae1d91e 100644
+--- a/development/AMDRadeonRDNA4-Navi44/platform/darwin_owner_storage.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/darwin_owner_storage.hpp
+@@ -24,9 +24,13 @@ public:
+     NaviCore::Result initialize(NaviCore::View view,CpuSnapshotStorage kind){
+         auto r=barrier_.bind(snapshot_.owner());if(!r.ok())return r;
+         r=snapshot_.createCopy(view,kind);if(!r.ok()){barrier_.stop();return r;}
+-        return barrier_.start();
++        r=barrier_.initialize();if(!r.ok())barrier_.stop();return r;
+     }
+-    NaviPlatform::ShutdownBarrier&lifetime(){return barrier_;}
++    // Explicit activation after construction. No public raw View/Ticket path.
++    NaviCore::Result start(){return barrier_.start();}
++    NaviCore::Result stop(){return barrier_.stop();}
++    NaviCore::Result poll(){return barrier_.poll();}
++    NaviCore::Result consume(NaviPlatform::InputConsumer consumer){return barrier_.consume(0,consumer);}
+     NaviPlatform::ScratchOps scratch(){return {this,acquire,release};}
+     // Caller may destroy storage only under gate when this is true.
+     bool readyToFree()const{return barrier_.readyToFree()&&scratch_.idle();}
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp
+index 91fca38..68f46d1 100644
+--- a/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp
+@@ -2,6 +2,24 @@
+ namespace NaviPlatform {
+ using namespace NaviCore;
+ namespace { Result context(){return failure("lifetime_context_or_reentry",Error::Protocol);} }
++Result ScopedInput::length(size_t&out)const{
++    out=0;if(!owner_.held()||!owner_.operation_||owner_.state_!=OwnerState::Active)return context();
++    out=view_.size;return success();
++}
++Result ScopedInput::copy(size_t offset,uint8_t*destination,size_t bytes)const{
++    size_t size=0;Result r=length(size);if(!r.ok())return r;
++    if(offset>size||bytes>size-offset)return failure("scoped_copy_bounds",Error::Bounds);
++    if(!bytes)return success();
++    const uintptr_t address=reinterpret_cast<uintptr_t>(destination);
++    if(!destination||bytes-1>UINTPTR_MAX-address)return failure("scoped_destination_bounds",Error::Bounds);
++    const uintptr_t source=reinterpret_cast<uintptr_t>(view_.data);
++    if(address<=source+view_.size-1&&source<=address+bytes-1)
++        return failure("scoped_immutable_overlap",Error::Bounds);
++    for(size_t i=0;i<bytes;++i)destination[i]=view_.data[offset+i];
++    return success();
++}
++// Preserve destination on failure; it may alias the immutable source.
++Result ScopedInput::byte(size_t offset,uint8_t&out)const{return copy(offset,&out,1);}
+ bool SnapshotOwner::held()const{
+     return access_.execution.enter&&access_.execution.leave&&access_.isHeld&&
+         access_.isHeld(access_.execution.context);
+@@ -74,6 +92,22 @@ Result SnapshotOwner::returnHeld(SnapshotTicket&t){
+ Result SnapshotOwner::giveBack(SnapshotTicket&t){
+     Call call{*this};return call.entered?returnHeld(t):context();
+ }
++Result SnapshotOwner::withInput(const SnapshotTicket&t,InputConsumer consumer){
++    Call call{*this};if(!call.entered)return context();
++    if(!consumer.consume)return failure("scoped_consumer_missing",Error::Protocol);
++    View v{};Result r=readHeld(t,v);if(!r.ok())return r;
++    ScopedInput input{v,*this};return consumer.consume(consumer.context,input);
++}
++Result SnapshotOwner::consume(InputConsumer consumer){
++    Call call{*this};if(!call.entered)return context();
++    if(!consumer.consume)return failure("scoped_consumer_missing",Error::Protocol);
++    SnapshotTicket ticket{};Result r=borrowHeld(ticket);if(!r.ok())return r;
++    {
++        ScopedInput input{input_,*this};r=consumer.consume(consumer.context,input);
++    }
++    // The noexcept callback must keep the caller's gate held throughout.
++    Result cleanup=returnHeld(ticket);return cleanup.ok()?r:cleanup;
++}
+ Result SnapshotOwner::stop(OwnerState state){
+     Call call{*this};if(!call.entered)return context();
+     if(state_==OwnerState::Released)return success();
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.hpp b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.hpp
+index a887ad9..fa8af45 100644
+--- a/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.hpp
+@@ -13,6 +13,21 @@ struct ReferenceOps {
+ };
+ enum class OwnerState:uint8_t { Created,Active,Closing,Revoked,Failed,Released };
+ class SnapshotOwner;
++// No raw View accessor, copying, moving, or external destruction. Consumers may
++// copy bounded bytes only while the owner holds its execution gate/callback.
++// A malicious consumer can still stash a reference; use after callback is illegal.
++class ScopedInput {
++    NaviCore::View view_;const SnapshotOwner&owner_;
++    ScopedInput(NaviCore::View v,const SnapshotOwner&o):view_(v),owner_(o){}
++    ~ScopedInput()=default;friend class SnapshotOwner;
++public:
++    ScopedInput(const ScopedInput&)=delete;ScopedInput&operator=(const ScopedInput&)=delete;
++    ScopedInput(ScopedInput&&)=delete;ScopedInput&operator=(ScopedInput&&)=delete;
++    NaviCore::Result length(size_t&)const;
++    NaviCore::Result copy(size_t offset,uint8_t*destination,size_t bytes)const;
++    NaviCore::Result byte(size_t offset,uint8_t&)const;
++};
++struct InputConsumer {void*context{nullptr};NaviCore::Result(*consume)(void*,const ScopedInput&)noexcept{nullptr};};
+ // Identity binds obligations to their live owner as well as its generation.
+ // This is an in-process lifetime token, never an authorization credential.
+ struct SnapshotTicket { uint64_t owner{0},serial{0};size_t slot{0};const SnapshotOwner*identity{nullptr}; };
+@@ -29,12 +44,16 @@ public:
+     NaviCore::Result borrow(SnapshotTicket&);
+     NaviCore::Result read(const SnapshotTicket&,NaviCore::View&);
+     NaviCore::Result giveBack(SnapshotTicket&);
++    NaviCore::Result withInput(const SnapshotTicket&,InputConsumer);
++    // Automatic ticket acquisition/return, including consumer error paths.
++    NaviCore::Result consume(InputConsumer);
+     NaviCore::Result close();NaviCore::Result revoke();
+     bool readyToFree()const;
+     NaviCore::Result inspect(OwnerState&,size_t&)const;
+     SnapshotOps snapshots(){return {this,legacyBorrow,legacyRelease};}
+     ExecutionOps execution()const{return access_.execution;}
+ private:
++    friend class ScopedInput;
+     AccessOps access_;uint64_t generation_,next_{1};SnapshotKind kind_;
+     ReferenceOps reference_{};NaviCore::View input_{};
+     uint64_t slots_[MaxLeases]{};size_t leases_{0};OwnerState state_{OwnerState::Created};
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp b/development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp
+index c1d6282..ef93e83 100644
+--- a/development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/shutdown.cpp
+@@ -23,11 +23,23 @@ Result ShutdownBarrier::bind(SnapshotOwner&o){
+ }
+ Result ShutdownBarrier::start(){
+     if(!begin())return denied();Result r=success();
+-    if(state_!=ShutdownState::Created||!count_)r=failure("shutdown_start_state",Error::Protocol);
++    if((state_!=ShutdownState::Created&&state_!=ShutdownState::Initialized)||!count_)r=failure("shutdown_start_state",Error::Protocol);
+     else for(size_t i=0;i<count_;++i){OwnerState s{};size_t leases=0;r=owners_[i]->inspect(s,leases);
+         if(!r.ok()||s!=OwnerState::Active){r=failure("shutdown_partial_initialization",Error::Protocol);break;}}
+     if(r.ok())state_=ShutdownState::Active;end();return r;
+ }
++Result ShutdownBarrier::initialize(){
++    if(!begin())return denied();Result r=success();
++    if(state_!=ShutdownState::Created||!count_){end();return failure("shutdown_initialize_state",Error::Protocol);}
++    for(size_t i=0;i<count_;++i){OwnerState s{};size_t n=0;r=owners_[i]->inspect(s,n);
++        if(!r.ok()||s!=OwnerState::Active){r=failure("shutdown_initialize_owner",Error::Protocol);break;}}
++    state_=r.ok()?ShutdownState::Initialized:ShutdownState::Failed;end();return r;
++}
++Result ShutdownBarrier::consume(size_t i,InputConsumer consumer){
++    if(!begin())return denied();
++    Result r=state_==ShutdownState::Active&&i<count_?owners_[i]->consume(consumer):failure("shutdown_scope_not_active",Error::Protocol);
++    end();return r;
++}
+ Result ShutdownBarrier::borrow(size_t i,SnapshotTicket&t){
+     if(!begin())return denied();
+     Result r=state_==ShutdownState::Active&&i<count_?owners_[i]->borrow(t):failure("shutdown_no_new_ticket",Error::Protocol);
+@@ -66,12 +78,12 @@ Result ShutdownBarrier::drainHeld(){
+ Result ShutdownBarrier::stop(){
+     if(!begin())return denied();if(state_==ShutdownState::Released){end();return success();}
+     // Transition first, before any foreign complete/release callback can reenter.
+-    if(state_==ShutdownState::Created||state_==ShutdownState::Active)state_=ShutdownState::Stopping;
++    if(state_==ShutdownState::Created||state_==ShutdownState::Initialized||state_==ShutdownState::Active)state_=ShutdownState::Stopping;
+     Result r=drainHeld();end();return r;
+ }
+ Result ShutdownBarrier::poll(){
+     if(!begin())return denied();
+-    if(state_==ShutdownState::Created||state_==ShutdownState::Active){end();return failure("shutdown_poll_state",Error::Protocol);}
++    if(state_==ShutdownState::Created||state_==ShutdownState::Initialized||state_==ShutdownState::Active){end();return failure("shutdown_poll_state",Error::Protocol);}
+     Result r=state_==ShutdownState::Released?success():drainHeld();end();return r;
+ }
+ bool ShutdownBarrier::readyToFree()const{
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/shutdown.hpp b/development/AMDRadeonRDNA4-Navi44/platform/shutdown.hpp
+index ac2420e..b27518b 100644
+--- a/development/AMDRadeonRDNA4-Navi44/platform/shutdown.hpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/shutdown.hpp
+@@ -12,7 +12,7 @@ public:
+     GenerationClock(const GenerationClock&)=delete;GenerationClock&operator=(const GenerationClock&)=delete;
+     NaviCore::Result issue(uint64_t&);
+ };
+-enum class ShutdownState:uint8_t { Created,Active,Stopping,Draining,Failed,Released };
++enum class ShutdownState:uint8_t { Created,Active,Stopping,Draining,Failed,Released,Initialized };
+ class ShutdownBarrier {
+     AccessOps access_;SnapshotOwner*owners_[8]{};size_t count_{0};
+     ShutdownState state_{ShutdownState::Created};bool operation_{false};unsigned failures_{0};
+@@ -23,7 +23,8 @@ public:
+     explicit ShutdownBarrier(AccessOps access):access_(access){}
+     ShutdownBarrier(const ShutdownBarrier&)=delete;ShutdownBarrier&operator=(const ShutdownBarrier&)=delete;
+     // Owner storage and gate must outlive this barrier and every outstanding ticket.
+-    NaviCore::Result bind(SnapshotOwner&);NaviCore::Result start();
++    NaviCore::Result bind(SnapshotOwner&);NaviCore::Result initialize();NaviCore::Result start();
++    NaviCore::Result consume(size_t,InputConsumer);
+     NaviCore::Result borrow(size_t,SnapshotTicket&);NaviCore::Result read(size_t,const SnapshotTicket&,NaviCore::View&);
+     NaviCore::Result giveBack(size_t,SnapshotTicket&);
+     NaviCore::Result stop();NaviCore::Result poll();
+diff --git a/docs/m12/ioservice-abi.md b/docs/m12/ioservice-abi.md
+new file mode 100644
+index 0000000..f590bd6
+--- /dev/null
++++ b/docs/m12/ioservice-abi.md
+@@ -0,0 +1,39 @@
++# IOService ABI：当前测量与目标未知
++
++独立的`m12_ioservice_layout.cpp`使用真正SDK27类和Apple Clang的record/vtable
++layout dump。类含纯虚函数，未实例化、未注册metaclass，退出生产链接allowlist。
++sizeof常量从实际Mach-O数据段读取；没有自制头文件或手写目标布局。
++
++两个架构当前测量相同：OSObject16、IORegistryEntry40、IOService136字节；
++IOService align8。真实继承链是OSMetaClassBase→OSObject→IORegistryEntry→IOService。
++这些数字只描述当前SDK及当前编译宏，不代表目标15二进制。
++
++| 当前SDK table index | 方法 | 从ZTV符号起算字节 |
++|---|---|---|
++| 20 | free | 160 |
++| 75 | init(OSDictionary*)；探针override | 600 |
++| 128 | init(IORegistryEntry*, plane) | 1024 |
++| 130 / 131 | willTerminate / didTerminate | 1040 / 1048 |
++| 186 / 187 | start / stop | 1488 / 1496 |
++| 188 / 189 | open / close | 1504 / 1512 |
++| 194 | terminate | 1552 |
++
++Apple-kext qualified superclass调用的实际disassembly与600/1496/1040/1048一致。
++这里是**从ZTV符号起算**，不能直接当作对象vptr的偏移。数字只存报告，未硬编码进源码。
++目标15所有槽位仍UNVERIFIED。
++
++本轮实际读取固定XNU15 IOService/IORegistryEntry/OSObject/OSMetaClass及IOLocks文本，
++与SDK27逐文件hash和去注释声明序列比较。IOService108、IORegistryEntry72、
++OSObject10个词法virtual声明的序列相同，但五个文件全部字节不同。
++OSMetaClass37个词法声明中有override标记等文本变化。该扫描包含未预处理的
++条件分支及宏，不能据计数计算目标vtable；即使所有声明文字相同也不足以确认ABI。
++APPLE_KEXT_VTABLE_PADDING、KERNEL_PRIVATE、OSPtr模式及宏展开必须在匹配SDK下复核。
++
++现有M11静态IOService契约保留init/start/stop/free/open/close/termination类型检查，
++start/open拒绝，类不可实例化，free仅是受保护编译接口。M12加入真实锁及Owner
++consume/stop的RAII编译调用，未将其接到kmod入口或真实服务。
++生产IOService仍需持有Owner/lock的实际引用：先停止新回调并撤销获取，异步drain，
++等所有borrower/scratch/waiter归还后才允许最后release/free。
++`free()`不能把“等待borrower”当成可在最后引用释放后重试的机制。
++will/didTerminate的defer与provider关系必须在真实版本下设计并独立授权验证。
++没有OSDefineMetaClass、registerService、IOPCIMatch、PCI绑定或Registry修改。
+diff --git a/docs/m12/kernel-kpi-closure.md b/docs/m12/kernel-kpi-closure.md
+new file mode 100644
+index 0000000..b5b8430
+--- /dev/null
++++ b/docs/m12/kernel-kpi-closure.md
+@@ -0,0 +1,49 @@
++# 独立 KPI 审计和非部署链接
++
++`run_m12_checks.py`只有显式 host/native/all 目标。固定19个编译单元：原Core9个、
++lifecycle/shutdown、Native allocator/snapshot、M8/M10/M11契约探针、拒绝启动的
++M11 kmod元数据探针，再加入真实锁适配和M12类型探针。device.cpp、plugin.cpp、
++PSP/VM/ring硬件实现和上游Makefile均不进入allowlist。
++
++现有Apple Clang以C++17、无异常、无RTTI、freestanding、4KiB栈帧限额、
++KERNEL/KERNEL_EXTENSION、mkernel、fapple-kext、nostdinc++编译；x86无red-zone。
++Host测试单独编译，保持Core限制但不把内核栈限额应用到STL测试程序。
++子命令60s，CPU程序30s，原回归包装器600s；包装器子命令仍有独立超时。
++串行编译，项目内TMP/cache，禁止生成Core Dump。
++
++`m12_macho_audit.py`检查实际文件的CPU/type、有限load command白名单、section/
++symbol/string/DYSYMTAB/relocation范围、macOS平台、EH/RTTI/全局构造器/TLS、
++用户态导入、源文件/编译选项、重复强定义及符号提供方。ARM64合法
++LC_LINKER_OPTIMIZATION_HINT作为有界linkedit数据核验；不会容忍未知命令。
++它补充Apple nm/otool/lipo/dwarfdump，不是完整Mach-O加载器、重定位语义证明或安全认证。
++符号及重定位完整表保存在忽略的local目录，公开摘要保留计数/哈希。
++
++真实对象负样本10类：puts、未知导入、异常、RTTI、已导出但不属于此目标allowlist
++的printf、全局构造器、项目自有符号提供方错误、实际对象字符串索引变异、重定位
++索引变异、真实arm64对象用于x86。全部REJECTED。没有定义任何伪造Apple API。
++异常对象先因EH section拒绝，Apple nm的真实符号再由同一runtime分类器确认。
++
++`ld -kext -undefined error`对puts负样本仍返回0；独立审计拒绝它。
++`printf`在参考导出表存在，但不是当前离线目标需要的KPI，所以归为
++UNSUPPORTED_KERNEL_IMPORT，不能把它错称为不存在的Apple函数。
++`_kmod_info`是原Apple KMOD宏生成的项目元数据，不是伪造Apple实现；只允许固定探针提供。
++
++| 检查 | 结果 |
++|---|---|
++| 双架构19个内核对象/Apple ld-r/对象格式 | PASS |
++| 内部模块依赖 | 全部已在组合对象解析 |
++| 剩余导入 | x86_64 13，arm64 12；全部匹配对应源码导出参考 |
++| x86 MH_KEXT_BUNDLE构造 | PASS；13个导入仍保留 |
++| 匹配SDK15/真实目标二进制/完整目标链接闭合 | BLOCKED/UNVERIFIED |
++| Bundle、签名、安装、加载、Kernel/GPU Runtime | NOT RUN |
++
++完整mangled spelling、demangle、调用者、类型、参数宽度、对应架构导出文件/hash和
++每个未验证项见reports/m12/kpi-details.json。IOMallocAligned的参考是
++`_IOMallocAligned:_IOMallocAligned_external`；__bzero使用实际`___bzero`拼写。
++IOService vtable是数据导入，不是“同名函数可以调用”的证明。
++没有把KPI源码来源直接写成真实OSBundleLibraries版本或完成目标加载解析。
++
++复现需要现有合法Apple工具和已审核的固定参考JSON；runner不自动取得它们。
++以项目内保存的raw命令为准确复现依据，公开commands.json使用PROJECT_ROOT/
++SDK_ROOT/PYTHON_EXECUTABLE标签。`m12_abi_reference.py`随后检查同一批编译头哈希，
++进行源码文本比较和当前SDK真实layout数据整理。
+diff --git a/docs/m12/m13-readiness.md b/docs/m12/m13-readiness.md
+new file mode 100644
+index 0000000..5283fb8
+--- /dev/null
++++ b/docs/m12/m13-readiness.md
+@@ -0,0 +1,21 @@
++# M13 入口条件
++
++已有SDK27的双架构19对象、部分链接、x86 Kext类型文件与独立负样本审计，足以
++继续离线工程。尚无目标15 ABI闭合或可加载Kext证据。
++
++可继续CPU工作：扩大独立Mach-O策略负样本；把scope输入接入有界解析消费者；
++设计服务发布者引用/回调取消/锁waiter drain；明确长期Generation domain、失败隔离、
++BO/VM/fence纯模型；固定Navi44与Cobalt生产wire协议，不复用N48N版本假设。
++Windows、CMake及x86 Host运行须在真实可用环境执行，当前不能推断通过。
++
++目标ABI下一步须先获得独立SDK/KDK获取授权，取得合法匹配SDK15.0及准确系统build
++对应x86_64内核/符号资料，验证class layout、宏、KPI版本及每个实际导入。
++匹配SDK编译和二进制静态审计仍不等于加载认证。不能以公共XNU重新编出的内核或
++SDK27混合头替代Apple实际目标二进制。
++
++Navi44基础显示还缺真实Discovery/connector/IP实例、GOP状态、DCN/DMUB/PHY/HPD/
++AUX和时钟协议、firmware契约、Framebuffer与macOS图形栈整合，以及完整资源停止恢复。
++Vulkan/Metal更需VM/queues/fence/Shader/winsys和OS共享接口。
++
++任何Kext加载/调试、GPU数据采集、PCI/MMIO/DMA/固件/显示/Windows/引导/磁盘操作
++都需要新的独立授权与具体恢复条件。本阶段结束即停止，没有自动M13或硬件实验。
+diff --git a/docs/m12/macos15-sdk-gap.md b/docs/m12/macos15-sdk-gap.md
+new file mode 100644
+index 0000000..1a7f9cb
+--- /dev/null
++++ b/docs/m12/macos15-sdk-gap.md
+@@ -0,0 +1,26 @@
++# 合法 SDK 与 KDK 缺口
++
++本机现有 Xcode27 / SDK26.5、27.0；没有15.0 SDK，未取得目标15 x86_64
++内核或匹配KDK。本轮只读取少量公开源文本作参考，不参与 include/link，未安装依赖。
++
++[Apple Xcode表](https://developer.apple.com/xcode/system-requirements)及
++[Xcode16发布说明](https://developer.apple.com/documentation/xcode-release-notes/xcode-16-release-notes)
++确认 Xcode16 携带 macOS15 SDK。Xcode16官方Host范围为 Sonoma14.5–Sequoia15.x；
++不能假设旧IDE能在当前27系统启动。未来即使只在Lab内提取合法SDK，也需独立授权、
++许可核查及工具链兼容验证，不能更改 xcode-select 或覆盖当前安装。
++
++| 可选材料 | 官方来源/版本 | 许可与用途 | 体积/哈希与状态 |
++|---|---|---|---|
++| Xcode16 / SDK15.0 | [Apple More Downloads](https://developer.apple.com/download/more/) 的 Xcode16 正式包 | Apple Xcode/SDK协议；匹配公开Kernel.framework声明 | 下载规划预算10–15GB，非实测包大小；完整包/展开大小与SHA-256需授权后确认。BLOCKED |
++| 目标15.0 x86_64 KDK | 同一官方下载入口，须固定真实15.0系统build再选对应KDK | Apple随包许可；只读取目标内核/符号做离线比对，不能执行安装器 | 规划预算1–3GB，非实测；版本build、包大小、SHA未取得。BLOCKED |
++| 已固定公开XNU | 上文固定Apple OSS commit | 文件内Apple公开源码许可；源码/导出参考 | 小量文本已读取；不是匹配SDK或二进制 |
++| Lilu/MacKernelSDK | UPSTREAM_SOURCES.md中的固定pin和许可证 | 后续完整工程的可选依赖，不解决目标二进制缺口 | 本轮未获取，未经授权不下载；MacKernelSDK不等于官方SDK15 |
++
++预算仅用于决定是否另行授权，没有认证下载包事实。Apple下载页面可能要求登录及
++接受协议，不登录、不自动安装、不猜SHA。获取前应复核官方文件名、build、版本、
++许可、下载/展开体积和所有写入位置；不能在本轮主动执行上述步骤。
++[Apple KDK文档](https://developer.apple.com/documentation/apple-silicon/debugging-a-custom-kernel-extension)
++要求选择对应待调试macOS版本的KDK；本项目只考虑其静态材料，调试/加载不在授权内。
++
++补齐SDK仅解决声明及编译目标。还须校验真实目标二进制符号、KPI来源、IOService/
++OSObject/OSMetaClass布局与vtable；实际加载仍是另一项未授权验证。
+diff --git a/docs/m12/native-owner-lifecycle.md b/docs/m12/native-owner-lifecycle.md
+new file mode 100644
+index 0000000..e1e7bd8
+--- /dev/null
++++ b/docs/m12/native-owner-lifecycle.md
+@@ -0,0 +1,39 @@
++# Owner、受控输入和真实锁边界
++
++NativeOwnerStorage现在显式initialize→Initialized→start→Active；初始化不会自动
++激活请求。ShutdownBarrier保留旧Core调用方从Created直接start的兼容路径，Native
++外部接口只能走显式初始化。Stopping→Draining→Released，以及Failed保持原清理
++顺序和最多4轮失败重试；未归还Ticket不消耗错误重试预算。禁止Released重新激活。
++
++| 资源 | 引用/使用规则 | 停止与释放 |
++|---|---|---|
++| OSData/IOBufferMemoryDescriptor | 原raw factory count1；SnapshotOwner再retain；创建方drop初始引用 | 所有借用归还后release Owner引用；未在Host调用内核方法 |
++| NativeSnapshot | 私有内核对象指针；仅CPU DataCopy/BufferCopy、kIODirectionNone | 不prepare/map/DMA；存储必须长于所有消费者 |
++| SnapshotOwner | 一个Owner引用，最多8个有identity/generation/serial/slot的Ticket | Stop/Revoke后不再读/借；旧Ticket仍可归还；complete失败保留引用 |
++| ScopedInput | 回调期间不可复制/移动/外部销毁；没有View/data指针getter | 自动Ticket即使callback错误也归还；拒绝回调递归/close/revoke |
++| NativeOwnerStorage | caller在长期存储创建；去除公开lifetime getter/raw Ticket路径 | readyToFree要求Barrier释放且NodePool空闲；没有擅自从析构执行内核清理 |
++| NodePool | caller持同一个gate；真实Node对象，按准确ptr/count归还 | 停止后禁止新获取，允许合法归还；scratch未归还禁止物理销毁 |
++| BorrowedKernelGate | publisher拥有IORecursiveLock及adapter；本类不分配/释放锁 | 必须移除回调源并drain waiter，才能销毁锁/adapter/owner |
++| GenerationClock | 长期domain、同一gate、单调非零且不回绕 | 地址重用必须取得新generation；不是认证Token |
++
++ScopedInput只向合法caller目的内存复制有界字节，拒绝空指针、整数回绕、越界、
++与任何原输入范围重叠。失败不改目的；byte原先在检查前清零的别名写入缺陷已修复。
++真实旧实现被新增测试实际检出，日志与退出1保留。该接口不接受未经验证的用户态
++指针；算术范围合法不证明内存已映射或可写。
++
++`consume`的callback必须noexcept、有限、同步完成，并在整个作用域保持caller gate；
++`withInput`保留显式Ticket义务。可信caller不得缓存ScopedInput引用。
++C++无法阻止恶意消费者保存引用、强制转换或在callback后使用悬空引用。
++旧兼容read/legacy SnapshotOps仍可给裸View；没有宣称逻辑撤销能让缓存指针物理失效。
++复制出的普通CPU数据不再代表对原资源的授权。没有GPU Memory/VRAM对象。
++
++BorrowedKernelGate实际调用IORecursiveLockLock/Unlock/HaveLock和ml上下文接口。
++只在普通、interrupts enabled线程进入，拒绝同线程递归；调用方还须保证可睡眠、
++未持spin lock、进入后不改变中断状态。API不能证明所有调用方上下文。
++Lock ordering为外部发布/注册控制→资源gate→短小资源逻辑；callback不得取得反向
++发布锁、等待会获取gate的worker或重入logger。Drain等待在gate之外。
++
++Host使用自己的std::mutex/current-thread模拟，模拟interrupt布尔值只测试拒绝路径。
++并发测试让stop发起于scope仍活跃时，然后观察串行清理和160次新请求拒绝。
++测试协调condition_variable有2秒限额且其通知者不取得资源gate，不能照搬成内核
++callback阻塞策略。ASan/UBSan/TSan只覆盖Host逻辑；真实锁、OSObject运行仍NOT RUN。
+diff --git a/docs/m12/navi44-driver-integration.md b/docs/m12/navi44-driver-integration.md
+new file mode 100644
+index 0000000..c4048b6
+--- /dev/null
++++ b/docs/m12/navi44-driver-integration.md
+@@ -0,0 +1,43 @@
++# Navi44 显示/加速静态依赖图
++
++本轮只读衍生源码与固定Cobalt文本，不编译/执行任何硬件路径。AMDRadeonRDNA4
++pin `49f7f20c00dd154384418078f8a09e79c400a06a`，Cobalt
++pin `d6c9aedf8e6526a39e349b5886cbc8c7ddf77f65`，其他许可/pin保留UPSTREAM_SOURCES.md。
++参考文本在local；公开清单只存URL/path/hash。没有获取完整新依赖、ROM或firmware。
++
++```mermaid
++flowchart LR
++  A[静态Discovery/ELF/EDID/AtomBIOS] --> B[CPU Core 与N44I/N44Q]
++  B --> C[Snapshot/Owner/受控copy]
++  C --> D[Native Gate/IOService类型契约]
++  D --> E[目标15 SDK/二进制ABI缺口]
++  E --> F[未来单一GPU Owner]
++  F --> G[VRAM/VM/Firmware/IRQ/Queue]
++  F --> H[GOP/DCN/DMUB/连接器/Framebuffer]
++  G --> I[RADV winsys/Shader验证]
++  H --> J[真实DP/HDMI]
++  I --> K[Metal/WindowServer集成]
++```
++
++| 接口/实际文件 | 当前证据 | Navi44仍缺什么/前置条件 |
++|---|---|---|
++| asicprofile.hpp、core/device_info | 7590→Navi44/gfx1200识别和不支持能力拒绝 | 识别不授权绑定；hardwareInitializationAllowed和Core hardwareAllowed恒false |
++| ipdiscovery / validation | CPU边界/格式/拓扑模型及差分回归 | 真实可信Navi44 Discovery快照、IP实例和寄存器映射；不能推断来自Navi48 |
++| offlinefirmware / ELF codeobj | 静态布局/目标验证与拒绝错误gfx目标 | 合法Navi44 firmware版本、真实gfx1200 codeobj、签名/PSP协商；改目标字符串不证明Shader |
++| atombios.cpp | 有界connector/display path静态解析 | 实际板卡connector/AUX/HPD/encoder连线及有效ROM来源；未读取真实ROM |
++| edid.cpp/core/display | EDID base/CTA和模式能力模型；DisplayID完整实现未在此审计确认 | 真实链路/显示器输入、DisplayID扩展覆盖、训练/带宽/时钟验证；模式模型不等于输出 |
++| device.cpp DCN/DP/GOP/DMUB代码 | 参考实现包含Navi48 DCN4.1/pipe0及GOP继承假设 | Navi44 DCN实例、pipe/link资源、固件dialect、时钟/PHY/训练、复位/恢复；全部禁止执行 |
++| IONDRVFramebuffer/Lilu hooks/plugin.cpp | 上游Framebuffer路线；Navi44明确从hook拒绝 | 真正受支持的macOS图形接口/目标ABI；无核显后备的PC需独立恢复计划，不能本轮实验 |
++| gpuvm/vmtree/vmid/gfxring/psp | 保存的上游VM/ring/PSP参考实现，不在本轮allowlist | BO所有权、可撤销CPU/GPU映射、VMID隔离、fence/timeout/reset/poison；真实Navi44布局和硬件授权 |
++| Interrupt/queue | 无当前Native生产中断/队列 | IRQ上下文/同步、stop barrier、DMA生命周期与资源拥有者，ABI先行 |
++| NativeOwnerStorage | CPU-copy内核类型编译与scope生命周期模型 | 真实OSObject运行、publisher服务引用、waiter drain；不包含GPU BO |
++| N44I96B / N44Q128B | 显式LE静态描述；caps/verification默认0 | 可信内核采样、权限认证、跨task owner、生产wire协议；generation不是权限 |
++| AMD navi48_native_abi.h | 固定N48N minor9 | 不可与Cobalt minor12当同一协议；不是N44Q |
++| Cobalt Navi48NativeABI.h | 本轮固定文本复核minor12、QueryInfo192B、scanout22..26 | 1.10 session budget、1.11/12实例路由、task/import生命周期均为Navi48参考；Navi44能力需独立定义 |
++| Cobalt amd/native_open_policy_pure.h/native_g4_pure.h | root/WindowServer/APP、route/selector、session预算纯模型 | 服务/task身份认证、可撤销映射、最终关闭者；uid/Token名称不能单独形成授权 |
++| Mesa patches0002/0007 | 0002仍有canned gfx1201 GB_ADDR_CONFIG；固定Cobalt0007从QueryInfo优先取值 | 真实gfx1200 GB_ADDR_CONFIG/Shader/RADV winsys与提交协议；禁止启用ALLOW_ADDRCFG绕过 |
++| Metal/WindowServer | 参考Navi48用户客户端/nub路线 | 受限OS图形接口、资源共享/同步、真实渲染与窗口系统；本轮NOT RUN |
++
++未来只能有一个驱动拥有power/firmware/VRAM/VM/queues/display，Cobalt/Mesa作为受限
++消费者。不能让两个驱动重复初始化同一硬件。先闭合目标内核ABI、task/Buffer/fence
++所有权，再讨论独立授权的硬件阶段。真实板卡数据不能从静态字段或Navi48成功报告推断。
+diff --git a/docs/m12/target-xnu-abi.md b/docs/m12/target-xnu-abi.md
+new file mode 100644
+index 0000000..a4aca3d
+--- /dev/null
++++ b/docs/m12/target-xnu-abi.md
+@@ -0,0 +1,29 @@
++# M12 目标与证据层级
++
++固定静态参考为 **macOS Sequoia 15.0 / Intel x86_64 / XNU 11215.1.10**。
++[Apple Sequoia 兼容列表](https://support.apple.com/en-us/120282)包含 Intel Mac；
++不意味着 i5-12600KF PC 获得 Apple 支持或运行认证。
++
++本轮重新读取 Apple OSS `distribution-macOS` 的 `macos-150`：tag object
++`dbaf5f8d604f45dce406bb6592608f1196533adb`，commit
++`fafa0d30e9943c16e82740488dc0750c24355562`，xnu gitlink
++`8d741a5de7ff4191bf97d57b9f54c2f6d4a15585`。
++[固定分发树](https://github.com/apple-oss-distributions/distribution-macOS/tree/fafa0d30e9943c16e82740488dc0750c24355562)
++与[固定 XNU](https://github.com/apple-oss-distributions/xnu/tree/8d741a5de7ff4191bf97d57b9f54c2f6d4a15585)
++确认版本关系；pin/hash 不替代签名认证。
++
++| 层级 | 本轮证据 | 结论 |
++|---|---|---|
++| A 源码存在 | 固定 XNU 源码与声明 | 可追踪参考 |
++| B 头文件接口 | 真实已安装 SDK27 编译、目标15公开头文本比对 | SDK27 PASS；匹配15 SDK BLOCKED |
++| C 导出参考 | IOKit/Libkern common + 对应 x86_64/arm64 表，文件哈希固定 | 13/12 个导入均存在参考 |
++| D 目标二进制 ABI | 缺少版本/架构匹配的合法目标内核、KPI链接材料与类布局 | UNVERIFIED |
++| E 加载调用 | 没有内核安装、加载或执行 | NOT RUN |
++
++对象的 LC_BUILD_VERSION 标记 minos15.0、sdk27.0；最终 Kext 类型文件没有
++LC_BUILD_VERSION。两个事实都不能证明 macOS15 ABI。当前开发机27、编译器21、
++SDK27、目标15及未来PC实际系统是五个不同条件。arm64检查是开发侧对象检查，
++没有验证 arm64e/PAC，更没有替代 Intel 执行。
++
++全部 JSON 记录将当前SDK类型、导出参考和目标二进制状态分开。
++不能通过手填偏移、混用源码头、添加 Apple API Stub 或容忍未知导入闭合目标。
+diff --git a/m12_abi_reference.py b/m12_abi_reference.py
+new file mode 100644
+index 0000000..ef939f4
+--- /dev/null
++++ b/m12_abi_reference.py
+@@ -0,0 +1,83 @@
++"""Offline source/header comparison; no target15 layout inference or downloads.
++
++BSD-3-Clause. Run after run_m12_checks. Read-only Apple SDK, pinned reference
++JSONs, recorded genuine objects. The lexical comparison includes conditional
++source branches and is explicitly not a target ABI calculation.
++"""
++import argparse,hashlib,json,os,re,subprocess,sys
++from pathlib import Path
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++PIN='8d741a5de7ff4191bf97d57b9f54c2f6d4a15585'
++def main():
++    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--sdk',required=True);ap.add_argument('--class-reference',required=True);ap.add_argument('--additional-reference',required=True);a=ap.parse_args()
++    sdk=Path(a.sdk);kernel=sdk/'System/Library/Frameworks/Kernel.framework/Headers'
++    tmp=safe.mkdir('tmp/m12/research');env=os.environ.copy();env.update(TMPDIR=str(tmp),TMP=str(tmp),TEMP=str(tmp))
++    sdkversion=json.loads((sdk/'SDKSettings.json').read_text())['Version']
++    native=json.loads(safe.checked('reports/m12/native-object-results.json').read_text())
++    refs=[]
++    for p in [a.class_reference,a.additional_reference]:
++        data=json.loads(safe.checked(p).read_text())
++        if data['pin']!=PIN:raise ValueError('Wrong pin')
++        refs+=data['files']
++    def clean(t):return re.sub(r'//[^\n]*','',re.sub(r'/\*.*?\*/','',t,flags=re.S))
++    def virtuals(t):
++        return [' '.join(x.split()) for x in re.findall(r'\bvirtual\s+([^;{}]+?)(?:;|\{|=\s*0)',clean(t),re.S)]
++    comparisons=[]
++    for f in refs:
++        if f['path'].startswith('config/'):continue
++        text=f['text'];sha=hashlib.sha256(text.encode()).hexdigest()
++        if f.get('sha256',sha)!=sha:raise ValueError('Changed source reference')
++        rel=f['path'].replace('iokit/','',1).replace('libkern/libkern/','libkern/',1)
++        installed=kernel/rel
++        if not installed.is_file():raise ValueError('Current SDK header absent')
++        current=installed.read_text();old=virtuals(text);new=virtuals(current)
++        compiled_hash=hashlib.sha256(installed.read_bytes()).hexdigest()
++        key='SDK_ROOT/'+installed.relative_to(sdk).as_posix()
++        if any(item['header_sha256'].get(key)!=compiled_hash for item in native.values()):raise ValueError('Reference SDK differs from actually compiled headers')
++        comparisons.append(dict(path=f['path'],target_source_sha256=sha,current_SDK_header=rel,current_header_sha256=hashlib.sha256(installed.read_bytes()).hexdigest(),
++            bytes_identical=text==current,lexical_virtuals_target=len(old),lexical_virtuals_current=len(new),
++            declarations_only_in_target=[s for s in old if s not in new],declarations_only_in_current=[s for s in new if s not in old],
++            declaration_order_equal=old==new,conditional_source_not_preprocessed=True,target_layout_verified=False))
++    audit_path=safe.checked('reports/m12/abi-audit.json');abi=json.loads(audit_path.read_text())
++    for arch,item in abi['current_SDK_layout'].items():
++        raw=safe.checked('reports/m12/local/checks/'+arch+'-layout-compile.log').read_text()
++        table=raw.split("Vtable for 'N44LayoutReference'",1)[1].split('\n\n',1)[0]
++        slots=[]
++        for index,decl in re.findall(r'^\s*(\d+) \| (.+)$',table,re.M):
++            if re.search(r'(IOService|N44LayoutReference)::(init\(|start\(|stop\(|free\(|open\(|close\(|willTerminate\(|didTerminate\(|terminate\()',decl):
++                slots.append(dict(table_index=int(index),offset_from_ZTV_symbol=int(index)*8,declaration=decl))
++        if len(slots)!=10:raise ValueError('Current SDK layout probe changed')
++        item['current_SDK_selected_vtable_entries']=slots
++        item['target15_entries']='UNVERIFIED; never inferred from source lexical counts'
++    abi.update(source_comparison=comparisons,source_scope='Conditional source is not SDK projection or a target binary',target_source_pin=PIN)
++    safe.write(audit_path,json.dumps(abi,indent=2))
++    symbols=json.loads(safe.checked('reports/m12/symbol-audit.json').read_text())
++    links=json.loads(safe.checked('reports/m12/link-results.json').read_text());rows=[]
++    # ABI descriptions match genuinely compiled current-SDK static_asserts.
++    specs={
++        '_IOMallocAligned':('IOKit/IOLib.h','void*(vm_size_t, vm_offset_t)','two 64-bit unsigned inputs; 64-bit pointer result','allocator; pair same size with IOFreeAligned'),
++        '_IOFreeAligned':('IOKit/IOLib.h','void(void*, vm_size_t)','pointer64 + size64','release only after all users drain'),
++        '_IOLog':('IOKit/IOLib.h','void(const char*, ...)','pointer64 + C varargs','no logging reentry while lifecycle gate held'),
++        '_memcpy':('libkern/libkern.h','void*(void*, const void*, size_t)','three 64-bit values; pointer result','compiler lowering; checked CPU ranges'),
++        '___bzero':('libkern/libkern.h','x86 compiler-emitted __bzero','pointer64 + size64; void','exact compiler import is in source export list; target binary still needed'),
++        '__ZN6OSData9withBytesEPKvj':('libkern/c++/OSData.h','OSPtr<OSData>(const void*, unsigned int)','pointer64 + uint32; raw pointer64 in audited SDK mode','factory count1, owner retains, drop factory, release after drain'),
++        '__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb':('IOKit/IOBufferMemoryDescriptor.h','OSPtr<IOBufferMemoryDescriptor>(const void*, vm_size_t, IODirection, bool)','pointer64 + size64 + direction32 + bool; raw pointer64','CPU copy kIODirectionNone; never prepare/map/DMA'),
++        '__ZTV9IOService':('IOKit/IOService.h','C++ vtable data symbol','inherited Apple kernel C++ table; qualified superclass calls use SDK-defined slots','symbol spelling alone cannot validate vtable; class unregistered/uninstantiable'),
++        '_IORecursiveLockLock':('IOKit/IOLocks.h','void(IORecursiveLock*)','pointer64','borrowed lock lifetime must include waiters; sleepable context'),
++        '_IORecursiveLockUnlock':('IOKit/IOLocks.h','void(IORecursiveLock*)','pointer64','balanced current-thread unlock; ordinary context remains required'),
++        '_IORecursiveLockHaveLock':('IOKit/IOLocks.h','boolean_t(const IORecursiveLock*)','pointer64; boolean_t32','current thread ownership; reentry refusal'),
++        '_ml_at_interrupt_context':('i386/machine_routines.h or arm/machine_routines.h','boolean_t(void)','boolean_t32 result','deny interrupt entry; not a complete sleepability certificate'),
++        '_ml_get_interrupts_enabled':('i386/machine_routines.h or arm/machine_routines.h','boolean_t(void)','boolean_t32 result','deny disabled interrupts; cannot detect arbitrary caller spinlocks')}
++    for arch,link in links.items():
++        by_name={x['symbol']:x for x in symbols[arch]['per_symbol']}
++        for name in link['remaining']:
++            header,prototype,layout,risk=specs[name];row=by_name[name]
++            demangled=subprocess.run(['xcrun','c++filt',name[1:] if name.startswith('__Z') else name],cwd=safe.ROOT,env=env,capture_output=True,text=True,timeout=15,check=True).stdout.strip()
++            rows.append(dict(symbol=name,demangled=demangled,callers=row['users'],module='project CPU/native compile allowlist',header=header,prototype=prototype,parameter_layout=layout,
++                architecture=arch,compiled_SDK=sdkversion,target_SDK='15.0 absent',calling_convention='Apple kernel C++ / C target ABI; current SDK only',
++                KPI_source_reference=row['reference'],source_reference_status='VERIFIED_EXPORT_REFERENCE',target_binary_status='UNVERIFIED',
++                version_compatibility='BLOCKED: matched target SDK, binary and class layout unavailable',real_target_link_resolution='UNVERIFIED',risk=risk))
++    safe.write('reports/m12/kpi-details.json',json.dumps(dict(pin=PIN,imports=rows,evidence_levels=dict(A='public source',B='current SDK declaration / target source header reference',C='pinned architecture export list',D='UNVERIFIED target binary',E='NOT RUN load/runtime')),indent=2))
++    print(json.dumps(dict(class_comparisons=len(comparisons),import_records=len(rows),target_ABI='BLOCKED')))
++if __name__=='__main__':main()
+diff --git a/m12_macho_audit.py b/m12_macho_audit.py
+new file mode 100644
+index 0000000..4c107ea
+--- /dev/null
++++ b/m12_macho_audit.py
+@@ -0,0 +1,133 @@
++"""Bounded Mach-O and independent project KPI policy, BSD-3-Clause.
++
++Reference exports are evidence level C, never a target-binary/ABI certificate.
++Input files are never executed. This parser supplements real Apple nm/otool.
++"""
++import struct,hashlib
++MAX_FILE=32<<20
++CPUS={"x86_64":0x1000007,"arm64":0x100000c}
++class AuditError(ValueError):pass
++def inspect(raw,arch,kind=1):
++    if len(raw)<32 or len(raw)>MAX_FILE:raise AuditError("file_size")
++    def unpack(fmt,pos):
++        if pos<0 or pos+struct.calcsize(fmt)>len(raw):raise AuditError("truncated_structure")
++        return struct.unpack_from(fmt,raw,pos)
++    def span(offset,size):
++        if offset<0 or size<0 or offset>len(raw) or size>len(raw)-offset:raise AuditError("file_range")
++    magic,cpu,subtype,ft,n,cmdbytes,flags,_=unpack("<IiiIIIII",0)
++    if magic!=0xfeedfacf or cpu!=CPUS[arch] or ft!=kind:raise AuditError("architecture_or_type")
++    if n>4096:raise AuditError("load_command_budget")
++    span(32,cmdbytes);pos=32;sections=[];segments=[];commands=[];symtab=None;dysym=None;versions=[]
++    for _ in range(n):
++        cmd,length=unpack("<II",pos)
++        if length<8 or length%8 or pos+length>32+cmdbytes:raise AuditError("load_command_range")
++        if cmd in (4,5,0xc,0xd,0x80000018,0x8000001f,0x20,0x80000023,0x80000028):raise AuditError("runtime_entry_or_dylib")
++        if cmd not in (2,11,0x19,0x1b,0x26,0x29,0x2a,0x2e,0x32):raise AuditError("unapproved_load_command")
++        commands.append(dict(command=cmd,bytes=length))
++        if cmd==0x19:
++            if length<72:raise AuditError("segment_short")
++            name=raw[pos+8:pos+24].split(b"\0")[0].decode();va,vs,fo,fs=unpack("<QQQQ",pos+24);span(fo,fs)
++            count=unpack("<I",pos+64)[0]
++            if count>1024 or 72+count*80!=length:raise AuditError("section_count")
++            segments.append(dict(name=name,address=va,size=vs,file_offset=fo,file_size=fs))
++            for i in range(count):
++                at=pos+72+i*80;sn=raw[at:at+16].split(b"\0")[0].decode();sg=raw[at+16:at+32].split(b"\0")[0].decode()
++                addr,size,offset,alignment,reloff,nreloc,sflags=unpack("<QQIIIII",at+32)
++                if alignment>31 or nreloc>1<<20:raise AuditError("section_budget")
++                if (sflags&255) not in (1,12):span(offset,size)
++                span(reloff,nreloc*8)
++                if sn in ("__mod_init_func","__mod_term_func","__gcc_except_tab","__eh_frame","__compact_unwind","__thread_vars","__init","__fini"):raise AuditError("initializer_eh_or_tls")
++                sections.append(dict(name=sn,segment=sg,address=addr,size=size,offset=offset,reloff=reloff,nreloc=nreloc,flags=sflags))
++        elif cmd==2:
++            if length!=24 or symtab is not None:raise AuditError("symbol_command")
++            symtab=unpack("<IIII",pos+8)
++        elif cmd==11:
++            if length!=80 or dysym is not None:raise AuditError("dysym_command")
++            dysym=unpack("<18I",pos+8)
++        elif cmd==0x32:
++            if length<24:raise AuditError("build_version_command")
++            platform,minimum,sdk,tools=unpack("<IIII",pos+8)
++            if platform!=1 or 24+tools*8!=length:raise AuditError("platform_or_tools")
++            versions.append(dict(platform=platform,minimum=minimum,sdk=sdk))
++        elif cmd in (0x26,0x29,0x2e):
++            if length!=16:raise AuditError("linkedit_command")
++            offset,size=unpack("<II",pos+8);span(offset,size)
++        elif cmd==0x1b and length!=24:raise AuditError("uuid_command")
++        elif cmd==0x2a and length!=16:raise AuditError("source_version_command")
++        pos+=length
++    if pos!=32+cmdbytes or symtab is None or (kind==1 and not versions):raise AuditError("missing_commands")
++    off,count,stroff,strsize=symtab
++    if count>1<<20:raise AuditError("symbol_budget")
++    span(off,count*16);span(stroff,strsize);symbols=[]
++    for i in range(count):
++        index,typ,sect,desc,value=unpack("<IBBHQ",off+i*16)
++        if index>=strsize:raise AuditError("string_index")
++        end=raw.find(b"\0",stroff+index,stroff+strsize)
++        if end<0:raise AuditError("unterminated_symbol")
++        name=raw[stroff+index:end].decode("utf-8")
++        if not (typ&0xe0) and (typ&14)==14 and not 1<=sect<=len(sections):raise AuditError("symbol_section")
++        undefined=not(typ&0xe0) and typ&1 and (typ&14)==0
++        if undefined and (not name or value):raise AuditError("empty_or_common_import")
++        symbols.append(dict(name=name,type=typ,section=sect,description=desc,value=value,undefined=bool(undefined),
++            external=bool(typ&1) and not(typ&0xe0),weak=bool(desc&0x80)))
++    relocations=[]
++    def relocs(offset,count,limit,origin):
++        span(offset,count*8)
++        for i in range(count):
++            address,word=unpack("<II",offset+i*8)
++            if address&0x80000000:raise AuditError("unsupported_scattered_relocation")
++            number=word&0xffffff;external=bool(word&(1<<27));width=1<<((word>>25)&3);rt=word>>28
++            if rt>({"x86_64":9,"arm64":11}[arch]):raise AuditError("relocation_type")
++            if address>limit or width>limit-address:raise AuditError("relocation_address")
++            addend=arch=="arm64" and rt==10
++            if external and number>=len(symbols):raise AuditError("relocation_symbol_index")
++            if not external and not addend and number>len(sections):raise AuditError("relocation_section_index")
++            relocations.append(dict(origin=origin,address=address,type=rt,external=external,symbol=symbols[number]["name"] if external else None,index=number))
++    for s in sections:relocs(s["reloff"],s["nreloc"],s["size"],s["name"])
++    if dysym:
++        il,nl,ide,nde,iu,nu,*_=dysym
++        if any(start>count or length>count-start for start,length in [(il,nl),(ide,nde),(iu,nu)]):raise AuditError("dysym_symbol_range")
++        indirect,nindirect,ext,ne,loc,nloc=dysym[12:18];span(indirect,nindirect*4)
++        for i in range(nindirect):
++            sym=unpack("<I",indirect+i*4)[0]
++            if not sym&0xc0000000 and sym>=count:raise AuditError("indirect_symbol_index")
++        limit=max((x["address"]+x["size"] for x in segments),default=0)
++        relocs(ext,ne,limit,"dynamic_external");relocs(loc,nloc,limit,"dynamic_local")
++    return dict(arch=arch,cpu=cpu,subtype=subtype,file_type=ft,flags=flags,bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest(),
++        commands=commands,versions=versions,sections=sections,symbols=symbols,relocations=relocations)
++def runtime_reason(name):
++    if any(x in name for x in ("__cxa_throw","__cxa_allocate_exception","__gxx_personality","_Unwind")):return "EXCEPTION_RUNTIME"
++    if any(x in name for x in ("__dynamic_cast","__ZTI","__ZTS")):return "RTTI_RUNTIME"
++    if name in ("_puts","_malloc","_free","_fwrite") or any(x in name for x in ("_pthread_","stack_chk","__ZNSt")):return "HOST_RUNTIME"
++    if any(x in name for x in ("__Znwm","__Znam","__Zdl","__Zda","__cxa_pure_virtual")):return "UNPLANNED_CPP_RUNTIME"
++    return None
++def audit(objects,allowed_sources,allowed_imports,exports,provider_rules=None):
++    """All object metadata comes from explicit recorded compile sources/options.
++
++    Export presence is kept separate from the narrower offline-target allowlist.
++    Apple API implementations are never accepted from project object providers.
++    """
++    errors=[];defined={};imports={};provider_rules=provider_rules or {}
++    for o in objects:
++        if o['source'] not in allowed_sources:errors.append(dict(source=o['source'],reason='SOURCE_NOT_ALLOWED'))
++        flags=o.get('flags',[])
++        if any(x not in flags for x in ['-fno-exceptions','-fno-rtti','-mkernel','-fapple-kext','-nostdinc++']):errors.append(dict(source=o['source'],reason='ABI_OPTIONS_MISMATCH'))
++        for s in o['image']['symbols']:
++            if s['undefined']:imports.setdefault(s['name'],[]).append(o['source'])
++            elif s['external']:defined.setdefault(s['name'],[]).append((o['source'],s['weak']))
++    for symbol,providers in defined.items():
++        metadata=symbol=='_kmod_info' and all(p[0]=='tests/unit/m11_kmod_compile.cpp' for p in providers)
++        if (symbol in allowed_imports or symbol in exports) and not metadata:errors.append(dict(symbol=symbol,reason='APPLE_API_PROVIDER_CONFLICT',providers=[p[0] for p in providers]))
++        if len([p for p in providers if not p[1]])>1:errors.append(dict(symbol=symbol,reason='DUPLICATE_STRONG_PROVIDER'))
++        if symbol in provider_rules and any(p[0] not in provider_rules[symbol] for p in providers):errors.append(dict(symbol=symbol,reason='WRONG_SYMBOL_PROVIDER'))
++    rows=[]
++    for symbol,users in sorted(imports.items()):
++        reason=runtime_reason(symbol)
++        if reason:classification=reason;errors.append(dict(symbol=symbol,reason=reason))
++        elif symbol in defined:classification='INTERNAL_RESOLVED'
++        elif symbol in allowed_imports and symbol in exports:classification='EXPECTED_KERNEL_IMPORT_WITH_SOURCE_REFERENCE'
++        else:
++            classification='UNSUPPORTED_KERNEL_IMPORT' if symbol in exports else 'UNKNOWN_IMPORT'
++            errors.append(dict(symbol=symbol,reason=classification))
++        rows.append(dict(symbol=symbol,classification=classification,users=users,providers=[p[0] for p in defined.get(symbol,[])],reference=exports.get(symbol),target_binary_verified=False))
++    return dict(status='REJECTED' if errors else 'PASS',errors=errors,per_symbol=rows,target_ABI='UNVERIFIED',full_target_link_closure='BLOCKED')
+diff --git a/run_m12_checks.py b/run_m12_checks.py
+new file mode 100644
+index 0000000..7e15420
+--- /dev/null
++++ b/run_m12_checks.py
+@@ -0,0 +1,230 @@
++"""Explicit M12 CPU, kernel object, policy and offline construction checks.
++
++BSD-3-Clause. Existing Apple tools only. No downloads, bundle, signing, installation,
++native execution, registration, device or GPU targets. Source exports are level C
++evidence; missing target SDK/kernel binary always block target ABI closure.
++"""
++import argparse,hashlib,json,os,platform,re,resource,shlex,struct,subprocess,sys,time
++from pathlib import Path
++if sys.version_info<(3,11):raise SystemExit('Existing Python 3.11+ required')
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++import run_m11_checks as previous
++import m12_macho_audit as policy
++P=previous.P
++NATIVE=[*previous.NATIVE,P/'darwin_gate.cpp',safe.ROOT/'tests/unit/m12_native_compile.cpp']
++IMPORTS={'_IOFreeAligned','_IOLog','_IOMallocAligned','__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb',
++    '__ZN6OSData9withBytesEPKvj','__ZTV9IOService','_memcpy','_IORecursiveLockLock',
++    '_IORecursiveLockUnlock','_IORecursiveLockHaveLock','_ml_at_interrupt_context','_ml_get_interrupts_enabled'}
++PIN='8d741a5de7ff4191bf97d57b9f54c2f6d4a15585'
++def main():
++    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--compiler',required=True);ap.add_argument('--sdk',required=True)
++    ap.add_argument('--target',required=True,choices=['host','native','all'])
++    ap.add_argument('--export-reference');ap.add_argument('--additional-reference');args=ap.parse_args()
++    if sys.platform!='darwin' or platform.machine()!='arm64':raise SystemExit('Authorized arm64 macOS Host required')
++    compiler=Path(args.compiler);sdk=Path(args.sdk)
++    if not compiler.is_absolute() or not compiler.is_file() or not sdk.is_absolute() or not sdk.is_dir():raise ValueError('Existing tool/SDK required')
++    out=safe.mkdir('reports/m12');local=safe.mkdir(out/'local/checks');build=safe.mkdir('build/m12/checks');tmp=safe.mkdir('tmp/m12/checks')
++    env=os.environ.copy();env.update(TMPDIR=str(tmp),TMP=str(tmp),TEMP=str(tmp),CLANG_MODULE_CACHE_PATH=str(safe.mkdir(build/'cache')),
++        PYTHONDONTWRITEBYTECODE='1',ASAN_OPTIONS='halt_on_error=1:detect_leaks=0:abort_on_error=0',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1',TSAN_OPTIONS='halt_on_error=1')
++    for k in ('CPATH','CPLUS_INCLUDE_PATH','C_INCLUDE_PATH','LIBRARY_PATH','DYLD_INSERT_LIBRARIES'):env.pop(k,None)
++    resource.setrlimit(resource.RLIMIT_CORE,(0,0));commands=[]
++    def public(x):
++        if isinstance(x,Path):return public(str(x))
++        if isinstance(x,str):return x.replace(str(safe.ROOT),'PROJECT_ROOT').replace(str(sdk),'SDK_ROOT').replace(sys.executable,'PYTHON_EXECUTABLE')
++        if isinstance(x,list):return [public(v) for v in x]
++        if isinstance(x,dict):return {public(k):public(v) for k,v in x.items()}
++        return x
++    def save(name,data):safe.write(out/(name+'.json'),json.dumps(public(data),indent=2,ensure_ascii=False))
++    def run(cmd,name,timeout=60,allow=False):
++        cmd=[str(x) for x in cmd]
++        for opt in ('-o','-MF'):
++            if opt in cmd:safe.checked(cmd[cmd.index(opt)+1])
++        print(name,flush=True);begin=time.monotonic()
++        try:r=subprocess.run(cmd,cwd=safe.ROOT,env=env,text=True,capture_output=True,timeout=timeout)
++        except subprocess.TimeoutExpired as e:
++            safe.write(local/(name+'.log'),'TIMEOUT\n'+str(e.stdout)+str(e.stderr));commands.append(dict(name=name,status='TIMEOUT',argv=cmd));save('commands',commands);raise
++        safe.write(local/(name+'.log'),r.stdout+r.stderr)
++        commands.append(dict(name=name,argv=cmd,exit=r.returncode,seconds=round(time.monotonic()-begin,3)))
++        safe.write(local/'commands-raw.json',json.dumps(commands,indent=2));save('commands',commands)
++        if r.returncode and not allow:raise RuntimeError(name+' failed; raw log retained')
++        return r
++    source_files=set(NATIVE+[safe.ROOT/'tests/unit/m12_lifecycle.cpp',safe.ROOT/'tests/unit/m12_ioservice_layout.cpp',safe.ROOT/'tests/unit/m12_policy_negative.cpp',Path(__file__),safe.ROOT/'m12_macho_audit.py'])
++    source_files.update(P.glob('*.hpp'))
++    source_files.update(P.parent.joinpath('core').glob('*.hpp'))
++    source_files.update(P.parent.joinpath('src').glob('*.hpp'))
++    hashes={p.relative_to(safe.ROOT).as_posix():hashlib.sha256(safe.checked(p).read_bytes()).hexdigest() for p in source_files}
++    save('executed-source-sha256',hashes)
++    summary=dict(stage='M12',status='RUNNING',CPU_Host_Build='NOT RUN',Kernel_Object_Compile='NOT RUN',Partial_Link='NOT RUN',
++        MH_KEXT_BUNDLE_Construction='NOT RUN',KPI_Reference_Audit='NOT RUN',Target_ABI_Compatibility='BLOCKED: matched SDK15 and target kernel binary absent',
++        Full_Target_Link_Closure='BLOCKED',Bundle='NOT RUN',Sign='NOT RUN',Install='NOT RUN',Load='NOT RUN',Kernel_Runtime='NOT RUN',GPU_Runtime='NOT RUN',Windows_Regression='NOT RUN',x86_64_Runtime='NOT RUN')
++    try:
++        version=run([compiler,'--version'],'compiler-version').stdout
++        if 'Apple clang' not in version:raise ValueError('Apple compiler required')
++        tools={n:run(['xcrun','--find',n],'find-'+n).stdout.strip() for n in ('ld','nm','otool','lipo','dwarfdump')}
++        linker=run([tools['ld'],'-v'],'linker-version');osver=run(['sw_vers'],'macos-version');xcode=run(['xcodebuild','-version'],'xcode-version')
++        sdkver=json.loads((sdk/'SDKSettings.json').read_text())['Version']
++        save('environment',dict(compiler=version,linker=linker.stdout+linker.stderr,macOS=osver.stdout,Xcode=xcode.stdout,SDK=str(sdk),SDK_version=sdkver,
++            Python=sys.version,Host=platform.machine(),target='macOS 15.0 x86_64 / XNU 11215.1.10',XNU_pin=PIN,matched_SDK='BLOCKED',deployment_label_only=True))
++        base=[compiler,'-std=c++17','-Wall','-Wextra','-Werror','-UNDEBUG','-O1','-g','-isysroot',sdk,'-mmacosx-version-min=15.0','-I'+str(previous.host.SRC)]
++        cpu=['-fno-exceptions','-fno-rtti','-ffreestanding','-Wframe-larger-than=4096']
++        if args.target in ('host','all'):
++            # Reviewed existing runner; only redirect outputs and import root.
++            helper=safe.checked('run_m11_checks.py').read_text()
++            for old,new in [('reports/m11','reports/m12/regression'),('build/m11','build/m12/regression'),('tmp/m11','tmp/m12/regression')]:helper=helper.replace(old,new)
++            old='sys.path.insert(0,str(Path(__file__).resolve().parent))'
++            if helper.count(old)!=1:raise ValueError('Reviewed import boundary changed')
++            helper=helper.replace(old,'sys.path.insert(0,'+repr(str(safe.ROOT))+')')
++            helper_path=safe.write(build/'reviewed-regression.py',helper)
++            run([sys.executable,'-I','-B','-X','utf8',helper_path,'--compiler',compiler,'--sdk',sdk,'--target','host'],'legacy-regression',timeout=600)
++            prior=json.loads(safe.checked('reports/m12/regression/test-results.json').read_text())
++            if prior['status']!='PASS':raise ValueError('Legacy regression failed')
++            behavior={}
++            for mode,opts in [('normal',[]),('asan-ubsan',['-fsanitize=address,undefined','-fno-omit-frame-pointer']),('tsan',['-fsanitize=thread','-fno-omit-frame-pointer'])]:
++                exe=build/(mode+'-m12-lifecycle')
++                core_objects=[]
++                for src in [P/'lifecycle.cpp',P/'shutdown.cpp']:
++                    obj=build/(mode+'-'+src.stem+'.o')
++                    run(base+['-arch','arm64',*cpu,*opts,'-c',src,'-o',obj],mode+'-m12-core-'+src.stem);core_objects.append(obj)
++                run(base+['-arch','arm64',*opts,safe.ROOT/'tests/unit/m12_lifecycle.cpp',*core_objects,'-o',exe],mode+'-m12-build')
++                log=run([exe],mode+'-m12-run',timeout=30).stdout;m=re.search(r'SUMMARY (\d+) (\d+)',log)
++                if not m or int(m[2]) or 'FAIL ' in log:raise ValueError('M12 behavior failure')
++                behavior[mode]=dict(PASS=int(m[1]),FAIL=int(m[2]),error_callbacks=300,concurrent_scopes=1,post_stop_attempts=160)
++            summary.update(CPU_Host_Build='PASS',M12_behavior=behavior,legacy_regression='PASS',ASan_UBSan='PASS; leak detection not verified',TSan='PASS covered Host paths only')
++            save('build-results',dict(legacy=prior,M12=behavior))
++        if args.target in ('native','all'):
++            if not args.export_reference or not args.additional_reference:raise ValueError('Explicit pinned reference files required')
++            ref=json.loads(safe.checked(args.export_reference).read_text());additional=json.loads(safe.checked(args.additional_reference).read_text())
++            if ref['pin']!=PIN or additional['pin']!=PIN:raise ValueError('Wrong source reference pin')
++            exports_by_arch={};reference_files=[]
++            for arch in ('x86_64','arm64'):
++                exports={}
++                for f in [*ref['files'],*additional['files']]:
++                    if not f['path'].startswith('config/') or ('.x86_64.' in f['path'] and arch!='x86_64') or ('.arm64.' in f['path'] and arch!='arm64'):continue
++                    sha=hashlib.sha256(f['text'].encode()).hexdigest()
++                    if 'sha256' in f and f['sha256']!=sha:raise ValueError('Reference hash mismatch')
++                    reference_files.append(dict(path=f['path'],sha256=sha,arch=arch))
++                    for line in f['text'].splitlines():
++                        line=line.strip()
++                        if line.startswith('_'):exports[line.split()[0].split(':')[0]]=dict(file=f['path'],entry=line,sha256=sha,pin=PIN)
++                exports_by_arch[arch]=exports
++            kernel=sdk/'System/Library/Frameworks/Kernel.framework/Headers';native={};audits={};links={};layouts={};abi={};negatives=[]
++            def image(path,arch,kind=1):
++                data=policy.inspect(safe.checked(path).read_bytes(),arch,kind);data['path']=path.relative_to(safe.ROOT).as_posix();return data
++            for arch in ('x86_64','arm64'):
++                folder=safe.mkdir(build/('darwin-'+arch));objects=[];metadata=[];deps={}
++                flags=base+['-arch',arch,*cpu,'-isystem',kernel,'-nostdinc++','-DKERNEL','-DKERNEL_EXTENSION','-mkernel','-fapple-kext','-fno-stack-protector']
++                if arch=='x86_64':flags+=['-mno-red-zone']
++                allowed=IMPORTS|({'___bzero'} if arch=='x86_64' else set())
++                for src in NATIVE:
++                    obj=folder/(src.stem+'.o');dep=folder/(src.stem+'.d')
++                    run(flags+['-MD','-MF',dep,'-c',src,'-o',obj],arch+'-compile-'+src.stem);objects.append(obj)
++                    metadata.append(dict(source=src.relative_to(safe.ROOT).as_posix(),flags=[str(x) for x in flags],image=image(obj,arch)))
++                    for path in shlex.split(dep.read_text().replace('\\\n',''))[1:]:
++                        p=Path(path)
++                        if p.is_relative_to(sdk):deps[str(p)]=hashlib.sha256(p.read_bytes()).hexdigest()
++                audit=policy.audit(metadata,{x['source'] for x in metadata},allowed,exports_by_arch[arch]);audits[arch]=audit
++                if audit['status']!='PASS':save('symbol-audit',audits);raise ValueError('Independent symbol policy rejected '+arch)
++                combined=folder/'n44-partial.o'
++                run([tools['ld'],'-r','-arch',arch,'-platform_version','macos','15.0',sdkver,'-o',combined,*objects],arch+'-partial-link')
++                part=image(combined,arch);remaining=sorted(s['name'] for s in part['symbols'] if s['undefined'])
++                internal={s['name'] for x in metadata for s in x['image']['symbols'] if s['external'] and not s['undefined']}
++                if any(s in internal or s not in allowed for s in remaining):raise ValueError('Combined symbol closure changed')
++                nm=run([tools['nm'],'-u',combined],arch+'-partial-nm').stdout.splitlines()
++                if sorted(nm)!=remaining:raise ValueError('Parser and Apple nm disagree')
++                for name,opts in [('file',[]),('lipo',['-archs']),('otool',['-h','-l','-r']),('dwarfdump',['--verify'])]:run(['file' if name=='file' else tools[name],*opts,combined],arch+'-partial-'+name)
++                native[arch]=dict(status='PASS',objects=metadata,flags=flags,header_sha256=deps)
++                links[arch]=dict(Partial_Link='PASS',partial_artifact=part,remaining=remaining)
++                abi[arch]=dict(current_SDK_object_options='PASS',target_SDK_match='BLOCKED',target_binary_exports='UNVERIFIED',target_vtable='UNVERIFIED',Kernel_Runtime='NOT RUN')
++                layout=folder/'ioservice-layout.o'
++                dump=run(flags+['-Xclang','-fdump-record-layouts','-Xclang','-fdump-vtable-layouts','-c',safe.ROOT/'tests/unit/m12_ioservice_layout.cpp','-o',layout],arch+'-layout-compile')
++                li=image(layout,arch);sizes={};raw=layout.read_bytes()
++                for s in li['symbols']:
++                    if s['name'].startswith('_n44_size_') or s['name']=='_n44_align_IOService':
++                        section=li['sections'][s['section']-1];sizes[s['name']]=struct.unpack_from('<Q',raw,section['offset']+s['value']-section['address'])[0]
++                layouts[arch]=dict(current_SDK=sdkver,sizes=sizes,artifact_sha256=li['sha256'],layout_log=str(local/(arch+'-layout-compile.log')),target15_layout='UNVERIFIED',excluded_from_link=True)
++                if arch=='x86_64':
++                    linked=folder/'n44-offline.macho'
++                    r=run([tools['ld'],'-kext','-arch',arch,'-platform_version','macos','15.0',sdkver,'-undefined','error','-o',linked,combined],arch+'-kext-construction',allow=True)
++                    links[arch].update(Linker_exit=r.returncode,Full_Target_Link_Closure='BLOCKED',Bundle='NOT RUN',Sign='NOT RUN',Install='NOT RUN',Load='NOT RUN')
++                    if r.returncode:raise ValueError('Offline construction failed')
++                    final=image(linked,arch,11)
++                    if sorted(s['name'] for s in final['symbols'] if s['undefined'])!=remaining:raise ValueError('Image import set changed')
++                    run([tools['otool'],'-h','-l','-r',linked],'x86_64-image-otool');run([tools['nm'],'-u',linked],'x86_64-image-nm')
++                    run([tools['otool'],'-tvV',folder/'m11_native_compile.o'],'x86_64-service-disassembly')
++                    links[arch].update(MH_KEXT_BUNDLE_Construction='PASS',image=final)
++                    fixture=safe.ROOT/'tests/unit/m12_policy_negative.cpp';badfolder=safe.mkdir(build/'negative');srcname=fixture.relative_to(safe.ROOT).as_posix()
++                    for mode,reason in [('HOST','HOST_RUNTIME'),('UNKNOWN','UNKNOWN_IMPORT'),('EXCEPTION','EXCEPTION_RUNTIME'),('RTTI','RTTI_RUNTIME'),('PRINTF','UNSUPPORTED_KERNEL_IMPORT'),('INITIALIZER','initializer_eh_or_tls')]:
++                        bad=badfolder/(mode.lower()+'.o')
++                        opts=flags if mode in ('UNKNOWN','PRINTF','INITIALIZER') else base+['-arch',arch,'-fno-stack-protector','-fno-unwind-tables','-fno-asynchronous-unwind-tables']
++                        run(opts+['-DN44_POLICY_'+mode,'-c',fixture,'-o',bad],'negative-compile-'+mode)
++                        # Actual Apple symbols provide diagnostics even when unsafe sections reject first.
++                        symbols=run([tools['nm'],'-u',bad],'negative-symbols-'+mode).stdout.splitlines()
++                        found=[]
++                        try:
++                            item=dict(source=srcname,flags=[str(x) for x in opts],image=image(bad,arch))
++                            pa=policy.audit([item],{srcname},allowed,exports_by_arch[arch]);found=[x['reason'] for x in pa['errors']]
++                        except policy.AuditError as e:found.append(str(e))
++                        if reason not in found and reason in ('EXCEPTION_RUNTIME','RTTI_RUNTIME'):
++                            found.extend(filter(None,(policy.runtime_reason(s) for s in symbols)))
++                        if reason not in found:raise ValueError('Negative case not detected: '+mode+str(found))
++                        record=dict(case=mode,status='REJECTED',expected_reason=reason,reasons=found,symbols=symbols,sha256=hashlib.sha256(bad.read_bytes()).hexdigest(),never_executed=True)
++                        if mode=='HOST':
++                            invalid=badfolder/'invalid-kext.macho'
++                            nr=run([tools['ld'],'-kext','-arch',arch,'-undefined','error','-o',invalid,combined,bad],'negative-linker-calibration',allow=True)
++                            record.update(linker_exit=nr.returncode,independent_policy_required=True)
++                        negatives.append(record)
++                    provider=badfolder/'provider.o';consumer=badfolder/'consumer.o';testobjs=[]
++                    for mode,dest in [('PROVIDER',provider),('CONSUMER',consumer)]:
++                        run(flags+['-DN44_POLICY_'+mode,'-c',fixture,'-o',dest],'negative-compile-'+mode)
++                        testobjs.append(dict(source=srcname,flags=[str(x) for x in flags],image=image(dest,arch)))
++                    wrong=policy.audit(testobjs,{srcname},allowed,exports_by_arch[arch],{'_n44_policy_required':{'expected/project/provider.cpp'}})
++                    if 'WRONG_SYMBOL_PROVIDER' not in [x['reason'] for x in wrong['errors']]:raise ValueError('Wrong provider accepted')
++                    negatives.append(dict(case='WRONG_PROVIDER',status='REJECTED',errors=wrong['errors'],fake_Apple_API=False))
++                    # Malformed copies are mutations of genuine objects, never forged headers or executable fixtures.
++                    valid=objects[0].read_bytes();v=image(objects[0],arch)
++                    for mode in ('STRING_INDEX','RELOCATION_INDEX'):
++                        raw=bytearray(valid);pos=32;so=None
++                        for command in v['commands']:
++                            if command['command']==2:so=struct.unpack_from('<I',raw,pos+8)[0]
++                            pos+=command['bytes']
++                        if mode=='STRING_INDEX':struct.pack_into('<I',raw,so,0xffffffff)
++                        else:
++                            section=next(x for x in v['sections'] if x['nreloc']);at=section['reloff']+4;word=struct.unpack_from('<I',raw,at)[0]
++                            struct.pack_into('<I',raw,at,(word&0xf0000000)|(1<<27)|0xffffff)
++                        try:policy.inspect(raw,arch);raise ValueError('Malformed negative accepted')
++                        except policy.AuditError as e:negatives.append(dict(case=mode,status='REJECTED',reason=str(e),from_actual_object=v['sha256']))
++                else:
++                    try:policy.inspect(objects[0].read_bytes(),'x86_64');raise ValueError('Wrong architecture accepted')
++                    except policy.AuditError as e:negatives.append(dict(case='WRONG_ARCHITECTURE',status='REJECTED',reason=str(e),actual='arm64',requested='x86_64'))
++                    analysis=[]
++                    for src in [P/'darwin_native.cpp',P/'darwin_snapshot.cpp',P/'darwin_gate.cpp',safe.ROOT/'tests/unit/m11_native_compile.cpp',safe.ROOT/'tests/unit/m12_native_compile.cpp']:
++                        r=run(flags+['--analyze',src,'-o',folder/(src.stem+'.plist')],'native-analyze-'+src.stem)
++                        if 'warning:' in r.stdout+r.stderr:raise ValueError('Native analyzer warning')
++                        analysis.append(src.relative_to(safe.ROOT).as_posix())
++                    summary['Native_Static_Analyzer']=dict(status='PASS',units=len(analysis))
++            # Preserve complete tables locally; public evidence keeps counts and hashes.
++            safe.write(local/'native-tables.json',json.dumps(public(native),indent=2))
++            safe.write(local/'link-tables.json',json.dumps(public(links),indent=2))
++            def compact(im):
++                return {**{k:v for k,v in im.items() if k not in ('symbols','relocations')},
++                    'symbol_count':len(im['symbols']),'relocation_count':len(im['relocations']),
++                    'undefined':sorted(s['name'] for s in im['symbols'] if s['undefined'])}
++            for item in native.values():
++                for obj in item['objects']:obj['image']=compact(obj['image'])
++            for item in links.values():
++                item['partial_artifact']=compact(item['partial_artifact'])
++                if 'image' in item:item['image']=compact(item['image'])
++            save('native-object-results',native);save('symbol-audit',audits);save('link-results',links);save('abi-audit',dict(architectures=abi,current_SDK_layout=layouts,export_references=reference_files))
++            save('negative-results',dict(status='PASS',cases=negatives));summary.update(Kernel_Object_Compile='PASS',Partial_Link='PASS',MH_KEXT_BUNDLE_Construction='PASS',KPI_Reference_Audit='PASS reference classification only',negative_cases=len(negatives))
++        if args.target=='all':
++            for src in previous.PURE:
++                r=run(base+['-arch','arm64',*cpu,'--analyze',src,'-o',build/(src.stem+'.plist')],'cpu-analyze-'+src.stem)
++                if 'warning:' in r.stdout+r.stderr:raise ValueError('CPU analyzer warning')
++            summary['CPU_Static_Analyzer']=dict(status='PASS',units=len(previous.PURE))
++        if any(hashlib.sha256(safe.checked(p).read_bytes()).hexdigest()!=v for p,v in hashes.items()):raise ValueError('Source changed during checks')
++        summary.update(source_stability='PASS',status='COMPLETE_WITH_BLOCKERS')
++    except Exception as e:summary.update(status='FAIL',error=str(e));raise
++    finally:save('test-results',summary)
++    print(json.dumps(public(summary),indent=2))
++if __name__=='__main__':main()
+diff --git a/tests/unit/m12_ioservice_layout.cpp b/tests/unit/m12_ioservice_layout.cpp
+new file mode 100644
+index 0000000..f226f95
+--- /dev/null
++++ b/tests/unit/m12_ioservice_layout.cpp
+@@ -0,0 +1,13 @@
++// Genuine current-SDK layout reference only. Excluded from the kernel link allowlist.
++#include <IOKit/IOService.h>
++class N44LayoutReference:public IOService {
++    virtual void neverInstantiate()=0;
++public:bool init(OSDictionary*)override;
++};
++bool N44LayoutReference::init(OSDictionary*){return false;}
++extern "C" {
++unsigned long n44_size_OSObject=sizeof(OSObject);
++unsigned long n44_size_IORegistryEntry=sizeof(IORegistryEntry);
++unsigned long n44_size_IOService=sizeof(IOService);
++unsigned long n44_align_IOService=alignof(IOService);
++}
+diff --git a/tests/unit/m12_lifecycle.cpp b/tests/unit/m12_lifecycle.cpp
+new file mode 100644
+index 0000000..e12caca
+--- /dev/null
++++ b/tests/unit/m12_lifecycle.cpp
+@@ -0,0 +1,102 @@
++// CPU-only scoped access and explicit initialization tests; BSD-3-Clause.
++#include "../../development/AMDRadeonRDNA4-Navi44/host/lifecycle_mock.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/shutdown.hpp"
++#include <iostream>
++#include <type_traits>
++#include <thread>
++#include <atomic>
++#include <condition_variable>
++#include <chrono>
++using namespace NaviPlatform;using namespace NaviCore;using namespace NaviHost;
++static_assert(!std::is_copy_constructible<ScopedInput>::value,"scope cannot escape by value");
++static_assert(!std::is_move_constructible<ScopedInput>::value,"scope cannot move out");
++static_assert(!std::is_destructible<ScopedInput>::value,"consumer cannot destroy caller scope");
++struct ConsumerContext {
++    SnapshotOwner*owner;ShutdownBarrier*barrier;ReferenceMock*resource;
++    bool fail{false},bounds{false},reentry{false},context{false},copied{false},byteAlias{false};unsigned callbacks{0};
++    uint8_t destination[16]{};
++    static Result consume(void*ptr,const ScopedInput&input)noexcept{
++        auto&c=*static_cast<ConsumerContext*>(ptr);++c.callbacks;size_t n=0;
++        if(!input.length(n).ok()||n!=4096)return failure("scope_length");
++        uint8_t value=99;c.copied=input.byte(7,value).ok()&&value==7&&input.copy(0,c.destination,16).ok();
++        for(unsigned i=0;i<16;++i)c.copied=c.copied&&c.destination[i]==i;
++        uint8_t unchanged=42;
++        c.byteAlias=!input.byte(0,c.resource->bytes[7]).ok()&&c.resource->bytes[7]==7;
++        c.bounds=!input.copy(4096,&unchanged,1).ok()&&unchanged==42&&!input.copy(SIZE_MAX,&unchanged,1).ok()&&
++            !input.copy(0,nullptr,1).ok()&&!input.copy(0,reinterpret_cast<uint8_t*>(UINTPTR_MAX-2),8).ok()&&input.copy(4096,nullptr,0).ok()&&
++            !input.copy(0,c.resource->bytes.data()+1,4).ok()&&c.resource->bytes[1]==1;
++        SnapshotTicket t{};View v{};
++        c.reentry=!c.owner->consume({&c,consume}).ok()&&!c.owner->close().ok()&&!c.owner->revoke().ok()&&!c.owner->borrow(t).ok()&&!c.owner->read(t,v).ok();
++        if(c.barrier)c.reentry=c.reentry&&!c.barrier->stop().ok()&&!c.barrier->consume(0,{&c,consume}).ok();
++        ThreadGate::interruptContext(true);n=100;c.context=!input.length(n).ok()&&!n&&!input.copy(0,c.destination,1).ok();ThreadGate::interruptContext(false);
++        return c.fail?failure("deliberate_consumer_failure"):success();
++    }
++};
++int main(){unsigned pass=0,fail=0;
++    auto check=[&](const char*n,bool b){std::cout<<(b?"PASS ":"FAIL ")<<n<<'\n';b?++pass:++fail;};
++    {
++        ThreadGate gate;ReferenceMock r;for(size_t i=0;i<r.bytes.size();++i)r.bytes[i]=static_cast<uint8_t>(i);
++        SnapshotOwner owner(gate.access(),1);ShutdownBarrier barrier(gate.access());ConsumerContext c{&owner,&barrier,&r};
++        check("scope_wrong_context_denied",!owner.consume({&c,ConsumerContext::consume}).ok()&&c.callbacks==0);
++        GateScope hold(gate.access());barrier.bind(owner);owner.activate(r.ops(),true);
++        check("storage_initialize",barrier.initialize().ok());ShutdownState state{};size_t leases=0;unsigned f=0;barrier.inspect(state,leases,f);
++        check("initialized_state",state==ShutdownState::Initialized&&!leases);
++        check("initialized_scope_denied",!barrier.consume(0,{&c,ConsumerContext::consume}).ok()&&!c.callbacks);
++        SnapshotTicket t{};check("initialized_ticket_denied",!barrier.borrow(0,t).ok());
++        check("initialized_poll_denied",!barrier.poll().ok());check("duplicate_initialize_denied",!barrier.initialize().ok());
++        check("explicit_storage_start",barrier.start().ok());check("automatic_scope_success",barrier.consume(0,{&c,ConsumerContext::consume}).ok());
++        check("scope_bounded_copy",c.copied);check("scope_bounds_and_immutable_source",c.bounds);check("scope_callback_reentry_denied",c.reentry);check("scope_wrong_thread_context_denied",c.context);
++        check("scope_byte_alias_preserves_source",c.byteAlias);
++        OwnerState os{};owner.inspect(os,leases);check("automatic_ticket_return",leases==0&&r.references==2&&r.releases==0);
++        c.fail=true;check("consumer_error_preserved",!barrier.consume(0,{&c,ConsumerContext::consume}).ok());owner.inspect(os,leases);check("consumer_error_returns_ticket",leases==0&&r.references==2);
++        check("missing_consumer_no_ticket",!barrier.consume(0,{}).ok());check("wrong_owner_index_no_callback",!barrier.consume(8,{&c,ConsumerContext::consume}).ok()&&c.callbacks==2);
++        check("stop_scope_cleanup_once",barrier.stop().ok()&&barrier.readyToFree()&&r.completes==1&&r.releases==1);
++        check("scope_after_stop_denied",!barrier.consume(0,{&c,ConsumerContext::consume}).ok()&&c.callbacks==2);
++        check("released_storage_cannot_initialize",!barrier.initialize().ok()&&!barrier.start().ok());
++    }
++    {
++        ThreadGate gate;GateScope hold(gate.access());ReferenceMock r;for(size_t i=0;i<r.bytes.size();++i)r.bytes[i]=static_cast<uint8_t>(i);
++        SnapshotOwner a(gate.access(),7),b(gate.access(),7);a.activate(r.ops());b.activate(r.ops());ConsumerContext c{&a,nullptr,&r};SnapshotTicket ta{},tb{};a.borrow(ta);b.borrow(tb);
++        check("foreign_ticket_scope_denied",!a.withInput(tb,{&c,ConsumerContext::consume}).ok()&&c.callbacks==0);
++        check("explicit_ticket_scope_success",a.withInput(ta,{&c,ConsumerContext::consume}).ok()&&c.callbacks==1);
++        OwnerState state{};size_t n=0;a.inspect(state,n);check("explicit_ticket_retained",n==1);
++        const auto stale=ta;a.giveBack(ta);check("stale_ticket_scope_denied",!a.withInput(stale,{&c,ConsumerContext::consume}).ok());b.giveBack(tb);a.close();b.close();
++        check("cross_owner_scope_reference_pairs",r.retains==2&&r.releases==2&&r.references==1);
++    }
++    {
++        ThreadGate gate;GateScope hold(gate.access());ReferenceMock r;SnapshotOwner owner(gate.access(),20);ShutdownBarrier g(gate.access());g.bind(owner);owner.activate(r.ops());
++        check("stop_initialized_without_start",g.initialize().ok()&&g.stop().ok()&&g.readyToFree()&&r.releases==1);
++        SnapshotOwner uninitialized(gate.access(),21);ShutdownBarrier bad(gate.access());bad.bind(uninitialized);
++        check("partial_initialization_fails",!bad.initialize().ok());ShutdownState state{};size_t n=0;unsigned f=0;bad.inspect(state,n,f);
++        check("failed_initialized_state",state==ShutdownState::Failed&&!n);check("failed_initialization_cannot_start",!bad.start().ok());
++        check("failed_initialized_cleanup",bad.stop().ok()&&bad.readyToFree());
++    }
++    {
++        // 300 finite error callbacks must not exhaust eight ticket slots.
++        ThreadGate gate;GateScope hold(gate.access());ReferenceMock r;for(size_t i=0;i<r.bytes.size();++i)r.bytes[i]=static_cast<uint8_t>(i);
++        SnapshotOwner o(gate.access(),30);ShutdownBarrier g(gate.access());g.bind(o);o.activate(r.ops());g.initialize();g.start();ConsumerContext c{&o,&g,&r};c.fail=true;bool ok=true;
++        for(unsigned i=0;i<300;++i){ok=(!g.consume(0,{&c,ConsumerContext::consume}).ok())&&ok;OwnerState state{};size_t n=0;o.inspect(state,n);ok=(!n&&r.references==2)&&ok;}
++        check("bounded_300_callback_error_cleanup",ok&&c.callbacks==300&&g.stop().ok()&&g.readyToFree()&&r.releases==1);
++    }
++    {
++        ThreadGate gate;ReferenceMock r;SnapshotOwner o(gate.access(),40);ShutdownBarrier g(gate.access());
++        {GateScope hold(gate.access());g.bind(o);o.activate(r.ops(),true);g.initialize();g.start();}
++        std::mutex mutex;std::condition_variable signal;bool entered=false,allowReturn=false;std::atomic<unsigned> accepted{0},denied{0},errors{0};
++        struct Slow {std::mutex*m;std::condition_variable*s;bool*entered,*allow;std::atomic<unsigned>*errors;} slow{&mutex,&signal,&entered,&allowReturn,&errors};
++        auto callback=[](void*p,const ScopedInput&input)noexcept->Result{auto&c=*static_cast<Slow*>(p);size_t n=0;if(!input.length(n).ok())++*c.errors;
++            std::unique_lock<std::mutex> lock(*c.m);*c.entered=true;c.s->notify_all();if(!c.s->wait_for(lock,std::chrono::seconds(2),[&](){return *c.allow;}))++*c.errors;return success();};
++        // Test orchestration mutex only; no native lock/OSObject execution.
++        std::thread reader([&](){GateScope hold(gate.access());if(g.consume(0,{&slow,callback}).ok())++accepted;else ++errors;});
++        {std::unique_lock<std::mutex> lock(mutex);if(!signal.wait_for(lock,std::chrono::seconds(2),[&](){return entered;}))++errors;}
++        std::atomic<bool> stopAttempted{false};
++        std::thread closer([&](){stopAttempted=true;signal.notify_all();GateScope hold(gate.access());if(!g.stop().ok())++errors;});
++        {std::unique_lock<std::mutex> lock(mutex);
++            if(!signal.wait_for(lock,std::chrono::seconds(2),[&](){return stopAttempted.load();}))++errors;
++            allowReturn=true;signal.notify_all();}reader.join();closer.join();
++        auto attempts=[&](){for(unsigned i=0;i<80;++i){GateScope hold(gate.access());if(g.consume(0,{}).ok())++errors;else ++denied;if(!g.stop().ok())++errors;}};
++        std::thread a(attempts),b(attempts);a.join();b.join();
++        {GateScope hold(gate.access());check("scope_stop_serialization",accepted==1&&denied==160&&errors==0&&g.readyToFree()&&r.completes==1&&r.releases==1);}
++        std::cout<<"M12_CONCURRENT scope=1 post_stop_attempts=160 errors="<<errors<<'\n';
++    }
++    std::cout<<"SUMMARY "<<pass<<' '<<fail<<'\n';return fail?1:0;
++}
+diff --git a/tests/unit/m12_native_compile.cpp b/tests/unit/m12_native_compile.cpp
+new file mode 100644
+index 0000000..dc8c151
+--- /dev/null
++++ b/tests/unit/m12_native_compile.cpp
+@@ -0,0 +1,26 @@
++// No provider matching, service registration, hardware access or native execution.
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/darwin_owner_storage.hpp"
++static_assert(sizeof(NaviPlatform::ScopedInput)<128,"scope is small metadata");
++static_assert(sizeof(NaviDarwin::NativeOwnerStorage)<65536,"long-lived external storage");
++static_assert(__is_same(decltype(&IORecursiveLockLock),void(*)(IORecursiveLock*)),"kernel lock ABI");
++static_assert(__is_same(decltype(&IORecursiveLockUnlock),void(*)(IORecursiveLock*)),"kernel unlock ABI");
++static_assert(__is_same(decltype(&IORecursiveLockHaveLock),boolean_t(*)(const IORecursiveLock*)),"current-thread lock ownership ABI");
++static_assert(__is_same(decltype(&ml_at_interrupt_context),boolean_t(*)()),"interrupt context ABI");
++static_assert(__is_same(decltype(&ml_get_interrupts_enabled),boolean_t(*)()),"interrupt enable ABI");
++NaviPlatform::AccessOps n44KernelGateCompile(NaviDarwin::BorrowedKernelGate&g){return g.access();}
++namespace {
++// Type-checked lifecycle integration, never called from a kmod entry or Host.
++struct NativeGateCall {
++    NaviPlatform::ExecutionOps ops;bool entered;
++    explicit NativeGateCall(NaviDarwin::BorrowedKernelGate&g):ops(g.access().execution),entered(ops.enter(ops.context)){}
++    ~NativeGateCall(){if(entered)ops.leave(ops.context);}
++    NativeGateCall(const NativeGateCall&)=delete;
++};
++}
++NaviCore::Result n44ScopedNativeCompile(NaviDarwin::NativeOwnerStorage&s,NaviDarwin::BorrowedKernelGate&g,NaviPlatform::InputConsumer c){
++    NativeGateCall hold{g};return hold.entered?s.consume(c):NaviCore::failure("native_gate_context");
++}
++NaviCore::Result n44StopDrainNativeCompile(NaviDarwin::NativeOwnerStorage&s,NaviDarwin::BorrowedKernelGate&g){
++    NativeGateCall hold{g};return hold.entered?s.stop():NaviCore::failure("native_gate_context");
++}
+diff --git a/tests/unit/m12_policy_negative.cpp b/tests/unit/m12_policy_negative.cpp
+new file mode 100644
+index 0000000..5640a04
+--- /dev/null
++++ b/tests/unit/m12_policy_negative.cpp
+@@ -0,0 +1,24 @@
++// Real isolated negative objects; never executed or included in production link.
++#if defined(N44_POLICY_HOST)
++#include <cstdio>
++int n44PolicyHost(){return std::puts("policy negative");}
++#elif defined(N44_POLICY_UNKNOWN)
++extern "C" int n44_unlisted_import();
++int n44PolicyUnknown(){return n44_unlisted_import();}
++#elif defined(N44_POLICY_EXCEPTION)
++int n44PolicyException(){throw 7;}
++#elif defined(N44_POLICY_RTTI)
++struct N44PolicyBase{virtual ~N44PolicyBase()=default;};struct N44PolicyDerived:N44PolicyBase{};
++bool n44PolicyRtti(N44PolicyBase*p){return dynamic_cast<N44PolicyDerived*>(p)!=nullptr;}
++#elif defined(N44_POLICY_PRINTF)
++#include <libkern/libkern.h>
++int n44PolicyPrintf(unsigned x){return printf("%u",x);}
++#elif defined(N44_POLICY_PROVIDER)
++extern "C" int n44_policy_required(){return 17;}
++#elif defined(N44_POLICY_CONSUMER)
++extern "C" int n44_policy_required();
++int n44PolicyConsumer(){return n44_policy_required();}
++#elif defined(N44_POLICY_INITIALIZER)
++extern "C" int n44_unlisted_import();
++int n44_policy_value;struct N44PolicyInit{N44PolicyInit(){n44_policy_value=n44_unlisted_import();}} n44_initializer;
++#endif

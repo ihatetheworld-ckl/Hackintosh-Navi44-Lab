@@ -1,0 +1,290 @@
+{
+  "architectures": {
+    "x86_64": {
+      "current_SDK_object_options": "PASS",
+      "target_SDK_match": "SDK26.5 declarations verified",
+      "target_binary_exports": "UNVERIFIED",
+      "target_vtable": "UNVERIFIED",
+      "Kernel_Runtime": "NOT RUN"
+    },
+    "arm64": {
+      "current_SDK_object_options": "PASS",
+      "target_SDK_match": "SDK26.5 declarations verified",
+      "target_binary_exports": "UNVERIFIED",
+      "target_vtable": "UNVERIFIED",
+      "Kernel_Runtime": "NOT RUN"
+    }
+  },
+  "current_SDK_layout": {
+    "x86_64": {
+      "current_SDK": "26.5",
+      "sizes": {
+        "_n44_align_IORegistryEntry": 8,
+        "_n44_align_IOService": 8,
+        "_n44_align_OSMetaClass": 8,
+        "_n44_align_OSObject": 8,
+        "_n44_size_IORegistryEntry": 40,
+        "_n44_size_IOService": 136,
+        "_n44_size_OSMetaClass": 40,
+        "_n44_size_OSObject": 16
+      },
+      "artifact_sha256": "797a35bcda8285bdfe29e9c443ee54a7cd859b21f86dbd876a8cb606314cf72b",
+      "layout_log": "PROJECT_ROOT/reports/m13/local/checks/x86_64-layout-compile.log",
+      "target_binary_layout": "UNVERIFIED",
+      "excluded_from_link": true,
+      "current_SDK_selected_vtable_entries": [
+        {
+          "table_index": 20,
+          "offset_from_ZTV_symbol": 160,
+          "declaration": "void IOService::free()"
+        },
+        {
+          "table_index": 75,
+          "offset_from_ZTV_symbol": 600,
+          "declaration": "bool N44LayoutReference::init(OSDictionary *)"
+        },
+        {
+          "table_index": 128,
+          "offset_from_ZTV_symbol": 1024,
+          "declaration": "bool IOService::init(IORegistryEntry *, const IORegistryPlane *)"
+        },
+        {
+          "table_index": 130,
+          "offset_from_ZTV_symbol": 1040,
+          "declaration": "bool IOService::willTerminate(IOService *, IOOptionBits)"
+        },
+        {
+          "table_index": 131,
+          "offset_from_ZTV_symbol": 1048,
+          "declaration": "bool IOService::didTerminate(IOService *, IOOptionBits, bool *)"
+        },
+        {
+          "table_index": 186,
+          "offset_from_ZTV_symbol": 1488,
+          "declaration": "bool IOService::start(IOService *)"
+        },
+        {
+          "table_index": 187,
+          "offset_from_ZTV_symbol": 1496,
+          "declaration": "void IOService::stop(IOService *)"
+        },
+        {
+          "table_index": 188,
+          "offset_from_ZTV_symbol": 1504,
+          "declaration": "bool IOService::open(IOService *, IOOptionBits, void *)"
+        },
+        {
+          "table_index": 189,
+          "offset_from_ZTV_symbol": 1512,
+          "declaration": "void IOService::close(IOService *, IOOptionBits)"
+        },
+        {
+          "table_index": 194,
+          "offset_from_ZTV_symbol": 1552,
+          "declaration": "bool IOService::terminate(IOOptionBits)"
+        }
+      ],
+      "target_binary_entries": "UNVERIFIED; never inferred from source lexical counts"
+    },
+    "arm64": {
+      "current_SDK": "26.5",
+      "sizes": {
+        "_n44_align_IORegistryEntry": 8,
+        "_n44_align_IOService": 8,
+        "_n44_align_OSMetaClass": 8,
+        "_n44_align_OSObject": 8,
+        "_n44_size_IORegistryEntry": 40,
+        "_n44_size_IOService": 136,
+        "_n44_size_OSMetaClass": 40,
+        "_n44_size_OSObject": 16
+      },
+      "artifact_sha256": "e7294566064faba0956d4df1348d7444148119f99410974da316b51787abccd9",
+      "layout_log": "PROJECT_ROOT/reports/m13/local/checks/arm64-layout-compile.log",
+      "target_binary_layout": "UNVERIFIED",
+      "excluded_from_link": true,
+      "current_SDK_selected_vtable_entries": [
+        {
+          "table_index": 24,
+          "offset_from_ZTV_symbol": 192,
+          "declaration": "void IOService::free()"
+        },
+        {
+          "table_index": 79,
+          "offset_from_ZTV_symbol": 632,
+          "declaration": "bool N44LayoutReference::init(OSDictionary *)"
+        },
+        {
+          "table_index": 132,
+          "offset_from_ZTV_symbol": 1056,
+          "declaration": "bool IOService::init(IORegistryEntry *, const IORegistryPlane *)"
+        },
+        {
+          "table_index": 134,
+          "offset_from_ZTV_symbol": 1072,
+          "declaration": "bool IOService::willTerminate(IOService *, IOOptionBits)"
+        },
+        {
+          "table_index": 135,
+          "offset_from_ZTV_symbol": 1080,
+          "declaration": "bool IOService::didTerminate(IOService *, IOOptionBits, bool *)"
+        },
+        {
+          "table_index": 192,
+          "offset_from_ZTV_symbol": 1536,
+          "declaration": "bool IOService::start(IOService *)"
+        },
+        {
+          "table_index": 193,
+          "offset_from_ZTV_symbol": 1544,
+          "declaration": "void IOService::stop(IOService *)"
+        },
+        {
+          "table_index": 194,
+          "offset_from_ZTV_symbol": 1552,
+          "declaration": "bool IOService::open(IOService *, IOOptionBits, void *)"
+        },
+        {
+          "table_index": 195,
+          "offset_from_ZTV_symbol": 1560,
+          "declaration": "void IOService::close(IOService *, IOOptionBits)"
+        },
+        {
+          "table_index": 200,
+          "offset_from_ZTV_symbol": 1600,
+          "declaration": "bool IOService::terminate(IOOptionBits)"
+        }
+      ],
+      "target_binary_entries": "UNVERIFIED; never inferred from source lexical counts"
+    }
+  },
+  "export_references": [
+    {
+      "path": "config/IOKit.exports",
+      "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+      "arch": "x86_64"
+    },
+    {
+      "path": "config/IOKit.x86_64.exports",
+      "sha256": "c33616433824a14ded767ff24eb911b3d6499b9a859204f82cbd12c27fa51450",
+      "arch": "x86_64"
+    },
+    {
+      "path": "config/Libkern.exports",
+      "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+      "arch": "x86_64"
+    },
+    {
+      "path": "config/Libkern.x86_64.exports",
+      "sha256": "d7a66f639d0aaee9a5e69f5da2c62aff3d36b5760c674261ad5993e3c4fb3e57",
+      "arch": "x86_64"
+    },
+    {
+      "path": "config/IOKit.exports",
+      "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+      "arch": "arm64"
+    },
+    {
+      "path": "config/Libkern.exports",
+      "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+      "arch": "arm64"
+    },
+    {
+      "path": "config/IOKit.arm64.exports",
+      "sha256": "dd975a53772382e446c4ea886fa2b1d29ed325f93f769fb240aa6d4d73b1b054",
+      "arch": "arm64"
+    },
+    {
+      "path": "config/Libkern.arm64.exports",
+      "sha256": "166c204e9399e8832ff80c4b804145140de56cf764d8f6485274176b9491f75e",
+      "arch": "arm64"
+    }
+  ],
+  "source_comparison": [
+    {
+      "path": "iokit/IOKit/IOService.h",
+      "target_source_sha256": "620eec0e4e4cb7cb077c4f4d78770a0ca409dd8efcd8cbc2fa2dafc40014f71c",
+      "current_SDK_header": "IOKit/IOService.h",
+      "current_header_sha256": "37a6a13c2dd8aa9ec7049b948b81daf575f3d5ae660f2bb62aa3a7809cb3cd44",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 108,
+      "lexical_virtuals_current": 108,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    },
+    {
+      "path": "iokit/IOKit/IORegistryEntry.h",
+      "target_source_sha256": "3eedbdac6256e6983eaf4d294ba586d4cef016fa3b4345e039063c8760996ccc",
+      "current_SDK_header": "IOKit/IORegistryEntry.h",
+      "current_header_sha256": "30976c70f6fb1c92675e11c99694f45615797d292aa0e91cadfeac5d85aab247",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 72,
+      "lexical_virtuals_current": 72,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    },
+    {
+      "path": "libkern/libkern/c++/OSObject.h",
+      "target_source_sha256": "cde117af53211f8f5736f48f477f8821becd478c7310e42ce73f310f0efa1014",
+      "current_SDK_header": "libkern/c++/OSObject.h",
+      "current_header_sha256": "69783dc78e1a398b11c0f2dcd2147277425f68a7e5c655519ded056d5b57ed3b",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 10,
+      "lexical_virtuals_current": 10,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    },
+    {
+      "path": "libkern/libkern/c++/OSMetaClass.h",
+      "target_source_sha256": "24930e8b98f4b49c7e1b9271f47c8fc9e8c6c0f56f6acb41a0ba6be3116da771",
+      "current_SDK_header": "libkern/c++/OSMetaClass.h",
+      "current_header_sha256": "030784b3b7962124b69d855d5ac20323b78522a3be5f9806908baa0ef9126494",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 37,
+      "lexical_virtuals_current": 37,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    },
+    {
+      "path": "iokit/IOKit/IOLocks.h",
+      "target_source_sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8",
+      "current_SDK_header": "IOKit/IOLocks.h",
+      "current_header_sha256": "b8c590a5c31ba1efe08ca5eeb59ed03688eab3f7f42b0879470dbbf24df7d158",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 0,
+      "lexical_virtuals_current": 0,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    }
+  ],
+  "source_scope": "Conditional source is not SDK projection or a target binary",
+  "target_source_pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f",
+  "historical_SDK27_sizes": {
+    "x86_64": {
+      "_n44_align_IOService": 8,
+      "_n44_size_IORegistryEntry": 40,
+      "_n44_size_IOService": 136,
+      "_n44_size_OSObject": 16
+    },
+    "arm64": {
+      "_n44_align_IOService": 8,
+      "_n44_size_IORegistryEntry": 40,
+      "_n44_size_IOService": 136,
+      "_n44_size_OSObject": 16
+    }
+  }
+}

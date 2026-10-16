@@ -87,6 +87,13 @@ Thumbs.db
 /reports/m9/logs/
 /reports/m10/local/
 /reports/m11/local/
+/reports/m12/local/
+/reports/m12/baseline/local/
+/reports/m12/regression/local/
+/reports/m13/local/
+/reports/m13/baseline/local/
+/reports/m13/baseline/regression/local/
+/reports/m13/regression/local/
 *.log
 /reports/m65/asan-canary.*
 /reports/m65/ubsan-canary.*
@@ -113,4 +120,5 @@ credentials.json
 token.json
 secrets.*
 
+# Independent publication QA outputs remain local.
 /reports/publication/local/

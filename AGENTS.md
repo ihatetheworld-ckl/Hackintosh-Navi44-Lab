@@ -4,6 +4,10 @@
 docs/macos-codex-handoff.md、最新 reports/m85/development-report.md 和 M8 安全报告。
 本文件不能自动授予新机器、驱动部署或硬件实验权限。
 
+- M13用户正式目标为macOS26 Tahoe/x86_64；静态基线26.5，配置见config/m13-target.json。
+- 当前构建显式选择已有SDK26.5，拒绝默认SDK27和旧15导出参考；历史复现须标记legacy。
+- 不改M6–M12原报告；仍不下载SDK/KDK，不执行内核/设备/GPU代码，发布仍需独立确认。
+
 - 写入仅限用户在当前会话明确授权的项目目录；检查父目录真实路径、链接和硬链接。
 - 不改系统、全局 PATH/Git 配置、EFI/BIOS/分区、安全策略。
 - 不读取 GPU ROM/BAR/MMIO，不执行 DMA/固件上传/图形/计算/显示配置变更。

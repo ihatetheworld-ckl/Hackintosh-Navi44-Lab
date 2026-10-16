@@ -1,6 +1,10 @@
 # Hackintosh-Navi44-Lab
 
 RX 9060 XT / Navi44 / gfx1200 的 **CPU-only** 驱动研发项目。
+**M13正式研发目标：macOS26 Tahoe / Intel x86_64**。当前静态构建基线为26.5，
+使用已有CLT SDK26.5（25F70）和XNU12377.121.6源码参考；不是最终安装版本选择。
+目标内核二进制ABI、Kext加载与真实GPU仍未验证。[M13报告](reports/m13/development-report.md)。
+下述M11/M12的macOS15内容仅为保留的legacy reference，不是当前研发目标。
 M8 已完成 Windows 离线解析与数据模型验证；M8.5 已完成 GitHub 迁移。
 M9 已在真实 macOS / Apple Clang 上完成 arm64 CPU 测试、x86_64 Mach-O
 及真实 Kernel.framework 头文件的 Native 独立对象编译。

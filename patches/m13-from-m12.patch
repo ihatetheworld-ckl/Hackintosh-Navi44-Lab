@@ -1,0 +1,1240 @@
+diff --git a/.gitignore b/.gitignore
+index dd00e50..0c8367d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -90,6 +90,10 @@ Thumbs.db
+ /reports/m12/local/
+ /reports/m12/baseline/local/
+ /reports/m12/regression/local/
++/reports/m13/local/
++/reports/m13/baseline/local/
++/reports/m13/baseline/regression/local/
++/reports/m13/regression/local/
+ *.log
+ /reports/m65/asan-canary.*
+ /reports/m65/ubsan-canary.*
+diff --git a/AGENTS.md b/AGENTS.md
+index a93e80b..05555f8 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -4,6 +4,10 @@
+ docs/macos-codex-handoff.md、最新 reports/m85/development-report.md 和 M8 安全报告。
+ 本文件不能自动授予新机器、驱动部署或硬件实验权限。
+ 
++- M13用户正式目标为macOS26 Tahoe/x86_64；静态基线26.5，配置见config/m13-target.json。
++- 当前构建显式选择已有SDK26.5，拒绝默认SDK27和旧15导出参考；历史复现须标记legacy。
++- 不改M6–M12原报告；仍不下载SDK/KDK，不执行内核/设备/GPU代码，发布仍需独立确认。
++
+ - 写入仅限用户在当前会话明确授权的项目目录；检查父目录真实路径、链接和硬链接。
+ - 不改系统、全局 PATH/Git 配置、EFI/BIOS/分区、安全策略。
+ - 不读取 GPU ROM/BAR/MMIO，不执行 DMA/固件上传/图形/计算/显示配置变更。
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8919052..4972b58 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,4 +1,15 @@
+ cmake_minimum_required(VERSION 3.16)
++option(NAVI44_MACOS26_TARGET "Use the current Tahoe CPU build profile (OFF only for legacy reference)" ON)
++if(CMAKE_HOST_APPLE AND NAVI44_MACOS26_TARGET)
++  if(NOT IS_DIRECTORY "${CMAKE_OSX_SYSROOT}")
++    message(FATAL_ERROR "M13 requires an explicit existing SDK26.5 via CMAKE_OSX_SYSROOT; no auto selection/install")
++  endif()
++  file(READ "${CMAKE_OSX_SYSROOT}/SDKSettings.json" NAVI44_SDK_SETTINGS)
++  if(NOT NAVI44_SDK_SETTINGS MATCHES "\"Version\"[ \t\r\n]*:[ \t\r\n]*\"26\\.5\"")
++    message(FATAL_ERROR "M13 requires genuine SDK26.5; SDK27 is a separate negative/legacy reference")
++  endif()
++  set(CMAKE_OSX_DEPLOYMENT_TARGET "26.5" CACHE STRING "M13 static target" FORCE)
++endif()
+ project(Navi44Offline LANGUAGES CXX)
+ # No install, fetching, IOKit, device.cpp, plugin.cpp, GPU API or hardware backend.
+ set(DIR "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/src")
+@@ -59,12 +70,24 @@ else()
+   target_compile_options(navi44_m12_lifetime PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+ endif()
+ add_test(NAME m12_lifetime_cpu_only COMMAND navi44_m12_lifetime)
++set(M13_SOURCES "${CORE}/displayid.cpp" "${CORE}/driver_model.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/platform/resource_model.cpp")
++add_executable(navi44_m13_models tests/unit/m13_models.cpp ${CORE_SOURCES} ${M8_SOURCES} ${LIFETIME_SOURCES} ${M13_SOURCES})
++target_compile_features(navi44_m13_models PRIVATE cxx_std_17)
++target_link_libraries(navi44_m13_models PRIVATE Threads::Threads)
++if(MSVC)
++  target_compile_options(navi44_m13_models PRIVATE /W4 /UNDEBUG)
++  set_source_files_properties(${M13_SOURCES} PROPERTIES COMPILE_OPTIONS "/GR-;/EHs-c-")
++else()
++  target_compile_options(navi44_m13_models PRIVATE -Wall -Wextra -Werror -UNDEBUG)
++  set_source_files_properties(${M13_SOURCES} PROPERTIES COMPILE_OPTIONS "-fno-exceptions;-fno-rtti;-ffreestanding;-Wframe-larger-than=4096")
++endif()
++add_test(NAME m13_models_cpu_only COMMAND navi44_m13_models)
+ add_executable(navi44_m10_regression_proof tests/unit/m10_regression_proof.cpp)
+ target_include_directories(navi44_m10_regression_proof PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/development/AMDRadeonRDNA4-Navi44/platform")
+ target_compile_features(navi44_m10_regression_proof PRIVATE cxx_std_17)
+ add_test(NAME m10_regression_proof_cpu_only COMMAND navi44_m10_regression_proof)
+ set_tests_properties(cpu_only m7_cpu_only m8_cpu_only m8_bounded_mutation
+-  m10_lifetime_cpu_only m11_lifetime_cpu_only m12_lifetime_cpu_only m10_regression_proof_cpu_only PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
++  m10_lifetime_cpu_only m11_lifetime_cpu_only m12_lifetime_cpu_only m13_models_cpu_only m10_regression_proof_cpu_only PROPERTIES TIMEOUT 30 RUN_SERIAL TRUE)
+ # Only Core translation units use these flags; Host probe retains its STL/exception API.
+ if(MSVC)
+   set_source_files_properties(${CORE_SOURCES} ${M8_SOURCES} ${LIFETIME_SOURCES} PROPERTIES COMPILE_OPTIONS "/GR-;/EHs-c-")
+diff --git a/NOTICE b/NOTICE
+index 5ae0884..bf31082 100644
+--- a/NOTICE
++++ b/NOTICE
+@@ -26,3 +26,10 @@ Upstream emulator sources and hardware capture logs are omitted.
+ Full third-party reference clones are omitted; fixed sources and licenses
+ are listed in UPSTREAM_SOURCES.md. No claim is made that every upstream
+ project uses the root license.
++
++M13 DisplayID container metadata was independently implemented using the
++published format/validation references in Linux commit
++24a19b953e2a3d0ea5a8c4951a0ab8f32720c907, drivers/gpu/drm/
++drm_displayid.c and drm_displayid_internal.h (MIT). Their notices are retained
++in licenses/DisplayID-reference-MIT.txt. No Linux headers or implementation are
++compiled into this project; raw reference text is local and ignored.
+diff --git a/README.md b/README.md
+index 27dc7db..824ca54 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,10 @@
+ # Hackintosh-Navi44-Lab
+ 
+ RX 9060 XT / Navi44 / gfx1200 的 **CPU-only** 驱动研发项目。
++**M13正式研发目标：macOS26 Tahoe / Intel x86_64**。当前静态构建基线为26.5，
++使用已有CLT SDK26.5（25F70）和XNU12377.121.6源码参考；不是最终安装版本选择。
++目标内核二进制ABI、Kext加载与真实GPU仍未验证。[M13报告](reports/m13/development-report.md)。
++下述M11/M12的macOS15内容仅为保留的legacy reference，不是当前研发目标。
+ M8 已完成 Windows 离线解析与数据模型验证；M8.5 已完成 GitHub 迁移。
+ M9 已在真实 macOS / Apple Clang 上完成 arm64 CPU 测试、x86_64 Mach-O
+ 及真实 Kernel.framework 头文件的 Native 独立对象编译。
+diff --git a/config/m13-target.json b/config/m13-target.json
+new file mode 100644
+index 0000000..c188db6
+--- /dev/null
++++ b/config/m13-target.json
+@@ -0,0 +1,17 @@
++{
++  "stage": "M13",
++  "system_family": "macOS 26 Tahoe",
++  "static_target": "26.5",
++  "deployment_target": "26.5",
++  "sdk_version": "26.5",
++  "architectures": ["x86_64", "arm64"],
++  "Darwin_family": "25",
++  "xnu_version": "12377.121.6",
++  "xnu_pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f",
++  "distribution_commit": "83390100289cedfe669c31a96c94326d31afa1ed",
++  "distribution_tag": "macos-265",
++  "kernel_headers": "System/Library/Frameworks/Kernel.framework/Headers",
++  "target_binary_verified": false,
++  "installation_version_selected": false,
++  "hardware_initialization_allowed": false
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/displayid.cpp b/development/AMDRadeonRDNA4-Navi44/core/displayid.cpp
+new file mode 100644
+index 0000000..3c4fd33
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/displayid.cpp
+@@ -0,0 +1,26 @@
++#include "displayid.hpp"
++namespace NaviDisplay {
++using namespace NaviCore;
++Result displayIdSection(View input,DisplayIdSection&out){
++    out={};if(!input.data||input.size!=128)return failure("displayid_extension_size",Error::Bounds);
++    const auto*d=input.data;const uintptr_t p=reinterpret_cast<uintptr_t>(d);
++    if(127>UINTPTR_MAX-p)return failure("displayid_address",Error::Bounds);
++    if(d[0]!=0x70)return failure("displayid_extension_tag",Error::Unsupported);
++    if(d[1]!=0x12&&d[1]!=0x13&&d[1]!=0x20)return failure("displayid_version",Error::Unsupported);
++    if(d[4])return failure("displayid_continuation",Error::Unsupported);
++    const size_t end=5+size_t(d[2]);if(end>=127)return failure("displayid_section_bounds",Error::Bounds);
++    unsigned outer=0,inner=0;for(size_t i=0;i<128;++i)outer+=d[i];
++    for(size_t i=1;i<=end;++i)inner+=d[i];
++    if((outer&255)||(inner&255))return failure("displayid_checksum");
++    for(size_t i=end+1;i<127;++i)if(d[i])return failure("displayid_padding",Error::Unsupported);
++    DisplayIdSection result{};result.version=d[1];result.primaryUse=d[3];
++    if((d[1]==0x20&&d[3]>8)||(d[1]!=0x20&&d[3]>6))return failure("displayid_primary_use",Error::Unsupported);
++    for(size_t at=5;at<end;){
++        if(end-at<3||size_t(d[at+2])>end-at-3)return failure("displayid_block_bounds",Error::Bounds,at);
++        if(result.count==32)return failure("displayid_block_budget",Error::Budget,at);
++        result.blocks[result.count++]={d[at],d[at+1],d[at+2],static_cast<uint16_t>(at)};
++        at+=3+size_t(d[at+2]);
++    }
++    out=result;return success();
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/displayid.hpp b/development/AMDRadeonRDNA4-Navi44/core/displayid.hpp
+new file mode 100644
+index 0000000..c622487
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/displayid.hpp
+@@ -0,0 +1,17 @@
++// Bounded DisplayID container metadata, not timing/scanout support. BSD-3-Clause.
++// Format reference: Linux 24a19b953e2a3d0ea5a8c4951a0ab8f32720c907,
++// drivers/gpu/drm/drm_displayid.c and drm_displayid_internal.h (MIT).
++#ifndef Navi44DisplayId_hpp
++#define Navi44DisplayId_hpp
++#include "validation.hpp"
++namespace NaviDisplay {
++struct DisplayIdBlock {uint8_t tag{0},revision{0},bytes{0};uint16_t offset{0};};
++struct DisplayIdSection {
++    uint8_t version{0},primaryUse{0};size_t count{0};DisplayIdBlock blocks[32]{};
++    bool timingDecoded{false},hardwareVerified{false},outputAllowed{false};
++};
++// One EDID extension, both checksum layers required; continuation unsupported.
++// Opaque block inventory only. Success is structural validity, not semantics.
++NaviCore::Result displayIdSection(NaviCore::View,DisplayIdSection&);
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/driver_model.cpp b/development/AMDRadeonRDNA4-Navi44/core/driver_model.cpp
+new file mode 100644
+index 0000000..447a4ee
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/driver_model.cpp
+@@ -0,0 +1,24 @@
++#include "driver_model.hpp"
++namespace NaviModel {
++using namespace NaviCore;
++Result planDevice(const QueryCandidate&query,DevicePlan&out){
++    out={};uint8_t wire[QueryCandidateSize]{};Result r=encodeQuery(query,wire,sizeof(wire));if(!r.ok())return r;
++    QueryCandidate canonical{};r=decodeQuery({wire,sizeof(wire)},canonical);if(!r.ok())return r;
++    if(canonical.device.profile.family!=Asic::Family::Navi44||canonical.device.profile.target!=Asic::Target::Gfx1200)
++        return failure("driver_model_requires_navi44",Error::Unsupported);
++    out.target=canonical.device.profile.target;out.generation=canonical.generation;out.metadataPresent=canonical.device.present;
++    out.backend=Readiness::Unverified;
++    return success(); // Candidate metadata accepted; no runtime readiness or capability.
++}
++Result planDisplay(const NaviDisplay::Mode&m,const NaviDisplay::Connector&connector,const NaviDisplay::LinkBudget&link,
++    const NaviDisplay::EngineBudget&engine,uint8_t bpp,DisplayPlan&out){
++    out={};if(connector.hardwareVerified||connector.routingKnown)return failure("routing_evidence_not_available",Error::Unsupported);
++    if(connector.type==AtomBios::ConnectorUnknown)return failure("connector_unknown",Error::Missing);
++    if(connector.type!=AtomBios::ConnectorDP&&connector.type!=AtomBios::ConnectorHDMIA)return failure("connector_model_unsupported",Error::Unsupported);
++    if((connector.type==AtomBios::ConnectorDP&&link.kind!=NaviDisplay::LinkKind::Unknown&&link.kind!=NaviDisplay::LinkKind::Dp8b10b)||
++       (connector.type==AtomBios::ConnectorHDMIA&&link.kind!=NaviDisplay::LinkKind::Unknown&&link.kind!=NaviDisplay::LinkKind::Tmds))
++        return failure("connector_link_mismatch",Error::Mismatch);
++    DisplayPlan result{};Result r=NaviDisplay::assess(m,link,engine,bpp,result.arithmetic);if(!r.ok())return r;
++    result.routing=Readiness::Unverified;out=result;return success();
++}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/core/driver_model.hpp b/development/AMDRadeonRDNA4-Navi44/core/driver_model.hpp
+new file mode 100644
+index 0000000..9639c8d
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/core/driver_model.hpp
+@@ -0,0 +1,20 @@
++// Navi44 static integration preflight; BSD-3-Clause. No GPU backend.
++#ifndef Navi44DriverModel_hpp
++#define Navi44DriverModel_hpp
++#include "query_candidate.hpp"
++#include "display.hpp"
++namespace NaviModel {
++enum class Readiness:uint8_t { Missing,Unverified,Unsupported };
++struct DevicePlan {
++    Asic::Target target{Asic::Target::Unknown};uint64_t generation{0};uint32_t metadataPresent{0};
++    Readiness backend{Readiness::Missing};bool hardwareAllowed{false},displayAllowed{false},shaderAllowed{false};
++};
++NaviCore::Result planDevice(const NaviCore::QueryCandidate&,DevicePlan&);
++struct DisplayPlan {
++    NaviDisplay::Decision arithmetic{};Readiness routing{Readiness::Missing};
++    bool trainingAllowed{false},scanoutAllowed{false};
++};
++NaviCore::Result planDisplay(const NaviDisplay::Mode&,const NaviDisplay::Connector&,
++    const NaviDisplay::LinkBudget&,const NaviDisplay::EngineBudget&,uint8_t,DisplayPlan&);
++}
++#endif
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp
+index 68f46d1..46719f4 100644
+--- a/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp
++++ b/development/AMDRadeonRDNA4-Navi44/platform/lifecycle.cpp
+@@ -3,6 +3,10 @@ namespace NaviPlatform {
+ using namespace NaviCore;
+ namespace { Result context(){return failure("lifetime_context_or_reentry",Error::Protocol);} }
+ Result ScopedInput::length(size_t&out)const{
++    // Like copy(), metadata outputs must never modify the immutable input.
++    const uintptr_t address=reinterpret_cast<uintptr_t>(&out),source=reinterpret_cast<uintptr_t>(view_.data);
++    if(sizeof(out)-1>UINTPTR_MAX-address||(view_.size&&address<=source+view_.size-1&&source<=address+sizeof(out)-1))
++        return failure("scoped_length_alias",Error::Bounds);
+     out=0;if(!owner_.held()||!owner_.operation_||owner_.state_!=OwnerState::Active)return context();
+     out=view_.size;return success();
+ }
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/resource_model.cpp b/development/AMDRadeonRDNA4-Navi44/platform/resource_model.cpp
+new file mode 100644
+index 0000000..4a71054
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/resource_model.cpp
+@@ -0,0 +1,57 @@
++#include "resource_model.hpp"
++namespace NaviModel {
++using namespace NaviCore;
++bool ResourceModel::held()const{return access_.isHeld&&access_.execution.enter&&access_.execution.leave&&access_.isHeld(access_.execution.context);}
++bool ResourceModel::valid(const ModelHandle&h)const{return h.owner==this&&h.generation&&h.slot<8&&entries_[h.slot].generation==h.generation;}
++Result ResourceModel::reserve(uint64_t base,uint64_t bytes,ModelHandle&out){
++    if(out.owner||out.generation)return failure("model_handle_occupied",Error::Protocol);
++    out={};if(!held()||stopped_)return failure("model_closed_or_context",Error::Protocol);
++    if(!bytes_||bytes_-1>UINT64_MAX-base_||!bytes||base%4096||bytes%4096||base<base_||base-base_>bytes_||bytes>bytes_-(base-base_))return failure("model_address_bounds",Error::Bounds);
++    if(used_>budget_||bytes>budget_-used_)return failure("model_budget",Error::Budget);
++    size_t slot=8;
++    for(size_t i=0;i<8;++i){const auto&e=entries_[i];if(!e.generation){if(slot==8)slot=i;continue;}
++        if(base<=e.base+e.bytes-1&&e.base<=base+bytes-1)return failure("model_overlap",Error::Bounds);}
++    if(slot==8)return failure("model_slots",Error::Budget);
++    uint64_t generation=0;Result r=clock_.issue(generation);if(!r.ok())return r;
++    entries_[slot]={generation,base,bytes,0,0,FenceState::Idle,false};used_+=bytes;out={this,generation,slot};return success();
++}
++Result ResourceModel::queueModel(const ModelHandle&h,uint64_t now,uint64_t deadline,ModelFence&out){
++    if(out.serial||out.buffer.owner||out.buffer.generation)return failure("model_fence_occupied",Error::Protocol);
++    out={};if(!held()||stopped_||!valid(h))return failure("model_queue_context_or_handle",Error::Protocol);
++    auto&e=entries_[h.slot];if(e.revoked||e.fence==FenceState::Pending||e.fence==FenceState::TimedOut||deadline<=now)return failure("model_fence_state",Error::Protocol);
++    uint64_t serial=0;Result r=clock_.issue(serial);if(!r.ok())return r;
++    e.serial=serial;e.deadline=deadline;e.fence=FenceState::Pending;out={h,serial};return success();
++}
++Result ResourceModel::completeModel(const ModelFence&f){
++    if(!held()||!valid(f.buffer)||!f.serial)return failure("model_fence_invalid",Error::Protocol);
++    auto&e=entries_[f.buffer.slot];if(e.revoked||e.serial!=f.serial||e.fence!=FenceState::Pending)return failure("model_fence_stale",Error::Protocol);
++    e.fence=FenceState::Completed;return success();
++}
++Result ResourceModel::expireModel(uint64_t now){
++    if(!held())return failure("model_context",Error::Protocol);
++    for(auto&e:entries_)if(e.generation&&e.fence==FenceState::Pending&&now>=e.deadline){e.fence=FenceState::TimedOut;e.revoked=true;}
++    return success();
++}
++Result ResourceModel::acknowledgeCancellationModel(const ModelFence&f){
++    if(!held()||!valid(f.buffer)||!f.serial)return failure("model_cancel_invalid",Error::Protocol);
++    auto&e=entries_[f.buffer.slot];
++    if(!e.revoked||e.serial!=f.serial||(e.fence!=FenceState::Pending&&e.fence!=FenceState::TimedOut))return failure("model_cancel_state",Error::Protocol);
++    e.fence=FenceState::Revoked;return success(); // CPU simulation acknowledgement, never hardware quiescence.
++}
++Result ResourceModel::inspect(const ModelHandle&h,ResourceInfo&out)const{
++    out={};if(!held()||!valid(h))return failure("model_handle_invalid",Error::Protocol);
++    const auto&e=entries_[h.slot];out={e.base,e.bytes,e.fence,e.revoked};return success();
++}
++Result ResourceModel::release(ModelHandle&h){
++    if(!held()||!valid(h))return failure("model_release_invalid",Error::Protocol);
++    auto&e=entries_[h.slot];if(e.fence==FenceState::Pending||e.fence==FenceState::TimedOut)return failure("model_pending_fence",Error::Protocol);
++    used_-=e.bytes;e={};h={};return success();
++}
++Result ResourceModel::stop(){
++    if(!held())return failure("model_context",Error::Protocol);stopped_=true;
++    for(auto&e:entries_)if(e.generation)e.revoked=true;
++    return success();
++}
++Result ResourceModel::resetModel(){return stop();} // metadata revocation only; never a GPU reset
++bool ResourceModel::readyToFree()const{return held()&&stopped_&&!used_;}
++}
+diff --git a/development/AMDRadeonRDNA4-Navi44/platform/resource_model.hpp b/development/AMDRadeonRDNA4-Navi44/platform/resource_model.hpp
+new file mode 100644
+index 0000000..48b434b
+--- /dev/null
++++ b/development/AMDRadeonRDNA4-Navi44/platform/resource_model.hpp
+@@ -0,0 +1,31 @@
++// CPU-only address/fence ledger. No VRAM allocation, GPU VA mapping or submit.
++// BSD-3-Clause. Caller holds the same gate and long-lived GenerationClock.
++#ifndef Navi44ResourceModel_hpp
++#define Navi44ResourceModel_hpp
++#include "shutdown.hpp"
++namespace NaviModel {
++class ResourceModel;
++struct ModelHandle {const ResourceModel*owner{nullptr};uint64_t generation{0};size_t slot{0};};
++struct ModelFence {ModelHandle buffer{};uint64_t serial{0};};
++enum class FenceState:uint8_t { Idle,Pending,Completed,TimedOut,Revoked };
++struct ResourceInfo {uint64_t base{0},bytes{0};FenceState fence{FenceState::Idle};bool revoked{false};};
++class ResourceModel {
++    NaviPlatform::AccessOps access_;NaviPlatform::GenerationClock&clock_;uint64_t base_,bytes_,budget_,used_{0};bool stopped_{false};
++    struct Entry {uint64_t generation{0},base{0},bytes{0},serial{0},deadline{0};FenceState fence{FenceState::Idle};bool revoked{false};} entries_[8]{};
++    bool held()const;bool valid(const ModelHandle&)const;
++public:
++    // 4096 is a CPU simulation page unit, not a discovered GPU page size.
++    ResourceModel(NaviPlatform::AccessOps a,NaviPlatform::GenerationClock&c,uint64_t base,uint64_t bytes,uint64_t budget):access_(a),clock_(c),base_(base),bytes_(bytes),budget_(budget){}
++    ResourceModel(const ResourceModel&)=delete;ResourceModel&operator=(const ResourceModel&)=delete;
++    NaviCore::Result reserve(uint64_t,uint64_t,ModelHandle&);
++    NaviCore::Result queueModel(const ModelHandle&,uint64_t now,uint64_t deadline,ModelFence&);
++    NaviCore::Result completeModel(const ModelFence&);
++    NaviCore::Result acknowledgeCancellationModel(const ModelFence&);
++    NaviCore::Result expireModel(uint64_t now);
++    NaviCore::Result inspect(const ModelHandle&,ResourceInfo&)const;
++    NaviCore::Result release(ModelHandle&);
++    NaviCore::Result stop();NaviCore::Result resetModel();
++    bool readyToFree()const;bool hardwareSubmissionAllowed()const{return false;}
++};
++}
++#endif
+diff --git a/docs/m13/gpu-memory-model.md b/docs/m13/gpu-memory-model.md
+new file mode 100644
+index 0000000..95948c9
+--- /dev/null
++++ b/docs/m13/gpu-memory-model.md
+@@ -0,0 +1,20 @@
++# CPU 地址、Fence 与撤销模型
++
++ResourceModel只保存整数地址区间/预算/状态，不分配内存、不映射VRAM/BAR、
++不调用GPU或内核API。4096是CPU模拟页单位，不是推断的GPU页大小。
++固定8个条目，必须持既有AccessOps gate，GenerationClock长期单调发行id。
++ModelHandle含实例身份/slot/generation，ModelFence另含serial，均不是安全凭据。
++
++reserve检查对齐、整数回绕、窗口、预算、区间重叠、容量、输出句柄占用；失败不
++丢弃现有句柄。queueModel仅推进模拟Pending，completeModel不接受旧serial或跨owner。
++deadline是调用者提供的逻辑tick，不使用真实GPU计时器。
++
++Pending→Completed；超时→TimedOut+Revoked。Stop/ResetModel拒绝新请求并撤销，
++但不会把Pending/TimedOut当作已停止执行。必须显式acknowledgeCancellationModel
++后才能release；这只是CPU模型确认，未来真实Backend必须提供独立硬件quiescence
++证据。模型自身永不授权hardwareSubmission。
++
++释放清空条目，地址重用取得新generation；重复释放、过期fence、跨owner均拒绝。
++Stopped不可重新激活，重建对象须保持同一长期GenerationClock，避免ABA。
++模型没有生产级task权限、真实GPU页表、VRAM预算、DMA缓存一致性、IRQ或GPU reset。
++SnapshotOwner仍负责真实数据借用；没有将普通Host内存冒充IOKit对象。
+diff --git a/docs/m13/ioservice-abi26.md b/docs/m13/ioservice-abi26.md
+new file mode 100644
+index 0000000..5cd4785
+--- /dev/null
++++ b/docs/m13/ioservice-abi26.md
+@@ -0,0 +1,22 @@
++# IOService ABI26
++
++真实SDK26.5独立layout探针测量两架构：OSObject16、OSMetaClass40、
++IORegistryEntry40、IOService136字节；各align8。继承链仍为
++OSMetaClassBase→OSObject→IORegistryEntry→IOService。
++探针不可实例化，不注册metaclass，排除生产链接allowlist。
++
++实际vtable dump的free index20、init(OSDictionary*)75、will/didTerminate130/131、
++start/stop186/187、open/close188/189、terminate194；偏移从ZTV符号起算，
++不等于直接从对象vptr起算。未把测量偏移硬编码到驱动。
++
++固定26.5源码与SDK26.5的IOService/RegistryEntry/OSObject/OSMetaClass词法virtual
++声明序列分别108/72/10/37且相同；文本/宏投影差异仍有记录。
++M12的SDK27三类尺寸可作历史对照，macOS15原二进制布局仍未知。
++源码文字、同尺寸和符号名都不能证明目标内核vtable/构造析构ABI。
++
++既有真实Native init/stop/free/retain/release/锁探针已用SDK26.5重编译。
++没有OSDefineMetaClass、registerService、真实provider、PCI匹配或内核方法运行。
++生产Publisher必须持Owner/锁的实际引用，停止回调来源、drain waiter和Ticket，
++才允许最后release/free；Host mutex不能证明这个内核流程正确。
++本轮修复ScopedInput::length在检查前写入输入别名，旧M12代码实际被新断言检出。
++Gate/NativeOwner的真实运行与waiter drain仍KERNEL_RUNTIME_UNVERIFIED。
+diff --git a/docs/m13/kernel-abi26.md b/docs/m13/kernel-abi26.md
+new file mode 100644
+index 0000000..4f814d5
+--- /dev/null
++++ b/docs/m13/kernel-abi26.md
+@@ -0,0 +1,24 @@
++# Kernel ABI26 与独立拒绝
++
++当前SDK26.5实际对象仍有x86_64 13、arm64 12个预期导入；内部依赖全部解析。
++包括allocator/log、IORecursiveLock三函数、OSData/Buffer工厂、IOService vtable、
++memcpy、ml上下文函数以及x86的实际___bzero。完整拼写、调用源、参数宽度和
++架构对应源码export项见kpi-details.json/symbol-audit.json。
++
++| 证据 | 状态 |
++|---|---|
++| SOURCE_DECLARED | 已读取IOLib、OSData、Buffer、锁、machine routines及类头；未取得的直接声明单列UNVERIFIED |
++| SDK_DECLARED | 真正26.5头及static_assert；编译器生成的___bzero不假称同名普通声明 |
++| REFERENCE_EXPORTED | 26.5 common + 相应架构IOKit/Libkern导出表核对PASS |
++| TARGET_BINARY_VERIFIED / TARGET_ABI_VERIFIED | UNVERIFIED；KDK/目标二进制未取得 |
++| 正常UNKNOWN/UNSUPPORTED/Host/EH/RTTI导入 | 0 |
++
++原M12对象审计器继续作为独立格式/符号层，M13新增版本、依赖路径、Source SHA及
++类型边界。19类负样本均REJECTED：原10类加SDK27选择/头/对象、旧部署目标、
++旧参考pin、参考内容变异、错误格式、实际API类型不匹配、禁止初始化路径。
++实际类型错误使用真实IOLog声明配错误static_assert，编译器真实exit1；不伪造API。
++puts隔离负Kext仍可被ld接受exit0，独立策略拒绝；没有放宽undefined规则获取PASS。
++
++22对象/架构、ld-r、x86 MH_KEXT_BUNDLE构造PASS不等于TARGET_ABI_CLOSURE。
++最终文件保留内核导入且无LC_BUILD_VERSION；输入对象minos26.5/sdk26.5只证明
++标签与配置一致。Bundle/Sign/Install/Load及Kernel/GPU Runtime均NOT RUN。
+diff --git a/docs/m13/m14-readiness.md b/docs/m13/m14-readiness.md
+new file mode 100644
+index 0000000..75fa3d0
+--- /dev/null
++++ b/docs/m13/m14-readiness.md
+@@ -0,0 +1,18 @@
++# M14 的具体入口
++
++已解决本轮SDK目标不匹配：真实SDK26.5、两架构22对象、独立导入/目标版本策略、
++部分链接和x86静态Kext文件构造均有证据。仍没有目标内核二进制/KDK，
++TARGET_ABI_CLOSURE=BLOCKED、LOADABLE_KEXT=UNVERIFIED。
++
++最有价值的纯CPU后续：固定实际目标build后对合法KDK做x86符号/类布局比对；
++完善Publisher引用/回调取消/锁waiter drain；继续有依据的DisplayID时序块解析；
++将Scope消费者接入数据解析；扩展BO/VM/fence纯模型和跨task wire协议。
++
++获取KDK须先核实官方版本/build、文件名、大小、SHA、许可和项目内离线处理方式，
++再独立批准；不能安装pkg或使用目标之外内核来证明兼容。
++当前26.5是静态基线，不预先决定未来安装26.5还是更新的26.x。
++
++实际Navi44显示还缺数据来源、DCN/DMUB/PHY/固件/时钟、内存/IRQ/队列及OS图形栈。
++GPU读取、Windows/SSD/EFI、Kext运行、训练/scanout/reset都需新的独立授权和恢复计划。
++唯一显卡且无核显的黑屏风险尚不可接受，本轮不探索这些操作。
++M13结束后停止，不自动开始M14。
+diff --git a/docs/m13/macos26-target.md b/docs/m13/macos26-target.md
+new file mode 100644
+index 0000000..a9b4270
+--- /dev/null
++++ b/docs/m13/macos26-target.md
+@@ -0,0 +1,16 @@
++# M13 正式目标
++
++正式研发目标为macOS26 Tahoe / Intel x86_64 / Navi44 gfx1200 / PCI1002:7590。
++静态构建固定26.5；最终安装版本未选择。开发Host仍为arm64 macOS27.0.1。
++配置唯一入口config/m13-target.json；README/AGENTS/CMake及新runner已迁移。
++M6–M12原始报告不修改；SDK27/minos15仅用于明确标记的legacy基线或隔离负样本。
++
++Apple `macos-265`分发commit `83390100289cedfe669c31a96c94326d31afa1ed` 的xnu gitlink
++为 `ac9718fb1af618d5ce8678d0dc6e8a58f252216f`，提交名xnu-12377.121.6。
++26.0的xnu-12377.1.9已重新核对，不能套用于26.5。
++[固定分发树](https://github.com/apple-oss-distributions/distribution-macOS/tree/83390100289cedfe669c31a96c94326d31afa1ed)
++与[固定XNU](https://github.com/apple-oss-distributions/xnu/tree/ac9718fb1af618d5ce8678d0dc6e8a58f252216f)。
++
++Apple [Tahoe兼容列表](https://support.apple.com/en-us/122867)包含部分Intel Mac，
++不认证i5-12600KF/B760M PC。无核显、唯一显卡的恢复要求属于未来独立硬件授权条件。
++本轮不接触Windows、第二SSD、引导或GPU。
+diff --git a/docs/m13/navi44-display-path.md b/docs/m13/navi44-display-path.md
+new file mode 100644
+index 0000000..c2386df
+--- /dev/null
++++ b/docs/m13/navi44-display-path.md
+@@ -0,0 +1,20 @@
++# 显示路径：容器校验和理论预算
++
++新增displayid.hpp/.cpp依据固定Linux24a19b953e2a3d0ea5a8c4951a0ab8f32720c907
++的MIT DisplayID验证/格式参考独立实现，不编译Linux头。版权/许可见NOTICE及
++licenses/DisplayID-reference-MIT.txt，原始参考留local，公开只记录pin/hash。
++
++范围仅单个128B EDID DisplayID扩展：0x70、1.2/1.3/2.0结构版本、双checksum、
++payload/block边界、primaryUse范围、零padding及固定32块容量。continuation拒绝。
++结果是opaque块目录，不解释Type I/VII/动态时序/DSC/VRR，不自动接入既有EDID
++模式集合。结构PASS不表示完整DisplayID语义受支持，所有timing/output标记保持false。
++
++DisplayPlan复用现有timing/assess，拒绝未知/未建模connector、链路种类不匹配、
++伪造routingKnown/hardwareVerified及未知pixel编码。缺链路参数保持Unknown。
++合成2560×1440@180、hTotal2720/vTotal1480理论pixel clock724608kHz；
++24bpp需要17.390592Gbit/s，合成DP HBR3×4 payload25.92Gbit/s预算可容纳。
++这不是EDID实测、Navi44 DCN能力、PHY训练或画面输出证据。
++
++真实显示仍缺可信connector/EDID/DisplayID数据、GOP状态、DCN/DMUB/PLL/PHY/
++AUX/HPD、固件协议、Framebuffer与macOS图形接口。无核显后备条件不能忽略。
++Link Training、DSC、VRR、scanout、Metal和1440p180实际输出均NOT RUN。
+diff --git a/docs/m13/navi44-driver-architecture.md b/docs/m13/navi44-driver-architecture.md
+new file mode 100644
+index 0000000..49ff008
+--- /dev/null
++++ b/docs/m13/navi44-driver-architecture.md
+@@ -0,0 +1,29 @@
++# Navi44 CPU 接口与成熟度矩阵
++
++```mermaid
++flowchart TD
++  A[ASIC Identification] --> B[Discovery/Firmware/ELF validation]
++  B --> C[N44I/N44Q canonical candidate]
++  C --> D[DevicePlan: Unverified]
++  D --> E[DisplayPlan and opaque DisplayID inventory]
++  D --> F[CPU address/fence ledger]
++  E --> G[ScopedInput / NativeOwner / Shutdown]
++  F --> G
++  G --> H[Future backend: unavailable, capabilities false]
++```
++
++| 模块 | 当前分类 |
++|---|---|
++| ASIC、Discovery、Firmware/ELF、EDID/CTA/AtomBIOS、N44I/N44Q | IMPLEMENTED_CPU_ONLY；对应纯对象COMPILED_DARWIN |
++| DisplayID | IMPLEMENTED_CPU_ONLY容器校验/块目录；timing语义UNSUPPORTED |
++| DevicePlan/DisplayPlan | IMPLEMENTED_CPU_ONLY；严格调用既有wire codec/assess，无Ready或硬件授权路径 |
++| ResourceModel | IMPLEMENTED_CPU_ONLY；无真实VRAM/VM/Queue/Fence |
++| ScopedInput/Owner/Shutdown | HOST_MODEL_VERIFIED；NATIVE_OBJECT_COMPILED；KERNEL_RUNTIME_UNVERIFIED |
++| 上游device/plugin/PSP/VM/ring、Cobalt/RADV | STATIC_REFERENCE_ONLY，本轮不加入硬件构建 |
++| 实际拓扑/firmware/连接器/GB_ADDR_CONFIG | REQUIRES_REAL_NAVI44_DATA |
++| PCI/MMIO/DMA/scanout/训练/reset/IRQ | REQUIRES_HARDWARE，当前NOT RUN |
++| Metal/WindowServer/真实加速 | UNSUPPORTED/UNKNOWN，当前NOT RUN |
++
++planDevice先经过N44Q编码/解码规范化，拒绝Navi48及伪造能力；成功仅接受候选元数据。
++planDisplay复用现有时序和预算，不把预算WithinBudget提升为scanout/training授权。
++硬件门禁恒false；没有真实Backend、I/O句柄、PCI匹配或安装入口。
+diff --git a/docs/m13/navi44-vs-navi48.md b/docs/m13/navi44-vs-navi48.md
+new file mode 100644
+index 0000000..a769d82
+--- /dev/null
++++ b/docs/m13/navi44-vs-navi48.md
+@@ -0,0 +1,23 @@
++# Navi44 与 Navi48：静态事实和未知
++
++已有ASIC表区分7590/Navi44/gfx1200/预期GC12.0.0与7550/7551/Navi48/gfx1201/
++预期GC12.0.1。识别不是采样或初始化授权，revision/topology/capabilities仍未验证。
++[AMD GPU架构资料](https://rocm.docs.amd.com/en/latest/reference/gpu-arch-specs.html)
++可作为产品/ISA家族参考，不能证明当前板卡具体布线、固件或macOS支持。
++
++固定AMD衍生pin49f7f20c、Cobalt pin d6c9aedf、LLVM/Linux/Mesa参考和许可证保留。
++现有Navi48 DCN4.1/GOP pipe、GB_ADDR_CONFIG、ring/VM/PSP及canned gfx1201参数
++都只是STATIC_REFERENCE_ONLY。N44I96B/N44Q128B不等于N48N生产协议；AMD
++minor9与Cobalt minor12/QueryInfo192B不得按名字混用。
++
++| 主题 | 可以静态确认 | Navi44仍缺 |
++|---|---|---|
++| ISA/Code Object | 不同gfx目标需分别验证ELF标志 | 真实gfx1200程序及Shader/CP运行，改名字不证明可执行 |
++| IP Discovery | 有界解析器及拓扑模型 | 实卡IP实例、基址、revision、harvesting |
++| firmware/PSP/DMUB | 元数据与范围/格式检查 | 合法版本、签名/握手、时序与固件dialect |
++| 显示引擎 | EDID/CTA/connector与预算纯模型 | Navi44 DCN/PHY/时钟/HPD/AUX/连接器布线及训练 |
++| GPU Memory/VM | 本轮CPU地址/Fence账本 | 实际VRAM、BAR、页表格式/VMID/TLB/映射同步 |
++| Command Processor | 保留上游参考源码但不执行 | 队列协议、包格式边界、fence、IRQ、超时与reset恢复 |
++
++未知硬件字段保持UNKNOWN/REQUIRES_REAL_NAVI44_DATA，不填Navi48常量。
++真实硬件、Windows或唯一显示卡上的任何实验均需未来独立授权和恢复条件。
+diff --git a/docs/m13/sdk26-verification.md b/docs/m13/sdk26-verification.md
+new file mode 100644
+index 0000000..4fb45f5
+--- /dev/null
++++ b/docs/m13/sdk26-verification.md
+@@ -0,0 +1,22 @@
++# 真实 SDK26 选择与隔离
++
++已读取CLT `MacOSX26.5.sdk` 的SDKSettings/SystemVersion及真实Kernel.framework。
++Version26.5、SDK build25F70，IOLib/IOLocks/IOService/OSObject/OSData/
++IOBufferMemoryDescriptor/OSMetaClass/IORegistryEntry均存在。Xcode默认SDK仍27，
++所以新runner要求显式--sdk；不调用默认SDK来构建正常对象。
++
++m13_target.py拒绝版本/metadata不符、Kernel头越界、SDK27头、错误对象SDK/minos
++标签、旧XNU15参考或内容哈希变化。源码导出固定到单一26.5 commit。
++Compiler内建头来自已安装Clang资源目录，Host libc++来自已安装Apple工具链，
++分别记录类别；它们不伪装成SDK26或Native C++ runtime。
++
++每条正常Clang编译命令输出真实.d依赖，记录Source SHA、架构、isysroot、Kernel
++root、部署目标、选项、产物SHA。145组依赖集合、1223个唯一源码/头文件的hash
++见header-dependencies.json，完整关系表留ignored local。正常编译SDK混用发现0。
++隔离SDK27/旧部署目标负样本不计入该正常集合，legacy M12基线也独立保存。
++
++Native编译C++17、no exceptions/RTTI、mkernel/fapple-kext、nostdinc++、4KiB栈帧
++限制，x86禁red-zone；只编译明确22单元allowlist。Host测试主程序不受内核栈限制。
++所有TMP/cache在Lab；子命令有超时，串行编译，CPU线程有界。
++
++SDK声明及对象layout验证PASS；对应系统内核二进制、KDK和可加载性未验证。
+diff --git a/docs/m13/tahoe-xnu-version-matrix.md b/docs/m13/tahoe-xnu-version-matrix.md
+new file mode 100644
+index 0000000..7a139a1
+--- /dev/null
++++ b/docs/m13/tahoe-xnu-version-matrix.md
+@@ -0,0 +1,23 @@
++# Tahoe 多版本参考矩阵
++
++2026-10-16只读核对Apple官方资料与分发tag/gitlink；原始pin见version-matrix.json。
++
++| 系统版本 | 固定公开XNU | 本机SDK/头 | 目标二进制/KDK | 选择 |
++|---|---|---|---|---|
++| 26.0 | 12377.1.9 / f6217f891ac0bb64f3d375211650a4c1ff8ca1ea | 未发现26.0 | 未取得 | 历史对照，不拿26.5头冒充26.0 |
++| 26.4 | 12377.101.15 / 5c306bec31e314fa4d8bbdafb2f6f5a6b7e7b291 | 未发现26.4 | 未取得 | 源码对照 |
++| 26.5 | 12377.121.6 / ac9718fb1af618d5ce8678d0dc6e8a58f252216f | CLT26.5含Kernel.framework | 未取得 | 本轮静态基线 |
++| 26.5.1/26.5.2及26.6.x | Apple更新列表存在，具体XNU/build未核验 | 无独立对应SDK | 未取得 | 不假设ABI相同 |
++| 26.7.1 | Apple更新列表当前列出；本次查询的OSS macos-26前缀tag仅到265 | 未发现 | 未取得 | 不冒充已验证或最终安装目标 |
++
++[Apple更新列表](https://support.apple.com/en-us/122868)、
++[Apple SDK/Xcode对应表](https://developer.apple.com/xcode/system-requirements/)。
++Darwin25是目标系列；实际内核banner/build未取得，不把SDK25F70或XNU源码版本
++当成已经读到目标机器的Darwin版本。SDK26.5元数据25F70是SDK来源证据。
++Xcode27/Clang21配合SDK26.5的结果是实际编译证据，不是Apple对该组合的运行认证。
++
++若推进二进制核验：来源为[Apple More Downloads](https://developer.apple.com/download/more/)
++对应26.5且匹配准确build的KDK；适用Apple随包许可，用途只读KPI/符号/类布局。
++精确包名、下载大小、SHA及目标build尚未取得，不能虚构；系统安装不在计划内。
++需先形成包清单再独立批准下载，且只能在Lab中离线处理。已询问是否有现成合法材料，
++当前验证保持BLOCKED，不下载SDK/KDK、不执行pkg或安装器。
+diff --git a/licenses/DisplayID-reference-MIT.txt b/licenses/DisplayID-reference-MIT.txt
+new file mode 100644
+index 0000000..570ab12
+--- /dev/null
++++ b/licenses/DisplayID-reference-MIT.txt
+@@ -0,0 +1,23 @@
++DisplayID reference notices
++Copyright (c) 2014 Red Hat Inc.
++Copyright (c) 2021 Intel Corporation
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
++of the Software, and to permit persons to whom the Software is furnished to do
++so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in
++all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
++
++Sources: https://github.com/torvalds/linux/tree/24a19b953e2a3d0ea5a8c4951a0ab8f32720c907/drivers/gpu/drm
+diff --git a/m13_abi_reference.py b/m13_abi_reference.py
+new file mode 100644
+index 0000000..2fc8a55
+--- /dev/null
++++ b/m13_abi_reference.py
+@@ -0,0 +1,85 @@
++"""Offline source/header comparison; no target_binary layout inference or downloads.
++
++BSD-3-Clause. Run after run_m12_checks. Read-only Apple SDK, pinned reference
++JSONs, recorded genuine objects. The lexical comparison includes conditional
++source branches and is explicitly not a target ABI calculation.
++"""
++import argparse,hashlib,json,os,re,subprocess,sys
++from pathlib import Path
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++import m13_target as target
++PIN=target.PROFILE['xnu_pin']
++def main():
++    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--sdk',required=True);ap.add_argument('--reference',required=True);a=ap.parse_args()
++    sdk=Path(a.sdk);kernel=sdk/'System/Library/Frameworks/Kernel.framework/Headers'
++    tmp=safe.mkdir('tmp/m12/research');env=os.environ.copy();env.update(TMPDIR=str(tmp),TMP=str(tmp),TEMP=str(tmp))
++    sdkversion=json.loads((sdk/'SDKSettings.json').read_text())['Version']
++    native=json.loads(safe.checked('reports/m13/native-object-results.json').read_text())
++    refs=[]
++    for p in [a.reference]:
++        data=json.loads(safe.checked(p).read_text())
++        if data['pin']!=PIN:raise ValueError('Wrong pin')
++        target.reference(data);refs+=data['files']
++    def clean(t):return re.sub(r'//[^\n]*','',re.sub(r'/\*.*?\*/','',t,flags=re.S))
++    def virtuals(t):
++        return [' '.join(x.split()) for x in re.findall(r'\bvirtual\s+([^;{}]+?)(?:;|\{|=\s*0)',clean(t),re.S)]
++    comparisons=[]
++    for f in refs:
++        if f['path'].startswith('config/'):continue
++        text=f['text'];sha=hashlib.sha256(text.encode()).hexdigest()
++        if f.get('sha256',sha)!=sha:raise ValueError('Changed source reference')
++        rel=f['path'].replace('iokit/','',1).replace('libkern/libkern/','libkern/',1)
++        installed=kernel/rel
++        if not installed.is_file():raise ValueError('Current SDK header absent')
++        current=installed.read_text();old=virtuals(text);new=virtuals(current)
++        compiled_hash=hashlib.sha256(installed.read_bytes()).hexdigest()
++        key='SDK_ROOT/'+installed.relative_to(sdk).as_posix()
++        if any(item['header_sha256'].get(key,{}).get('sha256')!=compiled_hash for item in native.values()):raise ValueError('Reference SDK differs from actually compiled headers')
++        comparisons.append(dict(path=f['path'],target_source_sha256=sha,current_SDK_header=rel,current_header_sha256=hashlib.sha256(installed.read_bytes()).hexdigest(),
++            bytes_identical=text==current,lexical_virtuals_target=len(old),lexical_virtuals_current=len(new),
++            declarations_only_in_target=[s for s in old if s not in new],declarations_only_in_current=[s for s in new if s not in old],
++            declaration_order_equal=old==new,conditional_source_not_preprocessed=True,target_layout_verified=False))
++    audit_path=safe.checked('reports/m13/abi-audit.json');abi=json.loads(audit_path.read_text())
++    for arch,item in abi['current_SDK_layout'].items():
++        raw=safe.checked('reports/m13/local/checks/'+arch+'-layout-compile.log').read_text()
++        table=raw.split("Vtable for 'N44LayoutReference'",1)[1].split('\n\n',1)[0]
++        slots=[]
++        for index,decl in re.findall(r'^\s*(\d+) \| (.+)$',table,re.M):
++            if re.search(r'(IOService|N44LayoutReference)::(init\(|start\(|stop\(|free\(|open\(|close\(|willTerminate\(|didTerminate\(|terminate\()',decl):
++                slots.append(dict(table_index=int(index),offset_from_ZTV_symbol=int(index)*8,declaration=decl))
++        if len(slots)!=10:raise ValueError('Current SDK layout probe changed')
++        item['current_SDK_selected_vtable_entries']=slots
++        item['target_binary_entries']='UNVERIFIED; never inferred from source lexical counts'
++    abi.update(source_comparison=comparisons,source_scope='Conditional source is not SDK projection or a target binary',target_source_pin=PIN)
++    safe.write(audit_path,json.dumps(abi,indent=2))
++    symbols=json.loads(safe.checked('reports/m13/symbol-audit.json').read_text())
++    links=json.loads(safe.checked('reports/m13/link-results.json').read_text());rows=[]
++    # ABI descriptions match genuinely compiled current-SDK static_asserts.
++    specs={
++        '_IOMallocAligned':('IOKit/IOLib.h','void*(vm_size_t, vm_offset_t)','two 64-bit unsigned inputs; 64-bit pointer result','allocator; pair same size with IOFreeAligned'),
++        '_IOFreeAligned':('IOKit/IOLib.h','void(void*, vm_size_t)','pointer64 + size64','release only after all users drain'),
++        '_IOLog':('IOKit/IOLib.h','void(const char*, ...)','pointer64 + C varargs','no logging reentry while lifecycle gate held'),
++        '_memcpy':('string.h','void*(void*, const void*, size_t)','three 64-bit values; pointer result','compiler lowering; checked CPU ranges'),
++        '___bzero':('string.h (compiler builtin lowering)','x86 compiler-emitted __bzero','pointer64 + size64; void','exact compiler import is in source export list; target binary still needed'),
++        '__ZN6OSData9withBytesEPKvj':('libkern/c++/OSData.h','OSPtr<OSData>(const void*, unsigned int)','pointer64 + uint32; raw pointer64 in audited SDK mode','factory count1, owner retains, drop factory, release after drain'),
++        '__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb':('IOKit/IOBufferMemoryDescriptor.h','OSPtr<IOBufferMemoryDescriptor>(const void*, vm_size_t, IODirection, bool)','pointer64 + size64 + direction32 + bool; raw pointer64','CPU copy kIODirectionNone; never prepare/map/DMA'),
++        '__ZTV9IOService':('IOKit/IOService.h','C++ vtable data symbol','inherited Apple kernel C++ table; qualified superclass calls use SDK-defined slots','symbol spelling alone cannot validate vtable; class unregistered/uninstantiable'),
++        '_IORecursiveLockLock':('IOKit/IOLocks.h','void(IORecursiveLock*)','pointer64','borrowed lock lifetime must include waiters; sleepable context'),
++        '_IORecursiveLockUnlock':('IOKit/IOLocks.h','void(IORecursiveLock*)','pointer64','balanced current-thread unlock; ordinary context remains required'),
++        '_IORecursiveLockHaveLock':('IOKit/IOLocks.h','boolean_t(const IORecursiveLock*)','pointer64; boolean_t32','current thread ownership; reentry refusal'),
++        '_ml_at_interrupt_context':('i386/machine_routines.h or arm/machine_routines.h','boolean_t(void)','boolean_t32 result','deny interrupt entry; not a complete sleepability certificate'),
++        '_ml_get_interrupts_enabled':('i386/machine_routines.h or arm/machine_routines.h','boolean_t(void)','boolean_t32 result','deny disabled interrupts; cannot detect arbitrary caller spinlocks')}
++    for arch,link in links.items():
++        by_name={x['symbol']:x for x in symbols[arch]['per_symbol']}
++        for name in link['remaining']:
++            header,prototype,layout,risk=specs[name];row=by_name[name]
++            demangled=subprocess.run(['xcrun','c++filt',name[1:] if name.startswith('__Z') else name],cwd=safe.ROOT,env=env,capture_output=True,text=True,timeout=15,check=True).stdout.strip()
++            rows.append(dict(symbol=name,demangled=demangled,callers=row['users'],module='project CPU/native compile allowlist',header=header,prototype=prototype,parameter_layout=layout,
++                architecture=arch,compiled_SDK=sdkversion,target_SDK='26.5 declared; binary absent',calling_convention='Apple kernel C++ / C target ABI; current SDK only',
++                KPI_source_reference=row['reference'],source_reference_status='VERIFIED_EXPORT_REFERENCE',target_binary_status='UNVERIFIED',
++                version_compatibility='BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified',real_target_link_resolution='UNVERIFIED',risk=risk))
++    safe.write('reports/m13/kpi-details.json',json.dumps(dict(pin=PIN,imports=rows,evidence_levels=dict(A='public source',B='current SDK declaration / target source header reference',C='pinned architecture export list',D='UNVERIFIED target binary',E='NOT RUN load/runtime')),indent=2))
++    abi=json.loads(audit_path.read_text());abi['historical_SDK27_sizes']={arch:item['sizes'] for arch,item in json.loads(safe.checked('reports/m12/abi-audit.json').read_text())['current_SDK_layout'].items()};safe.write(audit_path,json.dumps(abi,indent=2))
++    print(json.dumps(dict(class_comparisons=len(comparisons),import_records=len(rows),target_ABI='BLOCKED')))
++if __name__=='__main__':main()
+diff --git a/m13_target.py b/m13_target.py
+new file mode 100644
+index 0000000..9345951
+--- /dev/null
++++ b/m13_target.py
+@@ -0,0 +1,41 @@
++"""M13 explicit SDK26/profile and dependency policy. BSD-3-Clause.
++
++Read installed SDK only. Metadata is SDK evidence, never target-kernel evidence.
++"""
++import hashlib,json,plistlib
++from pathlib import Path
++import m7_safety as safe
++PROFILE=json.loads(safe.checked('config/m13-target.json').read_text())
++def sdk_info(path):
++    root=Path(path).resolve(strict=True)
++    settings=json.loads((root/'SDKSettings.json').read_text())
++    if settings['Version']!=PROFILE['sdk_version']:raise ValueError('SDK_VERSION_MISMATCH')
++    system=plistlib.loads((root/'System/Library/CoreServices/SystemVersion.plist').read_bytes())
++    if system['ProductVersion']!=PROFILE['sdk_version']:raise ValueError('SDK_METADATA_MISMATCH')
++    kernel=root/PROFILE['kernel_headers'];headers=['IOKit/IOService.h','IOKit/IOLocks.h','IOKit/IOLib.h','IOKit/IOBufferMemoryDescriptor.h','libkern/c++/OSObject.h','libkern/c++/OSMetaClass.h','libkern/c++/OSData.h','IOKit/IORegistryEntry.h']
++    hashes={}
++    for rel in headers:
++        p=(kernel/rel).resolve(strict=True)
++        if not p.is_relative_to(root):raise ValueError('KERNEL_HEADER_ESCAPE')
++        hashes[rel]=hashlib.sha256(p.read_bytes()).hexdigest()
++    return dict(root=str(root),version=settings['Version'],SDK_build=system['ProductBuildVersion'],kernel=str(kernel),header_sha256=hashes,
++        Kernel_framework='PRESENT',target_binary_verified=False,settings_sha256=hashlib.sha256((root/'SDKSettings.json').read_bytes()).hexdigest())
++def dependency(path,sdk,resource,host=False,host_cpp=None):
++    p=Path(path).resolve(strict=True)
++    if p.is_relative_to(safe.ROOT.resolve()):return 'PROJECT'
++    if p.is_relative_to(Path(sdk).resolve()):return 'SDK26'
++    if p.is_relative_to(Path(resource).resolve()):return 'APPLE_COMPILER_BUILTIN'
++    if host and host_cpp and p.is_relative_to(Path(host_cpp).resolve()):return 'APPLE_HOST_STDLIB'
++    raise ValueError('UNAPPROVED_HEADER_OR_MIXED_SDK: '+str(p))
++def object_target(image):
++    wanted=tuple(int(v) for v in PROFILE['deployment_target'].split('.'))
++    minimum=(wanted[0]<<16)|(wanted[1]<<8)
++    sdk=(26<<16)|(5<<8)
++    if not image['versions'] or any(v['platform']!=1 or v['minimum']!=minimum or v['sdk']!=sdk for v in image['versions']):raise ValueError('OBJECT_TARGET_VERSION_MISMATCH')
++def reference(data):
++    if data['pin']!=PROFILE['xnu_pin']:raise ValueError('REFERENCE_VERSION_MISMATCH')
++    expected={f['path']:f['sha256'] for f in json.loads(safe.checked('reports/m13/reference-manifest.json').read_text())['files']}
++    if {f['path'] for f in data['files']}!=set(expected):raise ValueError('REFERENCE_FILESET_MISMATCH')
++    for f in data['files']:
++        actual=hashlib.sha256(f['text'].encode()).hexdigest()
++        if f.get('sha256')!=actual or actual!=expected[f['path']]:raise ValueError('REFERENCE_HASH_MISMATCH')
+diff --git a/run_m13_checks.py b/run_m13_checks.py
+new file mode 100644
+index 0000000..bb68d8e
+--- /dev/null
++++ b/run_m13_checks.py
+@@ -0,0 +1,309 @@
++"""Explicit M13 CPU, kernel object, policy and offline construction checks.
++
++BSD-3-Clause. Existing Apple tools only. No downloads, bundle, signing, installation,
++native execution, registration, device or GPU targets. SDK26.5 declarations are
++checked separately from source exports and missing target-kernel binary evidence.
++"""
++import argparse,hashlib,json,os,platform,re,resource,shlex,struct,subprocess,sys,time
++from pathlib import Path
++if sys.version_info<(3,11):raise SystemExit('Existing Python 3.11+ required')
++sys.path.insert(0,str(Path(__file__).resolve().parent))
++import m7_safety as safe
++import run_m11_checks as previous
++import m12_macho_audit as policy
++import m13_target as target
++P=previous.P
++MODELS=[P.parent/'core/displayid.cpp',P.parent/'core/driver_model.cpp',P/'resource_model.cpp']
++NATIVE=[*previous.NATIVE,P/'darwin_gate.cpp',safe.ROOT/'tests/unit/m12_native_compile.cpp',*MODELS]
++IMPORTS={'_IOFreeAligned','_IOLog','_IOMallocAligned','__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb',
++    '__ZN6OSData9withBytesEPKvj','__ZTV9IOService','_memcpy','_IORecursiveLockLock',
++    '_IORecursiveLockUnlock','_IORecursiveLockHaveLock','_ml_at_interrupt_context','_ml_get_interrupts_enabled'}
++PIN=target.PROFILE['xnu_pin']
++def dependency_hook(script,variable):
++    pattern=r'(?m)^( +)'+variable+r'\s*=\s*\[str\(x\) for x in '+variable+r'\]$'
++    def change(m):
++        indent=m[1];v=variable
++        return m[0]+'\n'+indent+f"if {v}[0]==str(compiler) and '-o' in {v} and '-MD' not in {v} and any(x.endswith('.cpp') for x in {v}):\n"+indent+f"    {v}+=['-MD','-MF',str(safe.checked(build/(name+'-headers.d')))]"
++    value,n=re.subn(pattern,change,script);assert n==1,'Reviewed dependency-hook boundary changed';return value
++def main():
++    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--compiler',required=True);ap.add_argument('--sdk',required=True)
++    ap.add_argument('--target',required=True,choices=['host','native','all'])
++    ap.add_argument('--export-reference');ap.add_argument('--negative-sdk',help='Existing genuine SDK27 for isolated negative calibration; never downloaded');args=ap.parse_args()
++    if sys.platform!='darwin' or platform.machine()!='arm64':raise SystemExit('Authorized arm64 macOS Host required')
++    compiler=Path(args.compiler);sdk=Path(args.sdk)
++    if not compiler.is_absolute() or not compiler.is_file() or not sdk.is_absolute() or not sdk.is_dir():raise ValueError('Existing tool/SDK required')
++    out=safe.mkdir('reports/m13');local=safe.mkdir(out/'local/checks');build=safe.mkdir('build/m13/checks');tmp=safe.mkdir('tmp/m13/checks')
++    env=os.environ.copy();env.update(TMPDIR=str(tmp),TMP=str(tmp),TEMP=str(tmp),CLANG_MODULE_CACHE_PATH=str(safe.mkdir(build/'cache')),
++        PYTHONDONTWRITEBYTECODE='1',ASAN_OPTIONS='halt_on_error=1:detect_leaks=0:abort_on_error=0',UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1',TSAN_OPTIONS='halt_on_error=1')
++    for k in ('CPATH','CPLUS_INCLUDE_PATH','C_INCLUDE_PATH','LIBRARY_PATH','DYLD_INSERT_LIBRARIES','SDKROOT','MACOSX_DEPLOYMENT_TARGET'):env.pop(k,None)
++    resource.setrlimit(resource.RLIMIT_CORE,(0,0));commands=[]
++    def public(x):
++        if isinstance(x,Path):return public(str(x))
++        if isinstance(x,str):return x.replace(str(safe.ROOT),'PROJECT_ROOT').replace(str(sdk),'SDK_ROOT').replace(sys.executable,'PYTHON_EXECUTABLE')
++        if isinstance(x,list):return [public(v) for v in x]
++        if isinstance(x,dict):return {public(k):public(v) for k,v in x.items()}
++        return x
++    def save(name,data):safe.write(out/(name+'.json'),json.dumps(public(data),indent=2,ensure_ascii=False))
++    def run(cmd,name,timeout=60,allow=False):
++        cmd=[str(x) for x in cmd]
++        if cmd[0]==str(compiler) and '-o' in cmd and '-MD' not in cmd and any(x.endswith('.cpp') for x in cmd):
++            cmd+=['-MD','-MF',str(safe.checked(local/(name+'-headers.d')))]
++        for opt in ('-o','-MF'):
++            if opt in cmd:safe.checked(cmd[cmd.index(opt)+1])
++        print(name,flush=True);begin=time.monotonic()
++        try:r=subprocess.run(cmd,cwd=safe.ROOT,env=env,text=True,capture_output=True,timeout=timeout)
++        except subprocess.TimeoutExpired as e:
++            safe.write(local/(name+'.log'),'TIMEOUT\n'+str(e.stdout)+str(e.stderr));commands.append(dict(name=name,status='TIMEOUT',argv=cmd));save('commands',commands);raise
++        safe.write(local/(name+'.log'),r.stdout+r.stderr)
++        commands.append(dict(name=name,argv=cmd,exit=r.returncode,seconds=round(time.monotonic()-begin,3)))
++        safe.write(local/'commands-raw.json',json.dumps(commands,indent=2));save('commands',commands)
++        if r.returncode and not allow:raise RuntimeError(name+' failed; raw log retained')
++        return r
++    source_files=set(NATIVE+[safe.ROOT/'tests/unit/m12_lifecycle.cpp',safe.ROOT/'tests/unit/m13_ioservice_layout.cpp',safe.ROOT/'tests/unit/m13_models.cpp',safe.ROOT/'tests/unit/m13_negative.cpp',safe.ROOT/'tests/unit/m12_policy_negative.cpp',Path(__file__),safe.ROOT/'m12_macho_audit.py',safe.ROOT/'m13_target.py',safe.ROOT/'config/m13-target.json'])
++    source_files.update(P.glob('*.hpp'))
++    source_files.update(P.parent.joinpath('core').glob('*.hpp'))
++    source_files.update(P.parent.joinpath('src').glob('*.hpp'))
++    source_files.update(safe.ROOT.joinpath('tests/unit').glob('*.cpp'))
++    source_files.update([safe.ROOT/'run_host_tests.py',safe.ROOT/'run_m11_checks.py'])
++    hashes={p.relative_to(safe.ROOT).as_posix():hashlib.sha256(safe.checked(p).read_bytes()).hexdigest() for p in source_files}
++    save('executed-source-sha256',hashes)
++    summary=dict(stage='M13',status='RUNNING',CPU_Host_Build='NOT RUN',Kernel_Object_Compile='NOT RUN',Partial_Link='NOT RUN',
++        MH_KEXT_BUNDLE_Construction='NOT RUN',KPI_Reference_Audit='NOT RUN',Target_ABI_Compatibility='BLOCKED: target26.5 kernel binary/KDK absent',
++        Full_Target_Link_Closure='BLOCKED',Bundle='NOT RUN',Sign='NOT RUN',Install='NOT RUN',Load='NOT RUN',Kernel_Runtime='NOT RUN',GPU_Runtime='NOT RUN',Windows_Regression='NOT RUN',x86_64_Runtime='NOT RUN')
++    try:
++        version=run([compiler,'--version'],'compiler-version').stdout
++        if 'Apple clang' not in version:raise ValueError('Apple compiler required')
++        tools={n:run(['xcrun','--find',n],'find-'+n).stdout.strip() for n in ('ld','nm','otool','lipo','dwarfdump')}
++        linker=run([tools['ld'],'-v'],'linker-version');osver=run(['sw_vers'],'macos-version');xcode=run(['xcodebuild','-version'],'xcode-version')
++        sdk_audit=target.sdk_info(sdk);save('sdk-audit',sdk_audit);sdkver=sdk_audit['version']
++        resource_dir=run([compiler,'-print-resource-dir'],'compiler-resource-dir').stdout.strip()
++        save('environment',dict(compiler=version,linker=linker.stdout+linker.stderr,macOS=osver.stdout,Xcode=xcode.stdout,SDK=str(sdk),SDK_version=sdkver,
++            Python=sys.version,Host=platform.machine(),target='macOS 26.5 x86_64 / XNU 12377.121.6',XNU_pin=PIN,matched_SDK='SDK26.5 declarations verified; target binary UNVERIFIED',deployment_label_only=True))
++        base=[compiler,'-std=c++17','-Wall','-Wextra','-Werror','-UNDEBUG','-O1','-g','-isysroot',sdk,'-mmacosx-version-min=26.5','-I'+str(previous.host.SRC)]
++        cpu=['-fno-exceptions','-fno-rtti','-ffreestanding','-Wframe-larger-than=4096']
++        if args.target in ('host','all'):
++            # Reviewed existing runner; only redirect outputs and import root.
++            helper=safe.checked('run_m11_checks.py').read_text().replace('-mmacosx-version-min=15.0','-mmacosx-version-min=26.5')
++            helper=helper.replace('original=safe.checked("run_host_tests.py").read_text()', 'original=safe.checked("run_host_tests.py").read_text().replace("-mmacosx-version-min=13.0","-mmacosx-version-min=26.5")')
++            helper=helper.replace('import run_host_tests as host','import run_host_tests as host\nfrom run_m13_checks import dependency_hook')
++            helper=helper.replace('helper=original.replace(', 'original=dependency_hook(original,"command")\n            helper=original.replace(')
++            helper=dependency_hook(helper,'cmd')
++            for old,new in [('reports/m11','reports/m13/regression'),('build/m11','build/m13/regression'),('tmp/m11','tmp/m13/regression')]:helper=helper.replace(old,new)
++            old='sys.path.insert(0,str(Path(__file__).resolve().parent))'
++            if helper.count(old)!=1:raise ValueError('Reviewed import boundary changed')
++            helper=helper.replace(old,'sys.path.insert(0,'+repr(str(safe.ROOT))+')')
++            helper_path=safe.write(build/'reviewed-regression.py',helper)
++            run([sys.executable,'-I','-B','-X','utf8',helper_path,'--compiler',compiler,'--sdk',sdk,'--target','host'],'legacy-regression',timeout=600)
++            prior=json.loads(safe.checked('reports/m13/regression/test-results.json').read_text())
++            if prior['status']!='PASS':raise ValueError('Legacy regression failed')
++            behavior={}
++            for mode,opts in [('normal',[]),('asan-ubsan',['-fsanitize=address,undefined','-fno-omit-frame-pointer']),('tsan',['-fsanitize=thread','-fno-omit-frame-pointer'])]:
++                exe=build/(mode+'-m13-lifecycle')
++                core_objects=[]
++                for src in [P/'lifecycle.cpp',P/'shutdown.cpp']:
++                    obj=build/(mode+'-'+src.stem+'.o')
++                    run(base+['-arch','arm64',*cpu,*opts,'-c',src,'-o',obj],mode+'-m13-core-'+src.stem);core_objects.append(obj)
++                run(base+['-arch','arm64',*opts,safe.ROOT/'tests/unit/m12_lifecycle.cpp',*core_objects,'-o',exe],mode+'-m13-build')
++                log=run([exe],mode+'-m13-run',timeout=30).stdout;m=re.search(r'SUMMARY (\d+) (\d+)',log)
++                if not m or int(m[2]) or 'FAIL ' in log:raise ValueError('M13 behavior failure')
++                behavior[mode]=dict(PASS=int(m[1]),FAIL=int(m[2]),error_callbacks=300,concurrent_scopes=1,post_stop_attempts=160)
++            new_behavior={}
++            for mode,opts in [('normal',[]),('asan-ubsan',['-fsanitize=address,undefined','-fno-omit-frame-pointer']),('tsan',['-fsanitize=thread','-fno-omit-frame-pointer'])]:
++                model_objects=[]
++                for src in MODELS:
++                    obj=build/(mode+'-'+src.stem+'.o');run(base+['-arch','arm64',*cpu,*opts,'-c',src,'-o',obj],mode+'-model-'+src.stem);model_objects.append(obj)
++                parser_folder=safe.ROOT/'build/m13/regression/checks/host'/('m9-sanitized' if mode=='asan-ubsan' else 'm9-arm64')
++                parser_objects=[parser_folder/(p.stem+'.o') for p in previous.host.PURE]
++                exe=build/(mode+'-m13-models')
++                run(base+['-arch','arm64',*opts,safe.ROOT/'tests/unit/m13_models.cpp',*model_objects,*parser_objects,build/(mode+'-lifecycle.o'),build/(mode+'-shutdown.o'),'-o',exe],mode+'-models-build')
++                result=run([exe],mode+'-models-run',timeout=30);m=re.search(r'SUMMARY (\d+) (\d+)',result.stdout)
++                if not m or int(m[2]):raise ValueError('M13 models behavior failed')
++                new_behavior[mode]=dict(PASS=int(m[1]),FAIL=int(m[2]),bounded_DisplayID_mutations=500,seed=759013)
++            summary.update(CPU_Host_Build='PASS',M12_regression_behavior=behavior,M13_behavior=new_behavior,legacy_regression='PASS',ASan_UBSan='PASS; leak detection not verified',TSan='PASS covered Host paths only')
++            save('build-results',dict(legacy=prior,M12=behavior,M13=new_behavior))
++        if args.target in ('native','all'):
++            if not args.export_reference:raise ValueError('Explicit pinned reference files required')
++            ref=json.loads(safe.checked(args.export_reference).read_text());target.reference(ref);additional=dict(files=[])
++            exports_by_arch={};reference_files=[]
++            for arch in ('x86_64','arm64'):
++                exports={}
++                for f in [*ref['files'],*additional['files']]:
++                    if not f['path'].startswith('config/') or ('.x86_64.' in f['path'] and arch!='x86_64') or ('.arm64.' in f['path'] and arch!='arm64'):continue
++                    sha=hashlib.sha256(f['text'].encode()).hexdigest()
++                    if 'sha256' in f and f['sha256']!=sha:raise ValueError('Reference hash mismatch')
++                    reference_files.append(dict(path=f['path'],sha256=sha,arch=arch))
++                    for line in f['text'].splitlines():
++                        line=line.strip()
++                        if line.startswith('_'):exports[line.split()[0].split(':')[0]]=dict(file=f['path'],entry=line,sha256=sha,pin=PIN)
++                exports_by_arch[arch]=exports
++            kernel=sdk/'System/Library/Frameworks/Kernel.framework/Headers';native={};audits={};links={};layouts={};abi={};negatives=[]
++            def image(path,arch,kind=1):
++                data=policy.inspect(safe.checked(path).read_bytes(),arch,kind)
++                if kind==1:target.object_target(data)
++                data['path']=path.relative_to(safe.ROOT).as_posix();return data
++            for arch in ('x86_64','arm64'):
++                folder=safe.mkdir(build/('darwin-'+arch));objects=[];metadata=[];deps={}
++                flags=base+['-arch',arch,*cpu,'-isystem',kernel,'-nostdinc++','-DKERNEL','-DKERNEL_EXTENSION','-mkernel','-fapple-kext','-fno-stack-protector']
++                if arch=='x86_64':flags+=['-mno-red-zone']
++                allowed=IMPORTS|({'___bzero'} if arch=='x86_64' else set())
++                for src in NATIVE:
++                    obj=folder/(src.stem+'.o');dep=folder/(src.stem+'.d')
++                    run(flags+['-MD','-MF',dep,'-c',src,'-o',obj],arch+'-compile-'+src.stem);objects.append(obj)
++                    metadata.append(dict(source=src.relative_to(safe.ROOT).as_posix(),flags=[str(x) for x in flags],image=image(obj,arch)))
++                    for path in shlex.split(dep.read_text().replace('\\\n',''))[1:]:
++                        p=Path(path)
++                        category=target.dependency(p,sdk,resource_dir)
++                        deps[str(p)]=dict(category=category,sha256=hashlib.sha256(p.read_bytes()).hexdigest())
++                audit=policy.audit(metadata,{x['source'] for x in metadata},allowed,exports_by_arch[arch]);audits[arch]=audit
++                if audit['status']!='PASS':save('symbol-audit',audits);raise ValueError('Independent symbol policy rejected '+arch)
++                combined=folder/'n44-partial.o'
++                run([tools['ld'],'-r','-arch',arch,'-platform_version','macos','26.5',sdkver,'-o',combined,*objects],arch+'-partial-link')
++                part=image(combined,arch);remaining=sorted(s['name'] for s in part['symbols'] if s['undefined'])
++                internal={s['name'] for x in metadata for s in x['image']['symbols'] if s['external'] and not s['undefined']}
++                if any(s in internal or s not in allowed for s in remaining):raise ValueError('Combined symbol closure changed')
++                nm=run([tools['nm'],'-u',combined],arch+'-partial-nm').stdout.splitlines()
++                if sorted(nm)!=remaining:raise ValueError('Parser and Apple nm disagree')
++                for name,opts in [('file',[]),('lipo',['-archs']),('otool',['-h','-l','-r']),('dwarfdump',['--verify'])]:run(['file' if name=='file' else tools[name],*opts,combined],arch+'-partial-'+name)
++                native[arch]=dict(status='PASS',objects=metadata,flags=flags,header_sha256=deps)
++                links[arch]=dict(Partial_Link='PASS',partial_artifact=part,remaining=remaining)
++                abi[arch]=dict(current_SDK_object_options='PASS',target_SDK_match='SDK26.5 declarations verified',target_binary_exports='UNVERIFIED',target_vtable='UNVERIFIED',Kernel_Runtime='NOT RUN')
++                layout=folder/'ioservice-layout.o'
++                dump=run(flags+['-Xclang','-fdump-record-layouts','-Xclang','-fdump-vtable-layouts','-c',safe.ROOT/'tests/unit/m13_ioservice_layout.cpp','-o',layout],arch+'-layout-compile')
++                li=image(layout,arch);sizes={};raw=layout.read_bytes()
++                for s in li['symbols']:
++                    if s['name'].startswith(('_n44_size_','_n44_align_')):
++                        section=li['sections'][s['section']-1];sizes[s['name']]=struct.unpack_from('<Q',raw,section['offset']+s['value']-section['address'])[0]
++                layouts[arch]=dict(current_SDK=sdkver,sizes=sizes,artifact_sha256=li['sha256'],layout_log=str(local/(arch+'-layout-compile.log')),target_binary_layout='UNVERIFIED',excluded_from_link=True)
++                if arch=='x86_64':
++                    linked=folder/'n44-offline.macho'
++                    r=run([tools['ld'],'-kext','-arch',arch,'-platform_version','macos','26.5',sdkver,'-undefined','error','-o',linked,combined],arch+'-kext-construction',allow=True)
++                    links[arch].update(Linker_exit=r.returncode,Full_Target_Link_Closure='BLOCKED',Bundle='NOT RUN',Sign='NOT RUN',Install='NOT RUN',Load='NOT RUN')
++                    if r.returncode:raise ValueError('Offline construction failed')
++                    final=image(linked,arch,11)
++                    if sorted(s['name'] for s in final['symbols'] if s['undefined'])!=remaining:raise ValueError('Image import set changed')
++                    run([tools['otool'],'-h','-l','-r',linked],'x86_64-image-otool');run([tools['nm'],'-u',linked],'x86_64-image-nm')
++                    run([tools['otool'],'-tvV',folder/'m11_native_compile.o'],'x86_64-service-disassembly')
++                    links[arch].update(MH_KEXT_BUNDLE_Construction='PASS',image=final)
++                    fixture=safe.ROOT/'tests/unit/m12_policy_negative.cpp';badfolder=safe.mkdir(build/'negative');srcname=fixture.relative_to(safe.ROOT).as_posix()
++                    for mode,reason in [('HOST','HOST_RUNTIME'),('UNKNOWN','UNKNOWN_IMPORT'),('EXCEPTION','EXCEPTION_RUNTIME'),('RTTI','RTTI_RUNTIME'),('PRINTF','UNSUPPORTED_KERNEL_IMPORT'),('INITIALIZER','initializer_eh_or_tls')]:
++                        bad=badfolder/(mode.lower()+'.o')
++                        opts=flags if mode in ('UNKNOWN','PRINTF','INITIALIZER') else base+['-arch',arch,'-fno-stack-protector','-fno-unwind-tables','-fno-asynchronous-unwind-tables']
++                        run(opts+['-DN44_POLICY_'+mode,'-c',fixture,'-o',bad],'negative-compile-'+mode)
++                        # Actual Apple symbols provide diagnostics even when unsafe sections reject first.
++                        symbols=run([tools['nm'],'-u',bad],'negative-symbols-'+mode).stdout.splitlines()
++                        found=[]
++                        try:
++                            item=dict(source=srcname,flags=[str(x) for x in opts],image=image(bad,arch))
++                            pa=policy.audit([item],{srcname},allowed,exports_by_arch[arch]);found=[x['reason'] for x in pa['errors']]
++                        except policy.AuditError as e:found.append(str(e))
++                        if reason not in found and reason in ('EXCEPTION_RUNTIME','RTTI_RUNTIME'):
++                            found.extend(filter(None,(policy.runtime_reason(s) for s in symbols)))
++                        if reason not in found:raise ValueError('Negative case not detected: '+mode+str(found))
++                        record=dict(case=mode,status='REJECTED',expected_reason=reason,reasons=found,symbols=symbols,sha256=hashlib.sha256(bad.read_bytes()).hexdigest(),never_executed=True)
++                        if mode=='HOST':
++                            invalid=badfolder/'invalid-kext.macho'
++                            nr=run([tools['ld'],'-kext','-arch',arch,'-undefined','error','-o',invalid,combined,bad],'negative-linker-calibration',allow=True)
++                            record.update(linker_exit=nr.returncode,independent_policy_required=True)
++                        negatives.append(record)
++                    provider=badfolder/'provider.o';consumer=badfolder/'consumer.o';testobjs=[]
++                    for mode,dest in [('PROVIDER',provider),('CONSUMER',consumer)]:
++                        run(flags+['-DN44_POLICY_'+mode,'-c',fixture,'-o',dest],'negative-compile-'+mode)
++                        testobjs.append(dict(source=srcname,flags=[str(x) for x in flags],image=image(dest,arch)))
++                    wrong=policy.audit(testobjs,{srcname},allowed,exports_by_arch[arch],{'_n44_policy_required':{'expected/project/provider.cpp'}})
++                    if 'WRONG_SYMBOL_PROVIDER' not in [x['reason'] for x in wrong['errors']]:raise ValueError('Wrong provider accepted')
++                    negatives.append(dict(case='WRONG_PROVIDER',status='REJECTED',errors=wrong['errors'],fake_Apple_API=False))
++                    # Malformed copies are mutations of genuine objects, never forged headers or executable fixtures.
++                    valid=objects[0].read_bytes();v=image(objects[0],arch)
++                    for mode in ('STRING_INDEX','RELOCATION_INDEX'):
++                        raw=bytearray(valid);pos=32;so=None
++                        for command in v['commands']:
++                            if command['command']==2:so=struct.unpack_from('<I',raw,pos+8)[0]
++                            pos+=command['bytes']
++                        if mode=='STRING_INDEX':struct.pack_into('<I',raw,so,0xffffffff)
++                        else:
++                            section=next(x for x in v['sections'] if x['nreloc']);at=section['reloff']+4;word=struct.unpack_from('<I',raw,at)[0]
++                            struct.pack_into('<I',raw,at,(word&0xf0000000)|(1<<27)|0xffffff)
++                        try:policy.inspect(raw,arch);raise ValueError('Malformed negative accepted')
++                        except policy.AuditError as e:negatives.append(dict(case=mode,status='REJECTED',reason=str(e),from_actual_object=v['sha256']))
++                    def reject(case,expected,action):
++                        try:action()
++                        except (ValueError,policy.AuditError) as e:
++                            if expected not in str(e):raise
++                            negatives.append(dict(case=case,status='REJECTED',reason=str(e)));return
++                        raise ValueError('Negative accepted: '+case)
++                    if not args.negative_sdk:raise ValueError('Explicit existing negative SDK27 required for native calibration')
++                    sdk27=Path(args.negative_sdk)
++                    if json.loads((sdk27/'SDKSettings.json').read_text())['Version']!='27.0':raise ValueError('Negative calibration SDK is not 27.0')
++                    reject('SDK27_SELECTION','SDK_VERSION_MISMATCH',lambda:target.sdk_info(sdk27))
++                    reject('SDK27_HEADER','UNAPPROVED_HEADER_OR_MIXED_SDK',lambda:target.dependency(sdk27/'usr/include/stdio.h',sdk,resource_dir))
++                    reject('LEGACY_SOURCE_REFERENCE','REFERENCE_VERSION_MISMATCH',lambda:target.reference(json.loads(safe.checked('reports/m11/local/target-export-reference.json').read_text())))
++                    changed=json.loads(json.dumps(ref));changed['files'][0]['text']+='\n'
++                    reject('SOURCE_REFERENCE_HASH','REFERENCE_HASH_MISMATCH',lambda:target.reference(changed))
++                    reject('WRONG_FILE_FORMAT','architecture_or_type',lambda:policy.inspect(b'NOT_A_MACHO_FILE'+bytes(32),'x86_64'))
++                    for mode,changed_flags in [('LEGACY_DEPLOYMENT',[str(x).replace('-mmacosx-version-min=26.5','-mmacosx-version-min=15.0') for x in flags]),('SDK27_OBJECT',[str(sdk27) if x==sdk else str(x) for x in flags])]:
++                        bad=badfolder/(mode+'.o');run(changed_flags+['-DN44_POLICY_UNKNOWN','-c',fixture,'-o',bad],'negative-compile-'+mode)
++                        reject(mode,'OBJECT_TARGET_VERSION_MISMATCH',lambda p=bad:target.object_target(policy.inspect(p.read_bytes(),'x86_64')))
++                    mismatch=run(flags+['-DN44_ABI_MISMATCH','-c',safe.ROOT/'tests/unit/m13_negative.cpp','-o',badfolder/'abi-mismatch.o'],'negative-ABI-type',allow=True)
++                    if mismatch.returncode==0 or 'deliberately wrong API ABI' not in mismatch.stderr:raise ValueError('ABI mismatch not detected')
++                    negatives.append(dict(case='ABI_TYPE_MISMATCH',status='REJECTED',compiler_exit=mismatch.returncode))
++                    forbidden=badfolder/'illegal-init.o';run(flags+['-DN44_ILLEGAL_INIT','-c',safe.ROOT/'tests/unit/m13_negative.cpp','-o',forbidden],'negative-illegal-init')
++                    rejected=policy.audit([dict(source='tests/unit/m13_negative.cpp',flags=[str(x) for x in flags],image=image(forbidden,arch))],{p.relative_to(safe.ROOT).as_posix() for p in NATIVE},allowed,exports_by_arch[arch])
++                    if rejected['status']!='REJECTED':raise ValueError('Forbidden source path accepted')
++                    negatives.append(dict(case='ILLEGAL_INITIALIZATION_PATH',status='REJECTED',errors=rejected['errors']))
++                else:
++                    try:policy.inspect(objects[0].read_bytes(),'x86_64');raise ValueError('Wrong architecture accepted')
++                    except policy.AuditError as e:negatives.append(dict(case='WRONG_ARCHITECTURE',status='REJECTED',reason=str(e),actual='arm64',requested='x86_64'))
++                    analysis=[]
++                    for src in [P/'darwin_native.cpp',P/'darwin_snapshot.cpp',P/'darwin_gate.cpp',safe.ROOT/'tests/unit/m11_native_compile.cpp',safe.ROOT/'tests/unit/m12_native_compile.cpp']:
++                        r=run(flags+['--analyze',src,'-o',folder/(src.stem+'.plist')],'native-analyze-'+src.stem)
++                        if 'warning:' in r.stdout+r.stderr:raise ValueError('Native analyzer warning')
++                        analysis.append(src.relative_to(safe.ROOT).as_posix())
++                    summary['Native_Static_Analyzer']=dict(status='PASS',units=len(analysis))
++            # Preserve complete tables locally; public evidence keeps counts and hashes.
++            safe.write(local/'native-tables.json',json.dumps(public(native),indent=2))
++            safe.write(local/'link-tables.json',json.dumps(public(links),indent=2))
++            def compact(im):
++                return {**{k:v for k,v in im.items() if k not in ('symbols','relocations')},
++                    'symbol_count':len(im['symbols']),'relocation_count':len(im['relocations']),
++                    'undefined':sorted(s['name'] for s in im['symbols'] if s['undefined'])}
++            for item in native.values():
++                for obj in item['objects']:obj['image']=compact(obj['image'])
++            for item in links.values():
++                item['partial_artifact']=compact(item['partial_artifact'])
++                if 'image' in item:item['image']=compact(item['image'])
++            save('native-object-results',native);save('symbol-audit',audits);save('link-results',links);save('abi-audit',dict(architectures=abi,current_SDK_layout=layouts,export_references=reference_files))
++            save('negative-results',dict(status='PASS',cases=negatives));summary.update(Kernel_Object_Compile='PASS',Partial_Link='PASS',MH_KEXT_BUNDLE_Construction='PASS',KPI_Reference_Audit='PASS reference classification only',negative_cases=len(negatives))
++        if args.target=='all':
++            for src in [*previous.PURE,*MODELS]:
++                r=run(base+['-arch','arm64',*cpu,'--analyze',src,'-o',build/(src.stem+'.plist')],'cpu-analyze-'+src.stem)
++                if 'warning:' in r.stdout+r.stderr:raise ValueError('CPU analyzer warning')
++            summary['CPU_Static_Analyzer']=dict(status='PASS',units=len(previous.PURE)+len(MODELS))
++        # Every normal Clang command emits an actual .d file. Negative SDK27
++        # objects and the explicitly labelled legacy baseline are excluded here.
++        dependencies={}
++        depfiles=[*build.rglob('*.d'),*safe.checked('build/m13/regression').rglob('*.d'),*local.glob('*-headers.d')]
++        host_cpp=compiler.parent.parent/'include/c++/v1'
++        for dep in depfiles:
++            if dep.name.startswith('negative-') or dep.parent.name=='negative':continue
++            entries={}
++            for filename in shlex.split(dep.read_text().replace('\\\n',''))[1:]:
++                p=Path(filename);category=target.dependency(p,sdk,resource_dir,host=True,host_cpp=host_cpp)
++                entries[str(p)]=dict(category=category,sha256=hashlib.sha256(p.read_bytes()).hexdigest())
++            dependencies[dep.relative_to(safe.ROOT).as_posix()]=entries
++        safe.write(local/'header-tables.json',json.dumps(public(dependencies),indent=2))
++        unique={};compilations={}
++        for dep,entries in dependencies.items():
++            for path,record in entries.items():
++                if path in unique and unique[path]!=record:raise ValueError('Header changed during compilation')
++                unique[path]=record
++            compilations[dep]=dict(headers=len(entries),dependency_set_sha256=hashlib.sha256(json.dumps(entries,sort_keys=True).encode()).hexdigest())
++        save('header-dependencies',dict(status='PASS',unique_headers=unique,compilations=compilations,full_tables='ignored local/checks/header-tables.json',normal_SDK_mixing_findings=0))
++        if any(hashlib.sha256(safe.checked(p).read_bytes()).hexdigest()!=v for p,v in hashes.items()):raise ValueError('Source changed during checks')
++        summary.update(source_stability='PASS',status='COMPLETE_WITH_BLOCKERS',
++            OBJECT_COMPILE=summary['Kernel_Object_Compile'],PARTIAL_LINK=summary['Partial_Link'],MACHO_KEXT_CONSTRUCTION=summary['MH_KEXT_BUNDLE_Construction'],
++            SDK26_ABI_AUDIT='PASS declarations/object layout only' if summary['Kernel_Object_Compile']=='PASS' else 'NOT RUN',
++            TARGET_BINARY_KPI_AUDIT='BLOCKED: matching target binary/KDK absent',TARGET_ABI_CLOSURE='BLOCKED',LOADABLE_KEXT='UNVERIFIED',KERNEL_RUNTIME='NOT RUN',GPU_RUNTIME='NOT RUN')
++    except Exception as e:summary.update(status='FAIL',error=str(e));raise
++    finally:save('test-results',summary)
++    print(json.dumps(public(summary),indent=2))
++if __name__=='__main__':main()
+diff --git a/tests/unit/m13_ioservice_layout.cpp b/tests/unit/m13_ioservice_layout.cpp
+new file mode 100644
+index 0000000..42c9b78
+--- /dev/null
++++ b/tests/unit/m13_ioservice_layout.cpp
+@@ -0,0 +1,10 @@
++// Genuine SDK26 layout only, never linked into the offline kext construction.
++#include <IOKit/IOService.h>
++class N44LayoutReference:public IOService {virtual void neverInstantiate()=0;public:bool init(OSDictionary*)override;};
++bool N44LayoutReference::init(OSDictionary*){return false;}
++extern "C" {
++unsigned long n44_size_OSObject=sizeof(OSObject),n44_align_OSObject=alignof(OSObject);
++unsigned long n44_size_OSMetaClass=sizeof(OSMetaClass),n44_align_OSMetaClass=alignof(OSMetaClass);
++unsigned long n44_size_IORegistryEntry=sizeof(IORegistryEntry),n44_align_IORegistryEntry=alignof(IORegistryEntry);
++unsigned long n44_size_IOService=sizeof(IOService),n44_align_IOService=alignof(IOService);
++}
+diff --git a/tests/unit/m13_models.cpp b/tests/unit/m13_models.cpp
+new file mode 100644
+index 0000000..930ce6c
+--- /dev/null
++++ b/tests/unit/m13_models.cpp
+@@ -0,0 +1,90 @@
++// CPU-only models and length-output alias regression. BSD-3-Clause.
++#include "../../development/AMDRadeonRDNA4-Navi44/core/driver_model.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/core/displayid.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/platform/resource_model.hpp"
++#include "../../development/AMDRadeonRDNA4-Navi44/host/lifecycle_mock.hpp"
++#include <array>
++#include <iostream>
++#include <new>
++using namespace NaviCore;using namespace NaviModel;using namespace NaviPlatform;using namespace NaviHost;
++using Bytes=std::array<uint8_t,128>;
++static void outer(Bytes&b){unsigned sum=0;b[127]=0;for(unsigned i=0;i<127;++i)sum+=b[i];b[127]=static_cast<uint8_t>(0-sum);}
++static void checksums(Bytes&b){const unsigned end=5+b[2];b[end]=0;unsigned sum=0;for(unsigned i=1;i<end;++i)sum+=b[i];b[end]=static_cast<uint8_t>(0-sum);outer(b);}
++int main(){unsigned pass=0,fail=0;auto check=[&](const char*n,bool ok){std::cout<<(ok?"PASS ":"FAIL ")<<n<<'\n';ok?++pass:++fail;};
++    {
++        Bytes b{};b[0]=0x70;b[1]=0x20;b[2]=4;b[3]=5;b[5]=0x22;b[7]=1;b[8]=17;checksums(b);
++        NaviDisplay::DisplayIdSection out{};
++        check("displayid_opaque_block_inventory",NaviDisplay::displayIdSection({b.data(),128},out).ok()&&out.count==1&&out.blocks[0].bytes==1&&!out.timingDecoded&&!out.outputAllowed);
++        auto bad=b;bad[127]^=1;check("displayid_outer_checksum",!NaviDisplay::displayIdSection({bad.data(),128},out).ok()&&!out.count);
++        bad=b;bad[8]^=1;outer(bad);check("displayid_inner_checksum",!NaviDisplay::displayIdSection({bad.data(),128},out).ok());
++        bad=b;bad[2]=255;outer(bad);check("displayid_length_overflow",!NaviDisplay::displayIdSection({bad.data(),128},out).ok());
++        bad=b;bad[7]=2;checksums(bad);check("displayid_block_overrun",!NaviDisplay::displayIdSection({bad.data(),128},out).ok());
++        bad=b;bad[4]=1;checksums(bad);check("displayid_continuation_unsupported",!NaviDisplay::displayIdSection({bad.data(),128},out).ok());
++        bad=b;bad[1]=0x21;checksums(bad);check("displayid_unknown_version",!NaviDisplay::displayIdSection({bad.data(),128},out).ok());
++        bad=b;bad[30]=1;checksums(bad);check("displayid_nonzero_padding",!NaviDisplay::displayIdSection({bad.data(),128},out).ok());
++        check("displayid_truncated",!NaviDisplay::displayIdSection({b.data(),127},out).ok());
++        bad=b;bad[1]=0x13;checksums(bad);check("displayid_v13_container",NaviDisplay::displayIdSection({bad.data(),128},out).ok()&&!out.hardwareVerified);
++        bad=b;bad[2]=2;checksums(bad);check("displayid_truncated_block_header",!NaviDisplay::displayIdSection({bad.data(),128},out).ok());
++        uint32_t seed=759013;bool invariant=true;unsigned accepted=0;
++        for(unsigned i=0;i<500;++i){bad=b;seed=seed*1664525u+1013904223u;bad[(seed>>8)%128]^=static_cast<uint8_t>((seed>>24)|1);auto r=NaviDisplay::displayIdSection({bad.data(),128},out);
++            if(r.ok()){++accepted;invariant=invariant&&out.count<=32&&!out.timingDecoded&&!out.outputAllowed;}else invariant=invariant&&!out.count;}
++        check("displayid_500_fixed_mutations",invariant);std::cout<<"M13_DISPLAYID seed=759013 inputs=500 accepted="<<accepted<<'\n';
++    }
++    {
++        QueryCandidate q{};q.device.profile=Asic::identify(0x1002,0x7590);q.provenance=Provenance::Synthetic;q.generation=1;DevicePlan p{};
++        check("navi44_candidate_no_runtime_capability",planDevice(q,p).ok()&&p.target==Asic::Target::Gfx1200&&p.backend==Readiness::Unverified&&!p.hardwareAllowed&&!p.displayAllowed&&!p.shaderAllowed);
++        q.device.profile=Asic::identify(0x1002,0x7550);check("navi48_not_reused_as_navi44",!planDevice(q,p).ok()&&!p.hardwareAllowed);
++        q.device.profile=Asic::identify(0x1002,0x7590);q.device.profile.capabilities=1;check("unverified_capability_injection",!planDevice(q,p).ok());
++        NaviDisplay::Mode mode{};Edid::DetailedTiming t{724608,2560,160,16,32,1440,40,1,5,true,true,false};
++        check("synthetic_1440p180_timing",NaviDisplay::timing(t,mode).ok()&&mode.refresh.numerator==180&&mode.refresh.denominator==1);
++        NaviDisplay::Connector c{};c.type=AtomBios::ConnectorDP;NaviDisplay::LinkBudget link{NaviDisplay::Origin::Synthetic,NaviDisplay::LinkKind::Dp8b10b,4,8100,0};NaviDisplay::EngineBudget engine{NaviDisplay::Origin::Synthetic,800000};DisplayPlan plan{};
++        check("synthetic_budget_is_not_scanout",planDisplay(mode,c,link,engine,24,plan).ok()&&plan.arithmetic.link==NaviDisplay::Fit::WithinBudget&&!plan.scanoutAllowed&&!plan.trainingAllowed&&plan.routing==Readiness::Unverified);
++        link.lanes=1;check("insufficient_display_link",planDisplay(mode,c,link,engine,24,plan).ok()&&plan.arithmetic.link==NaviDisplay::Fit::Insufficient&&!plan.scanoutAllowed);
++        link={};check("missing_display_link",planDisplay(mode,c,link,engine,24,plan).ok()&&plan.arithmetic.link==NaviDisplay::Fit::Unknown);
++        c.type=AtomBios::ConnectorUnknown;check("unknown_connector",!planDisplay(mode,c,link,engine,24,plan).ok());
++        c.type=static_cast<AtomBios::ConnectorType>(255);check("unsupported_connector_encoding",!planDisplay(mode,c,link,engine,24,plan).ok());
++        c.type=AtomBios::ConnectorDP;c.routingKnown=true;check("untrusted_routing_claim",!planDisplay(mode,c,link,engine,24,plan).ok());c.routingKnown=false;
++        check("unsupported_pixel_encoding",!planDisplay(mode,c,link,engine,16,plan).ok());
++        mode.timing.hSyncWidth=200;check("invalid_display_geometry",!planDisplay(mode,c,link,engine,24,plan).ok());
++    }
++    {
++        ThreadGate gate;GenerationClock clock(gate.access());ResourceModel m(gate.access(),clock,0x10000,0x10000,0x8000),other(gate.access(),clock,0x10000,0x10000,0x8000);ModelHandle h{};
++        check("resource_wrong_context",!m.reserve(0x10000,4096,h).ok());GateScope hold(gate.access());
++        check("resource_valid_reservation",m.reserve(0x10000,4096,h).ok()&&!m.hardwareSubmissionAllowed());
++        ModelHandle second{};check("resource_overlap_rejected",!m.reserve(0x10000,4096,second).ok());
++        check("resource_alignment_rejected",!m.reserve(0x11001,4096,second).ok());
++        check("resource_window_overrun",!m.reserve(0x1f000,8192,second).ok());
++        check("resource_budget_rejected",!m.reserve(0x11000,0x8000,second).ok());
++        ResourceInfo info{};check("resource_cross_owner_isolation",!other.inspect(h,info).ok());
++        const auto live=h;check("resource_occupied_output_preserved",!m.reserve(0x12000,4096,h).ok()&&h.generation==live.generation);
++        ModelFence f{};check("model_fence_queue",m.queueModel(h,10,20,f).ok());
++        check("pending_fence_prevents_release",!m.release(h).ok()&&h.generation==live.generation);
++        check("model_fence_complete",m.completeModel(f).ok());check("double_fence_complete_rejected",!m.completeModel(f).ok());
++        const auto old=f;f={};check("new_fence_generation",m.queueModel(h,20,30,f).ok()&&f.serial!=old.serial);check("stale_fence_rejected",!m.completeModel(old).ok());
++        m.expireModel(29);m.inspect(h,info);check("timeout_not_premature",info.fence==FenceState::Pending);
++        m.expireModel(30);m.inspect(h,info);check("timeout_poison",info.fence==FenceState::TimedOut&&info.revoked);
++        check("timeout_is_not_quiescence",!m.release(h).ok()&&!m.completeModel(f).ok());
++        check("timeout_cancel_acknowledgement",m.acknowledgeCancellationModel(f).ok()&&m.release(h).ok());
++        check("stale_buffer_rejected",!m.inspect(live,info).ok());
++        check("address_reuse_unique_generation",m.reserve(0x10000,4096,h).ok()&&h.generation!=live.generation);
++        f={};m.queueModel(h,30,40,f);check("reset_revokes_without_early_free",m.resetModel().ok()&&!m.release(h).ok()&&!m.readyToFree());
++        check("stopped_model_no_new_resources",!m.reserve(0x11000,4096,second).ok());
++        check("reset_drain_then_free",m.acknowledgeCancellationModel(f).ok()&&m.release(h).ok()&&m.readyToFree());
++        check("repeat_stop_no_double_free",m.stop().ok()&&m.readyToFree()&&!m.release(h).ok());
++        ResourceModel overflow(gate.access(),clock,UINT64_MAX-4095,8192,8192);check("window_integer_overflow",!overflow.reserve(UINT64_MAX-4095,4096,second).ok());
++        GenerationClock exhausted(gate.access(),UINT64_MAX);ResourceModel full(gate.access(),exhausted,0,65536,65536);check("generation_exhaustion_atomic",!full.reserve(0,4096,second).ok()&&!second.owner);
++        ResourceModel slots(gate.access(),clock,0,65536,65536);ModelHandle handles[9]{};bool okay=true;
++        for(unsigned i=0;i<8;++i)okay=slots.reserve(i*4096,4096,handles[i]).ok()&&okay;
++        check("fixed_resource_capacity",okay&&!slots.reserve(8*4096,4096,handles[8]).ok());slots.stop();for(auto&handle:handles)if(handle.owner)slots.release(handle);
++        check("capacity_failure_cleanup",slots.readyToFree());
++    }
++    {
++        ThreadGate gate;GateScope hold(gate.access());ReferenceMock r;alignas(size_t) uint8_t storage[64]{};
++        size_t*alias=new(storage+16)size_t(0x33003300);r.useOverride=true;r.overrideView={storage,sizeof(storage)};SnapshotOwner owner(gate.access(),99);owner.activate(r.ops());
++        struct Context{size_t*p;bool rejected{false};} context{alias};
++        auto callback=[](void*p,const ScopedInput&input)noexcept->Result{auto&c=*static_cast<Context*>(p);c.rejected=!input.length(*c.p).ok()&&*c.p==0x33003300;return success();};
++        check("scope_length_output_alias_preserves_input",owner.consume({&context,callback}).ok()&&context.rejected);
++        check("scope_length_alias_cleanup",owner.close().ok()&&owner.readyToFree()&&r.releases==1);
++    }
++    std::cout<<"SUMMARY "<<pass<<' '<<fail<<'\n';return fail?1:0;
++}
+diff --git a/tests/unit/m13_negative.cpp b/tests/unit/m13_negative.cpp
+new file mode 100644
+index 0000000..d8b4cae
+--- /dev/null
++++ b/tests/unit/m13_negative.cpp
+@@ -0,0 +1,8 @@
++// Genuine SDK type mismatch / forbidden initialization reference; never run.
++#if defined(N44_ABI_MISMATCH)
++#include <IOKit/IOLib.h>
++static_assert(__is_same(decltype(&IOLog),bool(*)(const char*,...)),"deliberately wrong API ABI");
++#elif defined(N44_ILLEGAL_INIT)
++extern "C" int n44_hardware_initialization_requested();
++int n44ForbiddenPath(){return n44_hardware_initialization_requested();}
++#endif

@@ -1,0 +1,1105 @@
+{
+  "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f",
+  "imports": [
+    {
+      "symbol": "_IOFreeAligned",
+      "demangled": "_IOFreeAligned",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLib.h",
+      "prototype": "void(void*, vm_size_t)",
+      "parameter_layout": "pointer64 + size64",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IOFreeAligned",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "release only after all users drain",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLib.h",
+          "lines": [
+            249
+          ],
+          "sha256": "4c24fbfd9577ab19b8a36f2a5ee82831343e461482eaf41cba2161bdc9c9f46b"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IOLog",
+      "demangled": "_IOLog",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLib.h",
+      "prototype": "void(const char*, ...)",
+      "parameter_layout": "pointer64 + C varargs",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IOLog",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "no logging reentry while lifecycle gate held",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLib.h",
+          "lines": [
+            658
+          ],
+          "sha256": "4c24fbfd9577ab19b8a36f2a5ee82831343e461482eaf41cba2161bdc9c9f46b"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IOMallocAligned",
+      "demangled": "_IOMallocAligned",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLib.h",
+      "prototype": "void*(vm_size_t, vm_offset_t)",
+      "parameter_layout": "two 64-bit unsigned inputs; 64-bit pointer result",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IOMallocAligned:_IOMallocAligned_external",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "allocator; pair same size with IOFreeAligned",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLib.h",
+          "lines": [
+            218,
+            223
+          ],
+          "sha256": "4c24fbfd9577ab19b8a36f2a5ee82831343e461482eaf41cba2161bdc9c9f46b"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IORecursiveLockHaveLock",
+      "demangled": "_IORecursiveLockHaveLock",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLocks.h",
+      "prototype": "boolean_t(const IORecursiveLock*)",
+      "parameter_layout": "pointer64; boolean_t32",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IORecursiveLockHaveLock",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "current thread ownership; reentry refusal",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLocks.h",
+          "lines": [
+            265
+          ],
+          "sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IORecursiveLockLock",
+      "demangled": "_IORecursiveLockLock",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLocks.h",
+      "prototype": "void(IORecursiveLock*)",
+      "parameter_layout": "pointer64",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IORecursiveLockLock",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "borrowed lock lifetime must include waiters; sleepable context",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLocks.h",
+          "lines": [
+            242
+          ],
+          "sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IORecursiveLockUnlock",
+      "demangled": "_IORecursiveLockUnlock",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLocks.h",
+      "prototype": "void(IORecursiveLock*)",
+      "parameter_layout": "pointer64",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IORecursiveLockUnlock",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "balanced current-thread unlock; ordinary context remains required",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLocks.h",
+          "lines": [
+            257
+          ],
+          "sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "demangled": "IOBufferMemoryDescriptor::withBytes(void const*, unsigned long, unsigned int, bool)",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOBufferMemoryDescriptor.h",
+      "prototype": "OSPtr<IOBufferMemoryDescriptor>(const void*, vm_size_t, IODirection, bool)",
+      "parameter_layout": "pointer64 + size64 + direction32 + bool; raw pointer64",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.x86_64.exports",
+        "entry": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "sha256": "c33616433824a14ded767ff24eb911b3d6499b9a859204f82cbd12c27fa51450",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "CPU copy kIODirectionNone; never prepare/map/DMA",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOBufferMemoryDescriptor.h",
+          "lines": [
+            294
+          ],
+          "sha256": "737c9b410709bf3a5ffb38ddc7000aeb8b908bb2581f98c3c90d7bacd19c1f18"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "__ZN6OSData9withBytesEPKvj",
+      "demangled": "OSData::withBytes(void const*, unsigned int)",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "libkern/c++/OSData.h",
+      "prototype": "OSPtr<OSData>(const void*, unsigned int)",
+      "parameter_layout": "pointer64 + uint32; raw pointer64 in audited SDK mode",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "__ZN6OSData9withBytesEPKvj",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "factory count1, owner retains, drop factory, release after drain",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "libkern/libkern/c++/OSData.h",
+          "lines": [
+            171,
+            201
+          ],
+          "sha256": "2d0694f507d94133683c10a54e73224c95f6011b74a6e07ec4d236f68de92636"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "__ZTV9IOService",
+      "demangled": "vtable for IOService",
+      "callers": [
+        "tests/unit/m11_native_compile.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOService.h",
+      "prototype": "C++ vtable data symbol",
+      "parameter_layout": "inherited Apple kernel C++ table; qualified superclass calls use SDK-defined slots",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "__ZTV9IOService",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "symbol spelling alone cannot validate vtable; class unregistered/uninstantiable",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOService.h",
+          "lines": [
+            404
+          ],
+          "sha256": "620eec0e4e4cb7cb077c4f4d78770a0ca409dd8efcd8cbc2fa2dafc40014f71c"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "___bzero",
+      "demangled": "___bzero",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/src/codeobj.cpp",
+        "development/AMDRadeonRDNA4-Navi44/src/ipdiscovery.cpp",
+        "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+        "development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+        "development/AMDRadeonRDNA4-Navi44/src/atombios.cpp",
+        "development/AMDRadeonRDNA4-Navi44/core/display.cpp",
+        "development/AMDRadeonRDNA4-Navi44/core/displayid.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "string.h (compiler builtin lowering)",
+      "prototype": "x86 compiler-emitted __bzero",
+      "parameter_layout": "pointer64 + size64; void",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "___bzero",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "exact compiler import is in source export list; target binary still needed",
+      "evidence_states": {
+        "SOURCE_DECLARED": "UNVERIFIED exact public declaration",
+        "SDK_DECLARED": "UNVERIFIED exact name; compiler-generated builtin import",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_memcpy",
+      "demangled": "_memcpy",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+        "development/AMDRadeonRDNA4-Navi44/src/edid.cpp",
+        "development/AMDRadeonRDNA4-Navi44/core/display.cpp",
+        "development/AMDRadeonRDNA4-Navi44/core/displayid.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "string.h",
+      "prototype": "void*(void*, const void*, size_t)",
+      "parameter_layout": "three 64-bit values; pointer result",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "_memcpy",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "compiler lowering; checked CPU ranges",
+      "evidence_states": {
+        "SOURCE_DECLARED": "UNVERIFIED exact public declaration",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_ml_at_interrupt_context",
+      "demangled": "_ml_at_interrupt_context",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "i386/machine_routines.h or arm/machine_routines.h",
+      "prototype": "boolean_t(void)",
+      "parameter_layout": "boolean_t32 result",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "_ml_at_interrupt_context",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "deny interrupt entry; not a complete sleepability certificate",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "osfmk/i386/machine_routines.h",
+          "lines": [
+            381
+          ],
+          "sha256": "66df8ae4f0f04117b21273ec5eeae75f177ba85bceb55fb50db788ccbf47b987"
+        },
+        {
+          "path": "osfmk/arm/machine_routines.h",
+          "lines": [
+            94
+          ],
+          "sha256": "6809e5bea8edbee9ca42f44732242fd1973cf77d4dc672a8ecb0b37c55c07600"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_ml_get_interrupts_enabled",
+      "demangled": "_ml_get_interrupts_enabled",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "i386/machine_routines.h or arm/machine_routines.h",
+      "prototype": "boolean_t(void)",
+      "parameter_layout": "boolean_t32 result",
+      "architecture": "x86_64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "_ml_get_interrupts_enabled",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "deny disabled interrupts; cannot detect arbitrary caller spinlocks",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "osfmk/i386/machine_routines.h",
+          "lines": [
+            373
+          ],
+          "sha256": "66df8ae4f0f04117b21273ec5eeae75f177ba85bceb55fb50db788ccbf47b987"
+        },
+        {
+          "path": "osfmk/arm/machine_routines.h",
+          "lines": [
+            76
+          ],
+          "sha256": "6809e5bea8edbee9ca42f44732242fd1973cf77d4dc672a8ecb0b37c55c07600"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IOFreeAligned",
+      "demangled": "_IOFreeAligned",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLib.h",
+      "prototype": "void(void*, vm_size_t)",
+      "parameter_layout": "pointer64 + size64",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IOFreeAligned",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "release only after all users drain",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLib.h",
+          "lines": [
+            249
+          ],
+          "sha256": "4c24fbfd9577ab19b8a36f2a5ee82831343e461482eaf41cba2161bdc9c9f46b"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IOLog",
+      "demangled": "_IOLog",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLib.h",
+      "prototype": "void(const char*, ...)",
+      "parameter_layout": "pointer64 + C varargs",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IOLog",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "no logging reentry while lifecycle gate held",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLib.h",
+          "lines": [
+            658
+          ],
+          "sha256": "4c24fbfd9577ab19b8a36f2a5ee82831343e461482eaf41cba2161bdc9c9f46b"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IOMallocAligned",
+      "demangled": "_IOMallocAligned",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_native.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLib.h",
+      "prototype": "void*(vm_size_t, vm_offset_t)",
+      "parameter_layout": "two 64-bit unsigned inputs; 64-bit pointer result",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IOMallocAligned:_IOMallocAligned_external",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "allocator; pair same size with IOFreeAligned",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLib.h",
+          "lines": [
+            218,
+            223
+          ],
+          "sha256": "4c24fbfd9577ab19b8a36f2a5ee82831343e461482eaf41cba2161bdc9c9f46b"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IORecursiveLockHaveLock",
+      "demangled": "_IORecursiveLockHaveLock",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLocks.h",
+      "prototype": "boolean_t(const IORecursiveLock*)",
+      "parameter_layout": "pointer64; boolean_t32",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IORecursiveLockHaveLock",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "current thread ownership; reentry refusal",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLocks.h",
+          "lines": [
+            265
+          ],
+          "sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IORecursiveLockLock",
+      "demangled": "_IORecursiveLockLock",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLocks.h",
+      "prototype": "void(IORecursiveLock*)",
+      "parameter_layout": "pointer64",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IORecursiveLockLock",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "borrowed lock lifetime must include waiters; sleepable context",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLocks.h",
+          "lines": [
+            242
+          ],
+          "sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_IORecursiveLockUnlock",
+      "demangled": "_IORecursiveLockUnlock",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOLocks.h",
+      "prototype": "void(IORecursiveLock*)",
+      "parameter_layout": "pointer64",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "_IORecursiveLockUnlock",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "balanced current-thread unlock; ordinary context remains required",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOLocks.h",
+          "lines": [
+            257
+          ],
+          "sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "demangled": "IOBufferMemoryDescriptor::withBytes(void const*, unsigned long, unsigned int, bool)",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOBufferMemoryDescriptor.h",
+      "prototype": "OSPtr<IOBufferMemoryDescriptor>(const void*, vm_size_t, IODirection, bool)",
+      "parameter_layout": "pointer64 + size64 + direction32 + bool; raw pointer64",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.arm64.exports",
+        "entry": "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "sha256": "dd975a53772382e446c4ea886fa2b1d29ed325f93f769fb240aa6d4d73b1b054",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "CPU copy kIODirectionNone; never prepare/map/DMA",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOBufferMemoryDescriptor.h",
+          "lines": [
+            294
+          ],
+          "sha256": "737c9b410709bf3a5ffb38ddc7000aeb8b908bb2581f98c3c90d7bacd19c1f18"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "__ZN6OSData9withBytesEPKvj",
+      "demangled": "OSData::withBytes(void const*, unsigned int)",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_snapshot.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "libkern/c++/OSData.h",
+      "prototype": "OSPtr<OSData>(const void*, unsigned int)",
+      "parameter_layout": "pointer64 + uint32; raw pointer64 in audited SDK mode",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "__ZN6OSData9withBytesEPKvj",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "factory count1, owner retains, drop factory, release after drain",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "libkern/libkern/c++/OSData.h",
+          "lines": [
+            171,
+            201
+          ],
+          "sha256": "2d0694f507d94133683c10a54e73224c95f6011b74a6e07ec4d236f68de92636"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "__ZTV9IOService",
+      "demangled": "vtable for IOService",
+      "callers": [
+        "tests/unit/m11_native_compile.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "IOKit/IOService.h",
+      "prototype": "C++ vtable data symbol",
+      "parameter_layout": "inherited Apple kernel C++ table; qualified superclass calls use SDK-defined slots",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/IOKit.exports",
+        "entry": "__ZTV9IOService",
+        "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "symbol spelling alone cannot validate vtable; class unregistered/uninstantiable",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "iokit/IOKit/IOService.h",
+          "lines": [
+            404
+          ],
+          "sha256": "620eec0e4e4cb7cb077c4f4d78770a0ca409dd8efcd8cbc2fa2dafc40014f71c"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_memcpy",
+      "demangled": "_memcpy",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/core/validation.cpp",
+        "development/AMDRadeonRDNA4-Navi44/src/edid.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "string.h",
+      "prototype": "void*(void*, const void*, size_t)",
+      "parameter_layout": "three 64-bit values; pointer result",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "_memcpy",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "compiler lowering; checked CPU ranges",
+      "evidence_states": {
+        "SOURCE_DECLARED": "UNVERIFIED exact public declaration",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_ml_at_interrupt_context",
+      "demangled": "_ml_at_interrupt_context",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "i386/machine_routines.h or arm/machine_routines.h",
+      "prototype": "boolean_t(void)",
+      "parameter_layout": "boolean_t32 result",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "_ml_at_interrupt_context",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "deny interrupt entry; not a complete sleepability certificate",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "osfmk/i386/machine_routines.h",
+          "lines": [
+            381
+          ],
+          "sha256": "66df8ae4f0f04117b21273ec5eeae75f177ba85bceb55fb50db788ccbf47b987"
+        },
+        {
+          "path": "osfmk/arm/machine_routines.h",
+          "lines": [
+            94
+          ],
+          "sha256": "6809e5bea8edbee9ca42f44732242fd1973cf77d4dc672a8ecb0b37c55c07600"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    },
+    {
+      "symbol": "_ml_get_interrupts_enabled",
+      "demangled": "_ml_get_interrupts_enabled",
+      "callers": [
+        "development/AMDRadeonRDNA4-Navi44/platform/darwin_gate.cpp"
+      ],
+      "module": "project CPU/native compile allowlist",
+      "header": "i386/machine_routines.h or arm/machine_routines.h",
+      "prototype": "boolean_t(void)",
+      "parameter_layout": "boolean_t32 result",
+      "architecture": "arm64",
+      "compiled_SDK": "26.5",
+      "target_SDK": "26.5 declared; binary absent",
+      "calling_convention": "Apple kernel C++ / C target ABI; current SDK only",
+      "KPI_source_reference": {
+        "file": "config/Libkern.exports",
+        "entry": "_ml_get_interrupts_enabled",
+        "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac",
+        "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "source_reference_status": "VERIFIED_EXPORT_REFERENCE",
+      "target_binary_status": "UNVERIFIED",
+      "version_compatibility": "BLOCKED: target binary/class ABI unavailable; SDK26 declarations verified",
+      "real_target_link_resolution": "UNVERIFIED",
+      "risk": "deny disabled interrupts; cannot detect arbitrary caller spinlocks",
+      "evidence_states": {
+        "SOURCE_DECLARED": "SOURCE_DECLARED",
+        "SDK_DECLARED": "SDK_DECLARED",
+        "REFERENCE_EXPORTED": "REFERENCE_EXPORTED",
+        "TARGET_BINARY_VERIFIED": "UNVERIFIED",
+        "TARGET_ABI_VERIFIED": "UNVERIFIED"
+      },
+      "XNU_declaration_references": [
+        {
+          "path": "osfmk/i386/machine_routines.h",
+          "lines": [
+            373
+          ],
+          "sha256": "66df8ae4f0f04117b21273ec5eeae75f177ba85bceb55fb50db788ccbf47b987"
+        },
+        {
+          "path": "osfmk/arm/machine_routines.h",
+          "lines": [
+            76
+          ],
+          "sha256": "6809e5bea8edbee9ca42f44732242fd1973cf77d4dc672a8ecb0b37c55c07600"
+        }
+      ],
+      "target_kernel_version": "XNU 12377.121.6 source / actual binary UNVERIFIED"
+    }
+  ],
+  "evidence_levels": {
+    "A": "public source",
+    "B": "current SDK declaration / target source header reference",
+    "C": "pinned architecture export list",
+    "D": "UNVERIFIED target binary",
+    "E": "NOT RUN load/runtime"
+  }
+}

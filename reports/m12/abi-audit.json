@@ -1,0 +1,281 @@
+{
+  "architectures": {
+    "x86_64": {
+      "current_SDK_object_options": "PASS",
+      "target_SDK_match": "BLOCKED",
+      "target_binary_exports": "UNVERIFIED",
+      "target_vtable": "UNVERIFIED",
+      "Kernel_Runtime": "NOT RUN"
+    },
+    "arm64": {
+      "current_SDK_object_options": "PASS",
+      "target_SDK_match": "BLOCKED",
+      "target_binary_exports": "UNVERIFIED",
+      "target_vtable": "UNVERIFIED",
+      "Kernel_Runtime": "NOT RUN"
+    }
+  },
+  "current_SDK_layout": {
+    "x86_64": {
+      "current_SDK": "27.0",
+      "sizes": {
+        "_n44_align_IOService": 8,
+        "_n44_size_IORegistryEntry": 40,
+        "_n44_size_IOService": 136,
+        "_n44_size_OSObject": 16
+      },
+      "artifact_sha256": "a4af70d99795e04e779cc6947fde7ac71d72375a082e21db691aca371f9cad90",
+      "layout_log": "PROJECT_ROOT/reports/m12/local/checks/x86_64-layout-compile.log",
+      "target15_layout": "UNVERIFIED",
+      "excluded_from_link": true,
+      "current_SDK_selected_vtable_entries": [
+        {
+          "table_index": 20,
+          "offset_from_ZTV_symbol": 160,
+          "declaration": "void IOService::free()"
+        },
+        {
+          "table_index": 75,
+          "offset_from_ZTV_symbol": 600,
+          "declaration": "bool N44LayoutReference::init(OSDictionary *)"
+        },
+        {
+          "table_index": 128,
+          "offset_from_ZTV_symbol": 1024,
+          "declaration": "bool IOService::init(IORegistryEntry *, const IORegistryPlane *)"
+        },
+        {
+          "table_index": 130,
+          "offset_from_ZTV_symbol": 1040,
+          "declaration": "bool IOService::willTerminate(IOService *, IOOptionBits)"
+        },
+        {
+          "table_index": 131,
+          "offset_from_ZTV_symbol": 1048,
+          "declaration": "bool IOService::didTerminate(IOService *, IOOptionBits, bool *)"
+        },
+        {
+          "table_index": 186,
+          "offset_from_ZTV_symbol": 1488,
+          "declaration": "bool IOService::start(IOService *)"
+        },
+        {
+          "table_index": 187,
+          "offset_from_ZTV_symbol": 1496,
+          "declaration": "void IOService::stop(IOService *)"
+        },
+        {
+          "table_index": 188,
+          "offset_from_ZTV_symbol": 1504,
+          "declaration": "bool IOService::open(IOService *, IOOptionBits, void *)"
+        },
+        {
+          "table_index": 189,
+          "offset_from_ZTV_symbol": 1512,
+          "declaration": "void IOService::close(IOService *, IOOptionBits)"
+        },
+        {
+          "table_index": 194,
+          "offset_from_ZTV_symbol": 1552,
+          "declaration": "bool IOService::terminate(IOOptionBits)"
+        }
+      ],
+      "target15_entries": "UNVERIFIED; never inferred from source lexical counts"
+    },
+    "arm64": {
+      "current_SDK": "27.0",
+      "sizes": {
+        "_n44_align_IOService": 8,
+        "_n44_size_IORegistryEntry": 40,
+        "_n44_size_IOService": 136,
+        "_n44_size_OSObject": 16
+      },
+      "artifact_sha256": "5068a682970383c1f239a3f37de0012c8722391bf89654b52fd22df14d00e6fc",
+      "layout_log": "PROJECT_ROOT/reports/m12/local/checks/arm64-layout-compile.log",
+      "target15_layout": "UNVERIFIED",
+      "excluded_from_link": true,
+      "current_SDK_selected_vtable_entries": [
+        {
+          "table_index": 24,
+          "offset_from_ZTV_symbol": 192,
+          "declaration": "void IOService::free()"
+        },
+        {
+          "table_index": 79,
+          "offset_from_ZTV_symbol": 632,
+          "declaration": "bool N44LayoutReference::init(OSDictionary *)"
+        },
+        {
+          "table_index": 132,
+          "offset_from_ZTV_symbol": 1056,
+          "declaration": "bool IOService::init(IORegistryEntry *, const IORegistryPlane *)"
+        },
+        {
+          "table_index": 134,
+          "offset_from_ZTV_symbol": 1072,
+          "declaration": "bool IOService::willTerminate(IOService *, IOOptionBits)"
+        },
+        {
+          "table_index": 135,
+          "offset_from_ZTV_symbol": 1080,
+          "declaration": "bool IOService::didTerminate(IOService *, IOOptionBits, bool *)"
+        },
+        {
+          "table_index": 192,
+          "offset_from_ZTV_symbol": 1536,
+          "declaration": "bool IOService::start(IOService *)"
+        },
+        {
+          "table_index": 193,
+          "offset_from_ZTV_symbol": 1544,
+          "declaration": "void IOService::stop(IOService *)"
+        },
+        {
+          "table_index": 194,
+          "offset_from_ZTV_symbol": 1552,
+          "declaration": "bool IOService::open(IOService *, IOOptionBits, void *)"
+        },
+        {
+          "table_index": 195,
+          "offset_from_ZTV_symbol": 1560,
+          "declaration": "void IOService::close(IOService *, IOOptionBits)"
+        },
+        {
+          "table_index": 200,
+          "offset_from_ZTV_symbol": 1600,
+          "declaration": "bool IOService::terminate(IOOptionBits)"
+        }
+      ],
+      "target15_entries": "UNVERIFIED; never inferred from source lexical counts"
+    }
+  },
+  "export_references": [
+    {
+      "path": "config/IOKit.exports",
+      "sha256": "5ad4cb0a476595698f06b0ffe850c5bb5604dc385ab844054a6ffb2437cddada",
+      "arch": "x86_64"
+    },
+    {
+      "path": "config/IOKit.x86_64.exports",
+      "sha256": "2d970900f4eafd2478f825ce7220ad11a8090a46b06af75ab0e3ca695ed0fbbe",
+      "arch": "x86_64"
+    },
+    {
+      "path": "config/Libkern.exports",
+      "sha256": "2f96a09412ce5e070ff02317ee36eeba32fad2d471aa29bc2c1724e917127d68",
+      "arch": "x86_64"
+    },
+    {
+      "path": "config/Libkern.x86_64.exports",
+      "sha256": "d7a66f639d0aaee9a5e69f5da2c62aff3d36b5760c674261ad5993e3c4fb3e57",
+      "arch": "x86_64"
+    },
+    {
+      "path": "config/IOKit.exports",
+      "sha256": "5ad4cb0a476595698f06b0ffe850c5bb5604dc385ab844054a6ffb2437cddada",
+      "arch": "arm64"
+    },
+    {
+      "path": "config/Libkern.exports",
+      "sha256": "2f96a09412ce5e070ff02317ee36eeba32fad2d471aa29bc2c1724e917127d68",
+      "arch": "arm64"
+    },
+    {
+      "path": "config/IOKit.arm64.exports",
+      "sha256": "4d1d368318a132f9091d398d21ec6e4caa17b24545c1fe70155fb2b7bf43f79e",
+      "arch": "arm64"
+    },
+    {
+      "path": "config/Libkern.arm64.exports",
+      "sha256": "166c204e9399e8832ff80c4b804145140de56cf764d8f6485274176b9491f75e",
+      "arch": "arm64"
+    }
+  ],
+  "source_comparison": [
+    {
+      "path": "iokit/IOKit/IOService.h",
+      "target_source_sha256": "90f30d7d8fc5547c702c12429c0ac25e1bc826f5d8363b3fa02f26b583d6fe7d",
+      "current_SDK_header": "IOKit/IOService.h",
+      "current_header_sha256": "c5490cfc3b43adab3b62762707c0c35941d47dcae1f400e90067cd8f8b3c8914",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 108,
+      "lexical_virtuals_current": 108,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    },
+    {
+      "path": "iokit/IOKit/IORegistryEntry.h",
+      "target_source_sha256": "3eedbdac6256e6983eaf4d294ba586d4cef016fa3b4345e039063c8760996ccc",
+      "current_SDK_header": "IOKit/IORegistryEntry.h",
+      "current_header_sha256": "30976c70f6fb1c92675e11c99694f45615797d292aa0e91cadfeac5d85aab247",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 72,
+      "lexical_virtuals_current": 72,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    },
+    {
+      "path": "libkern/libkern/c++/OSObject.h",
+      "target_source_sha256": "cde117af53211f8f5736f48f477f8821becd478c7310e42ce73f310f0efa1014",
+      "current_SDK_header": "libkern/c++/OSObject.h",
+      "current_header_sha256": "69783dc78e1a398b11c0f2dcd2147277425f68a7e5c655519ded056d5b57ed3b",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 10,
+      "lexical_virtuals_current": 10,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    },
+    {
+      "path": "libkern/libkern/c++/OSMetaClass.h",
+      "target_source_sha256": "0b47cb07db5854013123fce2972592d63997c8a7bced80b7365bb04af4614647",
+      "current_SDK_header": "libkern/c++/OSMetaClass.h",
+      "current_header_sha256": "030784b3b7962124b69d855d5ac20323b78522a3be5f9806908baa0ef9126494",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 37,
+      "lexical_virtuals_current": 37,
+      "declarations_only_in_target": [
+        "~OSMetaClass()"
+      ],
+      "declarations_only_in_current": [
+        "void retain() const override",
+        "void release() const override",
+        "void release(int freeWhen) const override",
+        "void taggedRetain(const void * tag = NULL) const override",
+        "void taggedRelease(const void * tag = NULL) const override",
+        "void taggedRelease( const void * tag, const int freeWhen) const override",
+        "int getRetainCount() const override",
+        "const OSMetaClass * getMetaClass() const override",
+        "~OSMetaClass() override",
+        "bool serialize(OSSerialize * serializer) const override"
+      ],
+      "declaration_order_equal": false,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    },
+    {
+      "path": "iokit/IOKit/IOLocks.h",
+      "target_source_sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8",
+      "current_SDK_header": "IOKit/IOLocks.h",
+      "current_header_sha256": "b8c590a5c31ba1efe08ca5eeb59ed03688eab3f7f42b0879470dbbf24df7d158",
+      "bytes_identical": false,
+      "lexical_virtuals_target": 0,
+      "lexical_virtuals_current": 0,
+      "declarations_only_in_target": [],
+      "declarations_only_in_current": [],
+      "declaration_order_equal": true,
+      "conditional_source_not_preprocessed": true,
+      "target_layout_verified": false
+    }
+  ],
+  "source_scope": "Conditional source is not SDK projection or a target binary",
+  "target_source_pin": "8d741a5de7ff4191bf97d57b9f54c2f6d4a15585"
+}

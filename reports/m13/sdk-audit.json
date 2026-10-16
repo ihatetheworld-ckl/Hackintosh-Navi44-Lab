@@ -1,0 +1,19 @@
+{
+  "root": "SDK_ROOT",
+  "version": "26.5",
+  "SDK_build": "25F70",
+  "kernel": "SDK_ROOT/System/Library/Frameworks/Kernel.framework/Headers",
+  "header_sha256": {
+    "IOKit/IOService.h": "37a6a13c2dd8aa9ec7049b948b81daf575f3d5ae660f2bb62aa3a7809cb3cd44",
+    "IOKit/IOLocks.h": "b8c590a5c31ba1efe08ca5eeb59ed03688eab3f7f42b0879470dbbf24df7d158",
+    "IOKit/IOLib.h": "cbaa4a32a979fd3d52672d92f3c3374a620a1bb1482ec967a6e02670239f7a09",
+    "IOKit/IOBufferMemoryDescriptor.h": "434116f29febd5e178b91993c6ad2c54453a1e9bc8ff1e0bb1200c5e6a7825ed",
+    "libkern/c++/OSObject.h": "69783dc78e1a398b11c0f2dcd2147277425f68a7e5c655519ded056d5b57ed3b",
+    "libkern/c++/OSMetaClass.h": "030784b3b7962124b69d855d5ac20323b78522a3be5f9806908baa0ef9126494",
+    "libkern/c++/OSData.h": "70af60d8a9021b87edec82c1d9345fd85afffbd8286a316b15e39c0c1bf5329d",
+    "IOKit/IORegistryEntry.h": "30976c70f6fb1c92675e11c99694f45615797d292aa0e91cadfeac5d85aab247"
+  },
+  "Kernel_framework": "PRESENT",
+  "target_binary_verified": false,
+  "settings_sha256": "f8d005f09381389167f9e0aeaa169bc9e7dff162ef22ca2fd8e98df7ff1acafe"
+}

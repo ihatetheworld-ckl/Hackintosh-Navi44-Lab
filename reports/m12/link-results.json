@@ -1,0 +1,391 @@
+{
+  "x86_64": {
+    "Partial_Link": "PASS",
+    "partial_artifact": {
+      "arch": "x86_64",
+      "cpu": 16777223,
+      "subtype": 3,
+      "file_type": 1,
+      "flags": 8192,
+      "bytes": 101904,
+      "sha256": "145390dbca2c6dd173ae08e1af5ff0f75cb5b3596e48abaa37b98fe4ce7c5492",
+      "commands": [
+        {
+          "command": 25,
+          "bytes": 552
+        },
+        {
+          "command": 2,
+          "bytes": 24
+        },
+        {
+          "command": 50,
+          "bytes": 32
+        },
+        {
+          "command": 41,
+          "bytes": 16
+        }
+      ],
+      "versions": [
+        {
+          "platform": 1,
+          "minimum": 983040,
+          "sdk": 1769472
+        }
+      ],
+      "sections": [
+        {
+          "name": "__text",
+          "segment": "__TEXT",
+          "address": 0,
+          "size": 58059,
+          "offset": 688,
+          "reloff": 65376,
+          "nreloc": 530,
+          "flags": 2147484672
+        },
+        {
+          "name": "__cstring",
+          "segment": "__TEXT",
+          "address": 58059,
+          "size": 4521,
+          "offset": 58747,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 2
+        },
+        {
+          "name": "__const",
+          "segment": "__TEXT",
+          "address": 62592,
+          "size": 1472,
+          "offset": 63280,
+          "reloff": 69616,
+          "nreloc": 14,
+          "flags": 0
+        },
+        {
+          "name": "__literal16",
+          "segment": "__TEXT",
+          "address": 64064,
+          "size": 16,
+          "offset": 64752,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 14
+        },
+        {
+          "name": "__const",
+          "segment": "__DATA",
+          "address": 64080,
+          "size": 408,
+          "offset": 64768,
+          "reloff": 69728,
+          "nreloc": 37,
+          "flags": 0
+        },
+        {
+          "name": "__data",
+          "segment": "__DATA",
+          "address": 64488,
+          "size": 196,
+          "offset": 65176,
+          "reloff": 70024,
+          "nreloc": 2,
+          "flags": 0
+        }
+      ],
+      "path": "build/m12/checks/darwin-x86_64/n44-partial.o",
+      "symbol_count": 1072,
+      "relocation_count": 583,
+      "undefined": [
+        "_IOFreeAligned",
+        "_IOLog",
+        "_IOMallocAligned",
+        "_IORecursiveLockHaveLock",
+        "_IORecursiveLockLock",
+        "_IORecursiveLockUnlock",
+        "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "__ZN6OSData9withBytesEPKvj",
+        "__ZTV9IOService",
+        "___bzero",
+        "_memcpy",
+        "_ml_at_interrupt_context",
+        "_ml_get_interrupts_enabled"
+      ]
+    },
+    "remaining": [
+      "_IOFreeAligned",
+      "_IOLog",
+      "_IOMallocAligned",
+      "_IORecursiveLockHaveLock",
+      "_IORecursiveLockLock",
+      "_IORecursiveLockUnlock",
+      "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "__ZN6OSData9withBytesEPKvj",
+      "__ZTV9IOService",
+      "___bzero",
+      "_memcpy",
+      "_ml_at_interrupt_context",
+      "_ml_get_interrupts_enabled"
+    ],
+    "Linker_exit": 0,
+    "Full_Target_Link_Closure": "BLOCKED",
+    "Bundle": "NOT RUN",
+    "Sign": "NOT RUN",
+    "Install": "NOT RUN",
+    "Load": "NOT RUN",
+    "MH_KEXT_BUNDLE_Construction": "PASS",
+    "image": {
+      "arch": "x86_64",
+      "cpu": 16777223,
+      "subtype": 3,
+      "file_type": 11,
+      "flags": 133,
+      "bytes": 96224,
+      "sha256": "3e03b99889e49b49f0ebdee9518cc67c7e6326869c4bb02f7712e4f376599d4a",
+      "commands": [
+        {
+          "command": 25,
+          "bytes": 312
+        },
+        {
+          "command": 25,
+          "bytes": 312
+        },
+        {
+          "command": 25,
+          "bytes": 72
+        },
+        {
+          "command": 2,
+          "bytes": 24
+        },
+        {
+          "command": 11,
+          "bytes": 80
+        },
+        {
+          "command": 27,
+          "bytes": 24
+        },
+        {
+          "command": 42,
+          "bytes": 16
+        }
+      ],
+      "versions": [],
+      "sections": [
+        {
+          "name": "__text",
+          "segment": "__TEXT",
+          "address": 912,
+          "size": 58059,
+          "offset": 912,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 2147484672
+        },
+        {
+          "name": "__cstring",
+          "segment": "__TEXT",
+          "address": 58971,
+          "size": 4521,
+          "offset": 58971,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 2
+        },
+        {
+          "name": "__const",
+          "segment": "__TEXT",
+          "address": 63504,
+          "size": 1488,
+          "offset": 63504,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 0
+        },
+        {
+          "name": "__const",
+          "segment": "__DATA",
+          "address": 65536,
+          "size": 408,
+          "offset": 65536,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 0
+        },
+        {
+          "name": "__data",
+          "segment": "__DATA",
+          "address": 65944,
+          "size": 196,
+          "offset": 65944,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 0
+        },
+        {
+          "name": "__got",
+          "segment": "__DATA",
+          "address": 66144,
+          "size": 8,
+          "offset": 66144,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 0
+        }
+      ],
+      "path": "build/m12/checks/darwin-x86_64/n44-offline.macho",
+      "symbol_count": 820,
+      "relocation_count": 89,
+      "undefined": [
+        "_IOFreeAligned",
+        "_IOLog",
+        "_IOMallocAligned",
+        "_IORecursiveLockHaveLock",
+        "_IORecursiveLockLock",
+        "_IORecursiveLockUnlock",
+        "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "__ZN6OSData9withBytesEPKvj",
+        "__ZTV9IOService",
+        "___bzero",
+        "_memcpy",
+        "_ml_at_interrupt_context",
+        "_ml_get_interrupts_enabled"
+      ]
+    }
+  },
+  "arm64": {
+    "Partial_Link": "PASS",
+    "partial_artifact": {
+      "arch": "arm64",
+      "cpu": 16777228,
+      "subtype": 0,
+      "file_type": 1,
+      "flags": 8192,
+      "bytes": 95192,
+      "sha256": "c666b56a74195144f78c63c9a335fb384357e43d02e33a2fffef6f5b19682fca",
+      "commands": [
+        {
+          "command": 25,
+          "bytes": 552
+        },
+        {
+          "command": 2,
+          "bytes": 24
+        },
+        {
+          "command": 50,
+          "bytes": 32
+        },
+        {
+          "command": 41,
+          "bytes": 16
+        }
+      ],
+      "versions": [
+        {
+          "platform": 1,
+          "minimum": 983040,
+          "sdk": 1769472
+        }
+      ],
+      "sections": [
+        {
+          "name": "__text",
+          "segment": "__TEXT",
+          "address": 0,
+          "size": 48912,
+          "offset": 688,
+          "reloff": 56232,
+          "nreloc": 850,
+          "flags": 2147484672
+        },
+        {
+          "name": "__cstring",
+          "segment": "__TEXT",
+          "address": 48912,
+          "size": 4610,
+          "offset": 49600,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 2
+        },
+        {
+          "name": "__const",
+          "segment": "__TEXT",
+          "address": 53524,
+          "size": 1336,
+          "offset": 54212,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 0
+        },
+        {
+          "name": "__literal16",
+          "segment": "__TEXT",
+          "address": 54864,
+          "size": 16,
+          "offset": 55552,
+          "reloff": 0,
+          "nreloc": 0,
+          "flags": 14
+        },
+        {
+          "name": "__const",
+          "segment": "__DATA",
+          "address": 54880,
+          "size": 464,
+          "offset": 55568,
+          "reloff": 63032,
+          "nreloc": 44,
+          "flags": 0
+        },
+        {
+          "name": "__data",
+          "segment": "__DATA",
+          "address": 55344,
+          "size": 196,
+          "offset": 56032,
+          "reloff": 63384,
+          "nreloc": 2,
+          "flags": 0
+        }
+      ],
+      "path": "build/m12/checks/darwin-arm64/n44-partial.o",
+      "symbol_count": 1072,
+      "relocation_count": 896,
+      "undefined": [
+        "_IOFreeAligned",
+        "_IOLog",
+        "_IOMallocAligned",
+        "_IORecursiveLockHaveLock",
+        "_IORecursiveLockLock",
+        "_IORecursiveLockUnlock",
+        "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+        "__ZN6OSData9withBytesEPKvj",
+        "__ZTV9IOService",
+        "_memcpy",
+        "_ml_at_interrupt_context",
+        "_ml_get_interrupts_enabled"
+      ]
+    },
+    "remaining": [
+      "_IOFreeAligned",
+      "_IOLog",
+      "_IOMallocAligned",
+      "_IORecursiveLockHaveLock",
+      "_IORecursiveLockLock",
+      "_IORecursiveLockUnlock",
+      "__ZN24IOBufferMemoryDescriptor9withBytesEPKvmjb",
+      "__ZN6OSData9withBytesEPKvj",
+      "__ZTV9IOService",
+      "_memcpy",
+      "_ml_at_interrupt_context",
+      "_ml_get_interrupts_enabled"
+    ]
+  }
+}

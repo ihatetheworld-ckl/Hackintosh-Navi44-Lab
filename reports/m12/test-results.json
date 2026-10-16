@@ -1,0 +1,70 @@
+{
+  "stage": "M12",
+  "status": "COMPLETE_WITH_BLOCKERS",
+  "CPU_Host_Build": "PASS",
+  "Kernel_Object_Compile": "PASS",
+  "Partial_Link": "PASS",
+  "MH_KEXT_BUNDLE_Construction": "PASS",
+  "KPI_Reference_Audit": "PASS reference classification only",
+  "Target_ABI_Compatibility": "BLOCKED: matched SDK15 and target kernel binary absent",
+  "Full_Target_Link_Closure": "BLOCKED",
+  "Bundle": "NOT RUN",
+  "Sign": "NOT RUN",
+  "Install": "NOT RUN",
+  "Load": "NOT RUN",
+  "Kernel_Runtime": "NOT RUN",
+  "GPU_Runtime": "NOT RUN",
+  "Windows_Regression": "NOT RUN",
+  "x86_64_Runtime": "NOT RUN",
+  "M12_behavior": {
+    "normal": {
+      "PASS": 34,
+      "FAIL": 0,
+      "error_callbacks": 300,
+      "concurrent_scopes": 1,
+      "post_stop_attempts": 160
+    },
+    "asan-ubsan": {
+      "PASS": 34,
+      "FAIL": 0,
+      "error_callbacks": 300,
+      "concurrent_scopes": 1,
+      "post_stop_attempts": 160
+    },
+    "tsan": {
+      "PASS": 34,
+      "FAIL": 0,
+      "error_callbacks": 300,
+      "concurrent_scopes": 1,
+      "post_stop_attempts": 160
+    }
+  },
+  "legacy_regression": "PASS",
+  "ASan_UBSan": "PASS; leak detection not verified",
+  "TSan": "PASS covered Host paths only",
+  "Native_Static_Analyzer": {
+    "status": "PASS",
+    "units": 5
+  },
+  "negative_cases": 10,
+  "CPU_Static_Analyzer": {
+    "status": "PASS",
+    "units": 11
+  },
+  "source_stability": "PASS",
+  "unique_checks": {
+    "historical_Cxx": 294,
+    "new_M12_Cxx": 34,
+    "new_policy_negative_classes": 10,
+    "Python_PASS": 91,
+    "Python_SKIP": 2,
+    "count_sanitizer_repeats": false
+  },
+  "alias_regression_proof": {
+    "status": "PASS",
+    "old_implementation_exit": 1,
+    "rejected_behavior": "scope_byte_alias_preserves_source",
+    "fixed_implementation": "PASS 34/0 in normal, ASan/UBSan and TSan formal run",
+    "old_source_only_in_ignored_build": true
+  }
+}

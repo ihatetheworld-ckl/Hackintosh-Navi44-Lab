@@ -23,10 +23,22 @@ Result ShutdownBarrier::bind(SnapshotOwner&o){
 }
 Result ShutdownBarrier::start(){
     if(!begin())return denied();Result r=success();
-    if(state_!=ShutdownState::Created||!count_)r=failure("shutdown_start_state",Error::Protocol);
+    if((state_!=ShutdownState::Created&&state_!=ShutdownState::Initialized)||!count_)r=failure("shutdown_start_state",Error::Protocol);
     else for(size_t i=0;i<count_;++i){OwnerState s{};size_t leases=0;r=owners_[i]->inspect(s,leases);
         if(!r.ok()||s!=OwnerState::Active){r=failure("shutdown_partial_initialization",Error::Protocol);break;}}
     if(r.ok())state_=ShutdownState::Active;end();return r;
+}
+Result ShutdownBarrier::initialize(){
+    if(!begin())return denied();Result r=success();
+    if(state_!=ShutdownState::Created||!count_){end();return failure("shutdown_initialize_state",Error::Protocol);}
+    for(size_t i=0;i<count_;++i){OwnerState s{};size_t n=0;r=owners_[i]->inspect(s,n);
+        if(!r.ok()||s!=OwnerState::Active){r=failure("shutdown_initialize_owner",Error::Protocol);break;}}
+    state_=r.ok()?ShutdownState::Initialized:ShutdownState::Failed;end();return r;
+}
+Result ShutdownBarrier::consume(size_t i,InputConsumer consumer){
+    if(!begin())return denied();
+    Result r=state_==ShutdownState::Active&&i<count_?owners_[i]->consume(consumer):failure("shutdown_scope_not_active",Error::Protocol);
+    end();return r;
 }
 Result ShutdownBarrier::borrow(size_t i,SnapshotTicket&t){
     if(!begin())return denied();
@@ -66,12 +78,12 @@ Result ShutdownBarrier::drainHeld(){
 Result ShutdownBarrier::stop(){
     if(!begin())return denied();if(state_==ShutdownState::Released){end();return success();}
     // Transition first, before any foreign complete/release callback can reenter.
-    if(state_==ShutdownState::Created||state_==ShutdownState::Active)state_=ShutdownState::Stopping;
+    if(state_==ShutdownState::Created||state_==ShutdownState::Initialized||state_==ShutdownState::Active)state_=ShutdownState::Stopping;
     Result r=drainHeld();end();return r;
 }
 Result ShutdownBarrier::poll(){
     if(!begin())return denied();
-    if(state_==ShutdownState::Created||state_==ShutdownState::Active){end();return failure("shutdown_poll_state",Error::Protocol);}
+    if(state_==ShutdownState::Created||state_==ShutdownState::Initialized||state_==ShutdownState::Active){end();return failure("shutdown_poll_state",Error::Protocol);}
     Result r=state_==ShutdownState::Released?success():drainHeld();end();return r;
 }
 bool ShutdownBarrier::readyToFree()const{

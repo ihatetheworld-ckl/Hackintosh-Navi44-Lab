@@ -1,0 +1,45 @@
+{
+  "review_date": "2026-10-16",
+  "source_references": [
+    {
+      "tag": "macos-260",
+      "commit": "4e290a9b9d3723c65d2a606223d41eb90ecdbf99",
+      "xnu": {
+        "path": "xnu",
+        "mode": "160000",
+        "type": "commit",
+        "sha": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea"
+      },
+      "version": "xnu-12377.1.9"
+    },
+    {
+      "tag": "macos-264",
+      "commit": "9c3c91eadd7417bc51c2d6c7bdaf8ce7dd902101",
+      "xnu": {
+        "path": "xnu",
+        "mode": "160000",
+        "type": "commit",
+        "sha": "5c306bec31e314fa4d8bbdafb2f6f5a6b7e7b291"
+      },
+      "version": "xnu-12377.101.15"
+    },
+    {
+      "tag": "macos-265",
+      "commit": "83390100289cedfe669c31a96c94326d31afa1ed",
+      "xnu": {
+        "path": "xnu",
+        "mode": "160000",
+        "type": "commit",
+        "sha": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+      },
+      "version": "xnu-12377.121.6"
+    }
+  ],
+  "static_build_target": "26.5",
+  "SDK_build": "25F70",
+  "Darwin_family": "25",
+  "SDK_build_is_not_kernel_binary_proof": true,
+  "latest_Apple_release_list": "26.7.1",
+  "newer_release_XNU_and_KDK": "UNVERIFIED",
+  "final_installation_version": "NOT SELECTED"
+}

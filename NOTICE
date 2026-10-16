@@ -26,3 +26,10 @@ Upstream emulator sources and hardware capture logs are omitted.
 Full third-party reference clones are omitted; fixed sources and licenses
 are listed in UPSTREAM_SOURCES.md. No claim is made that every upstream
 project uses the root license.
+
+M13 DisplayID container metadata was independently implemented using the
+published format/validation references in Linux commit
+24a19b953e2a3d0ea5a8c4951a0ab8f32720c907, drivers/gpu/drm/
+drm_displayid.c and drm_displayid_internal.h (MIT). Their notices are retained
+in licenses/DisplayID-reference-MIT.txt. No Linux headers or implementation are
+compiled into this project; raw reference text is local and ignored.

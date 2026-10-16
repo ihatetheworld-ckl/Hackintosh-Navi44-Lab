@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "original_M12_source_sha256": "4c34ac3b5dcbb165c0af708004b1085d4329d39df01a5bb113acd7f64263d530",
+  "old_exit": 1,
+  "detected": "scope_length_output_alias_preserves_input",
+  "fixed": "PASS in normal/ASan+UBSan/TSan; see formal run",
+  "old_code_only_in_ignored_build": true
+}

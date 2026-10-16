@@ -1,0 +1,126 @@
+{
+  "status": "PASS",
+  "cases": [
+    {
+      "case": "HOST",
+      "status": "REJECTED",
+      "expected_reason": "HOST_RUNTIME",
+      "reasons": [
+        "ABI_OPTIONS_MISMATCH",
+        "HOST_RUNTIME"
+      ],
+      "symbols": [
+        "_puts"
+      ],
+      "sha256": "2089f12d013787ee23a938fd6c22bb54ec82179330e0a2454d04eca43ea81ab2",
+      "never_executed": true,
+      "linker_exit": 0,
+      "independent_policy_required": true
+    },
+    {
+      "case": "UNKNOWN",
+      "status": "REJECTED",
+      "expected_reason": "UNKNOWN_IMPORT",
+      "reasons": [
+        "UNKNOWN_IMPORT"
+      ],
+      "symbols": [
+        "_n44_unlisted_import"
+      ],
+      "sha256": "975d4c0686b6a1214d8aec96926b17452d8947b38a44fa3711ba8742cbc96bd8",
+      "never_executed": true
+    },
+    {
+      "case": "EXCEPTION",
+      "status": "REJECTED",
+      "expected_reason": "EXCEPTION_RUNTIME",
+      "reasons": [
+        "initializer_eh_or_tls",
+        "RTTI_RUNTIME",
+        "EXCEPTION_RUNTIME",
+        "EXCEPTION_RUNTIME"
+      ],
+      "symbols": [
+        "__ZTIi",
+        "___cxa_allocate_exception",
+        "___cxa_throw"
+      ],
+      "sha256": "5a3ae65a6b6464fb3835316989ccf024dd4aa5f5547fdbd11a44f21d42812dcd",
+      "never_executed": true
+    },
+    {
+      "case": "RTTI",
+      "status": "REJECTED",
+      "expected_reason": "RTTI_RUNTIME",
+      "reasons": [
+        "ABI_OPTIONS_MISMATCH",
+        "UNKNOWN_IMPORT",
+        "UNKNOWN_IMPORT",
+        "RTTI_RUNTIME"
+      ],
+      "symbols": [
+        "__ZTVN10__cxxabiv117__class_type_infoE",
+        "__ZTVN10__cxxabiv120__si_class_type_infoE",
+        "___dynamic_cast"
+      ],
+      "sha256": "4c823ccb3a7fb433d0c7074c57c2959847fffd3efafa952beb49ab272cb097b7",
+      "never_executed": true
+    },
+    {
+      "case": "PRINTF",
+      "status": "REJECTED",
+      "expected_reason": "UNSUPPORTED_KERNEL_IMPORT",
+      "reasons": [
+        "UNSUPPORTED_KERNEL_IMPORT"
+      ],
+      "symbols": [
+        "_printf"
+      ],
+      "sha256": "84bee7e5d9627498484226f493a7b3c76dde9c881157f53d4f3b8b388fed63e8",
+      "never_executed": true
+    },
+    {
+      "case": "INITIALIZER",
+      "status": "REJECTED",
+      "expected_reason": "initializer_eh_or_tls",
+      "reasons": [
+        "initializer_eh_or_tls"
+      ],
+      "symbols": [
+        "_n44_unlisted_import"
+      ],
+      "sha256": "0f11cdaff276438c51feb9214d79d8ba6fdfc426a700eb8a0990ae3da8947bf7",
+      "never_executed": true
+    },
+    {
+      "case": "WRONG_PROVIDER",
+      "status": "REJECTED",
+      "errors": [
+        {
+          "symbol": "_n44_policy_required",
+          "reason": "WRONG_SYMBOL_PROVIDER"
+        }
+      ],
+      "fake_Apple_API": false
+    },
+    {
+      "case": "STRING_INDEX",
+      "status": "REJECTED",
+      "reason": "string_index",
+      "from_actual_object": "daf6ff240a14f8e865af13cf656ed6bc925112f3c0466e48caa09d929a6e6c1f"
+    },
+    {
+      "case": "RELOCATION_INDEX",
+      "status": "REJECTED",
+      "reason": "relocation_symbol_index",
+      "from_actual_object": "daf6ff240a14f8e865af13cf656ed6bc925112f3c0466e48caa09d929a6e6c1f"
+    },
+    {
+      "case": "WRONG_ARCHITECTURE",
+      "status": "REJECTED",
+      "reason": "architecture_or_type",
+      "actual": "arm64",
+      "requested": "x86_64"
+    }
+  ]
+}

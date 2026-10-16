@@ -1,0 +1,61 @@
+{
+  "pin": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f",
+  "version": "xnu-12377.121.6",
+  "distribution": {
+    "tag": "macos-265",
+    "commit": "83390100289cedfe669c31a96c94326d31afa1ed",
+    "xnu": {
+      "path": "xnu",
+      "mode": "160000",
+      "type": "commit",
+      "sha": "ac9718fb1af618d5ce8678d0dc6e8a58f252216f"
+    },
+    "version": "xnu-12377.121.6"
+  },
+  "files": [
+    {
+      "path": "config/IOKit.exports",
+      "sha256": "a2b4b40b7559a37ccb0d29efb5972e30c9dda6a3e56eb57c9120c2a7a8eda76d"
+    },
+    {
+      "path": "config/IOKit.x86_64.exports",
+      "sha256": "c33616433824a14ded767ff24eb911b3d6499b9a859204f82cbd12c27fa51450"
+    },
+    {
+      "path": "config/Libkern.exports",
+      "sha256": "f9256a3fe5fa4729660933d42b096d883ce2b8c1e2ffd25c06263b854ba0b1ac"
+    },
+    {
+      "path": "config/Libkern.x86_64.exports",
+      "sha256": "d7a66f639d0aaee9a5e69f5da2c62aff3d36b5760c674261ad5993e3c4fb3e57"
+    },
+    {
+      "path": "config/IOKit.arm64.exports",
+      "sha256": "dd975a53772382e446c4ea886fa2b1d29ed325f93f769fb240aa6d4d73b1b054"
+    },
+    {
+      "path": "config/Libkern.arm64.exports",
+      "sha256": "166c204e9399e8832ff80c4b804145140de56cf764d8f6485274176b9491f75e"
+    },
+    {
+      "path": "iokit/IOKit/IOService.h",
+      "sha256": "620eec0e4e4cb7cb077c4f4d78770a0ca409dd8efcd8cbc2fa2dafc40014f71c"
+    },
+    {
+      "path": "iokit/IOKit/IORegistryEntry.h",
+      "sha256": "3eedbdac6256e6983eaf4d294ba586d4cef016fa3b4345e039063c8760996ccc"
+    },
+    {
+      "path": "libkern/libkern/c++/OSObject.h",
+      "sha256": "cde117af53211f8f5736f48f477f8821becd478c7310e42ce73f310f0efa1014"
+    },
+    {
+      "path": "libkern/libkern/c++/OSMetaClass.h",
+      "sha256": "24930e8b98f4b49c7e1b9271f47c8fc9e8c6c0f56f6acb41a0ba6be3116da771"
+    },
+    {
+      "path": "iokit/IOKit/IOLocks.h",
+      "sha256": "2b0c7209d5c1ad12fbe6993b2c99c12076f87666dc3cc6edc3be514e845a83e8"
+    }
+  ]
+}

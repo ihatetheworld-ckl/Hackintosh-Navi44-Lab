@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "ABI_research_script_sha256": "9fbce1ab14edefd84dfbc9efa531cbadcf18406283070692439f431f0b21e8e2",
+  "ABI_report_sha256": "50056a32bbb632952f18919723ced712876db6a3e9b638756fed57b47d8d0ad9",
+  "KPI_report_sha256": "8da289d16366d2c7a9d6471cf5e87281a521e58017c340ceaba2a1e87e64cd20",
+  "declaration_sources": [
+    {
+      "path": "iokit/IOKit/IOBufferMemoryDescriptor.h",
+      "sha256": "737c9b410709bf3a5ffb38ddc7000aeb8b908bb2581f98c3c90d7bacd19c1f18"
+    },
+    {
+      "path": "libkern/libkern/c++/OSData.h",
+      "sha256": "2d0694f507d94133683c10a54e73224c95f6011b74a6e07ec4d236f68de92636"
+    },
+    {
+      "path": "osfmk/i386/machine_routines.h",
+      "sha256": "66df8ae4f0f04117b21273ec5eeae75f177ba85bceb55fb50db788ccbf47b987"
+    },
+    {
+      "path": "iokit/IOKit/IOLib.h",
+      "sha256": "4c24fbfd9577ab19b8a36f2a5ee82831343e461482eaf41cba2161bdc9c9f46b"
+    },
+    {
+      "path": "osfmk/arm/machine_routines.h",
+      "sha256": "6809e5bea8edbee9ca42f44732242fd1973cf77d4dc672a8ecb0b37c55c07600"
+    }
+  ],
+  "missing_exact_memory_source_declaration": true,
+  "SDK_memory_declaration": "Kernel string.h verified; exact ___bzero is compiler emitted",
+  "raw_Apple_headers_not_published": true
+}

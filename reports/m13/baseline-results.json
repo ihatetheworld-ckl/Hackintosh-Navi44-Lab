@@ -1,0 +1,64 @@
+{
+  "base": "33e130f10ce24b840e16502a4bd6c618fd3eb824",
+  "source_manifest": "PASS",
+  "history_unchanged": 1664,
+  "parent_Git_unchanged": 25,
+  "legacy_reference_SDK": "27.0",
+  "legacy_reference_minos": "15.0",
+  "actual_baseline": {
+    "stage": "M12",
+    "status": "COMPLETE_WITH_BLOCKERS",
+    "CPU_Host_Build": "PASS",
+    "Kernel_Object_Compile": "PASS",
+    "Partial_Link": "PASS",
+    "MH_KEXT_BUNDLE_Construction": "PASS",
+    "KPI_Reference_Audit": "PASS reference classification only",
+    "Target_ABI_Compatibility": "BLOCKED: matched SDK15 and target kernel binary absent",
+    "Full_Target_Link_Closure": "BLOCKED",
+    "Bundle": "NOT RUN",
+    "Sign": "NOT RUN",
+    "Install": "NOT RUN",
+    "Load": "NOT RUN",
+    "Kernel_Runtime": "NOT RUN",
+    "GPU_Runtime": "NOT RUN",
+    "Windows_Regression": "NOT RUN",
+    "x86_64_Runtime": "NOT RUN",
+    "M12_behavior": {
+      "normal": {
+        "PASS": 34,
+        "FAIL": 0,
+        "error_callbacks": 300,
+        "concurrent_scopes": 1,
+        "post_stop_attempts": 160
+      },
+      "asan-ubsan": {
+        "PASS": 34,
+        "FAIL": 0,
+        "error_callbacks": 300,
+        "concurrent_scopes": 1,
+        "post_stop_attempts": 160
+      },
+      "tsan": {
+        "PASS": 34,
+        "FAIL": 0,
+        "error_callbacks": 300,
+        "concurrent_scopes": 1,
+        "post_stop_attempts": 160
+      }
+    },
+    "legacy_regression": "PASS",
+    "ASan_UBSan": "PASS; leak detection not verified",
+    "TSan": "PASS covered Host paths only",
+    "Native_Static_Analyzer": {
+      "status": "PASS",
+      "units": 5
+    },
+    "negative_cases": 10,
+    "CPU_Static_Analyzer": {
+      "status": "PASS",
+      "units": 11
+    },
+    "source_stability": "PASS"
+  },
+  "new_M13_counts": false
+}

@@ -1,0 +1,180 @@
+{
+  "status": "PASS",
+  "cases": [
+    {
+      "case": "HOST",
+      "status": "REJECTED",
+      "expected_reason": "HOST_RUNTIME",
+      "reasons": [
+        "ABI_OPTIONS_MISMATCH",
+        "HOST_RUNTIME"
+      ],
+      "symbols": [
+        "_puts"
+      ],
+      "sha256": "f899b97ade86bc0e548b8d5a0b515c49944f96813ea2b1c54e3a3704dd04b497",
+      "never_executed": true,
+      "linker_exit": 0,
+      "independent_policy_required": true
+    },
+    {
+      "case": "UNKNOWN",
+      "status": "REJECTED",
+      "expected_reason": "UNKNOWN_IMPORT",
+      "reasons": [
+        "UNKNOWN_IMPORT"
+      ],
+      "symbols": [
+        "_n44_unlisted_import"
+      ],
+      "sha256": "afda3f414c087a4964f64c351a3d46003ad2dcd0691e5aee2c74072d8ee3bb50",
+      "never_executed": true
+    },
+    {
+      "case": "EXCEPTION",
+      "status": "REJECTED",
+      "expected_reason": "EXCEPTION_RUNTIME",
+      "reasons": [
+        "initializer_eh_or_tls",
+        "RTTI_RUNTIME",
+        "EXCEPTION_RUNTIME",
+        "EXCEPTION_RUNTIME"
+      ],
+      "symbols": [
+        "__ZTIi",
+        "___cxa_allocate_exception",
+        "___cxa_throw"
+      ],
+      "sha256": "1e552704df1391afb94e07caae088234d0c0abe52285765b6d0415447d599c42",
+      "never_executed": true
+    },
+    {
+      "case": "RTTI",
+      "status": "REJECTED",
+      "expected_reason": "RTTI_RUNTIME",
+      "reasons": [
+        "ABI_OPTIONS_MISMATCH",
+        "UNKNOWN_IMPORT",
+        "UNKNOWN_IMPORT",
+        "RTTI_RUNTIME"
+      ],
+      "symbols": [
+        "__ZTVN10__cxxabiv117__class_type_infoE",
+        "__ZTVN10__cxxabiv120__si_class_type_infoE",
+        "___dynamic_cast"
+      ],
+      "sha256": "a8d5367f6359b27b7513be4989e7714fa83617fa35fdc0a8daaf15163c5a4a84",
+      "never_executed": true
+    },
+    {
+      "case": "PRINTF",
+      "status": "REJECTED",
+      "expected_reason": "UNSUPPORTED_KERNEL_IMPORT",
+      "reasons": [
+        "UNSUPPORTED_KERNEL_IMPORT"
+      ],
+      "symbols": [
+        "_printf"
+      ],
+      "sha256": "f014493dcc5b73bd452cb42508d8d7f4695758c5c109a7f81276fffd089cb15f",
+      "never_executed": true
+    },
+    {
+      "case": "INITIALIZER",
+      "status": "REJECTED",
+      "expected_reason": "initializer_eh_or_tls",
+      "reasons": [
+        "initializer_eh_or_tls"
+      ],
+      "symbols": [
+        "_n44_unlisted_import"
+      ],
+      "sha256": "43c720ba6167090b7a1de73f2800206d0bc4769ae8f2935016bcd3273c9f09a4",
+      "never_executed": true
+    },
+    {
+      "case": "WRONG_PROVIDER",
+      "status": "REJECTED",
+      "errors": [
+        {
+          "symbol": "_n44_policy_required",
+          "reason": "WRONG_SYMBOL_PROVIDER"
+        }
+      ],
+      "fake_Apple_API": false
+    },
+    {
+      "case": "STRING_INDEX",
+      "status": "REJECTED",
+      "reason": "string_index",
+      "from_actual_object": "88c21874c4fb0a514642c5167fe8e7031712cf7f18fb315c4b45cc7260cade63"
+    },
+    {
+      "case": "RELOCATION_INDEX",
+      "status": "REJECTED",
+      "reason": "relocation_symbol_index",
+      "from_actual_object": "88c21874c4fb0a514642c5167fe8e7031712cf7f18fb315c4b45cc7260cade63"
+    },
+    {
+      "case": "SDK27_SELECTION",
+      "status": "REJECTED",
+      "reason": "SDK_VERSION_MISMATCH"
+    },
+    {
+      "case": "SDK27_HEADER",
+      "status": "REJECTED",
+      "reason": "UNAPPROVED_HEADER_OR_MIXED_SDK: NEGATIVE_SDK_ROOT/usr/include/stdio.h"
+    },
+    {
+      "case": "LEGACY_SOURCE_REFERENCE",
+      "status": "REJECTED",
+      "reason": "REFERENCE_VERSION_MISMATCH"
+    },
+    {
+      "case": "SOURCE_REFERENCE_HASH",
+      "status": "REJECTED",
+      "reason": "REFERENCE_HASH_MISMATCH"
+    },
+    {
+      "case": "WRONG_FILE_FORMAT",
+      "status": "REJECTED",
+      "reason": "architecture_or_type"
+    },
+    {
+      "case": "LEGACY_DEPLOYMENT",
+      "status": "REJECTED",
+      "reason": "OBJECT_TARGET_VERSION_MISMATCH"
+    },
+    {
+      "case": "SDK27_OBJECT",
+      "status": "REJECTED",
+      "reason": "OBJECT_TARGET_VERSION_MISMATCH"
+    },
+    {
+      "case": "ABI_TYPE_MISMATCH",
+      "status": "REJECTED",
+      "compiler_exit": 1
+    },
+    {
+      "case": "ILLEGAL_INITIALIZATION_PATH",
+      "status": "REJECTED",
+      "errors": [
+        {
+          "source": "tests/unit/m13_negative.cpp",
+          "reason": "SOURCE_NOT_ALLOWED"
+        },
+        {
+          "symbol": "_n44_hardware_initialization_requested",
+          "reason": "UNKNOWN_IMPORT"
+        }
+      ]
+    },
+    {
+      "case": "WRONG_ARCHITECTURE",
+      "status": "REJECTED",
+      "reason": "architecture_or_type",
+      "actual": "arm64",
+      "requested": "x86_64"
+    }
+  ]
+}
