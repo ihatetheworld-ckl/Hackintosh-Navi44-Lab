@@ -34,6 +34,15 @@ struct ConnectorList {
     Origin origin{Origin::Unknown};bool boardVerified{false};
 };
 Result connectors(View,Origin,ConnectorList&);
+struct BoardDiagnostics {
+    uint16_t subsysVid{0},subsysId{0};
+    bool hasFirmwareInfo{false};
+    AtomBios::FirmwareInfo3 firmware{};
+    size_t gpioPinCount{0};
+    AtomBios::GpioPin gpioPins[AtomBios::MaxGpioPins]{};
+    Origin origin{Origin::Unknown};bool hardwareVerified{false};
+};
+Result boardDiagnostics(View,Origin,BoardDiagnostics&);
 enum class LinkKind:uint8_t { Unknown,Dp8b10b,Tmds };
 struct LinkBudget {
     Origin origin{Origin::Unknown};LinkKind kind{LinkKind::Unknown};

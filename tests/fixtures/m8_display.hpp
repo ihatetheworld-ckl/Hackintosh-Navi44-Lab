@@ -57,6 +57,30 @@ inline std::vector<uint8_t> displayId1440p180(){
     seal(b,off,128);
     return b;
 }
+inline std::vector<uint8_t> displayIdV12Tag03_1440p180(){
+    auto b=cta(1);b[126]=2;seal(b,0,128);b.resize(384,0);
+    size_t off=256;
+    b[off]=0x70;    // DisplayID EDID extension tag
+    b[off+1]=0x12;  // DisplayID v1.2
+    b[off+2]=0x79;  // 121-byte payload (with trailing zero pad inside section)
+    b[off+3]=0x00;
+    b[off+4]=0x00;
+    b[off+5]=0x03;  // VESA DisplayID v1.2 Type I Detailed Timing Data Block tag 0x03
+    b[off+6]=0x01;  // revision 1
+    b[off+7]=0x14;  // 20 bytes
+    // 2560x1440 @ 180Hz (725,100 kHz: rawClk = 72509 = 0x011B3D, hTotal=2720, vTotal=1481)
+    size_t d=off+8;
+    b[d+0]=0x3d;b[d+1]=0x1b;b[d+2]=0x01;b[d+3]=0x04;
+    w16(b,d+4,2560-1);w16(b,d+6,160-1);
+    w16(b,d+8,uint16_t((48-1)|0x8000));w16(b,d+10,32-1);
+    w16(b,d+12,1440-1);w16(b,d+14,41-1);
+    w16(b,d+16,3-1);w16(b,d+18,10-1);
+    uint8_t didSum=0;
+    for(size_t i=off+1;i<off+5+0x79;++i)didSum=uint8_t(didSum+b[i]);
+    b[off+5+0x79]=uint8_t(0-didSum);
+    seal(b,off,128);
+    return b;
+}
 inline std::array<uint8_t,1024> rom(){
     std::array<uint8_t,1024>b{};b[0]=0x55;b[1]=0xaa;b[2]=2;w16(b,0x48,0x80);
     w16(b,0x80,40);b[0x82]=2;b[0x83]=2;b[0x84]='A';b[0x85]='T';b[0x86]='O';b[0x87]='M';

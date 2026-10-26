@@ -163,6 +163,13 @@ int main(){
     check("displayid_stereo_rejected",!parse(didStereo,ExtensionPolicy::AllowDisplayId).ok());
     auto didTrailing=displayId1440p180();didTrailing[128+40]=1;seal(didTrailing,128);
     check("displayid_nonzero_padding_rejected",!parse(didTrailing,ExtensionPolicy::AllowDisplayId).ok());
+    auto didV12=displayIdV12Tag03_1440p180();
+    check("displayid_v12_tag03_1440p180_parsed",parse(didV12,ExtensionPolicy::AllowDisplayId).ok()&&monitor.modeCount==2&&
+        modes[1].timing.hActive==2560&&modes[1].timing.vActive==1440&&
+        modes[1].timing.pixelClockKHz==725100&&(modes[1].sources&DisplayIdType1));
+    BoardDiagnostics bdiag{};romData=rom();
+    check("board_diagnostics_synthetic_rom",boardDiagnostics({romData.data(),romData.size()},Origin::Synthetic,bdiag).ok()&&
+        bdiag.origin==Origin::Synthetic&&!bdiag.hardwareVerified);
     QueryCandidate qProj{};
     qProj.device.profile=Asic::identify(0x1002,0x7590,0xc0,true);
     qProj.device.present=7u;

@@ -1,64 +1,27 @@
 # PROJECT TAHOE26 — 本轮产出与下一步行动清单 (NEXT_ACTIONS)
 
-## 1. 本轮实际完成内容 (Round 1 Summary)
+## 1. 本轮新增完成内容 (Round 2 Summary)
 
-1. **M0 项目接管与环境审查**：
-   - 核实工作区 `D:\AntigravityWorkSpace\黑苹果研究\Hackintosh-Navi44-Lab` 与原工作区 `D:\CodexWorkSpace\黑苹果研究\Hackintosh-Navi44-Lab`。
-   - 创建独立 Git 分支 `tahoe26-dev`，完整保留 M6–M8.5 历史提交、测试与 BSD/MIT/Apache 许可证。
-2. **M1 主机硬件只读全面普查**：
-   - 通过注册表、`pnputil`、Win32 API 与 `.NET DriveInfo` 精确核实 `i5-12600KF`、`Maxsun MS-Terminator B760M D5` (BIOS `E1.5D`, Secure Boot = `0`)、32GB DDR5、`Gigabyte RX 9060 XT 16GB` (`1002:7590`, Subsys `1458:2438`, Rev `C0`, 三层 PCIe Switch 拓扑 `Bus 0->1->2->3`)、`RTL8125` (`10EC:8125`)、`AX101` (`8086:7A70`)、蓝牙 (`8087:0026`)、`ALC897` (`10EC:0897`)、USB 音频 (`Philips SPA3609 USB` / `TSP207`)。
-   - 精确区分 Windows 主盘 `WD_BLACK SN850X 2000GB` (`15B7:5030` @ Bus 4) 与 macOS 目标盘 `INTEL SSDPEKKF256G8L` 256GB (`8086:F1A6` @ Bus 6)，并发现目标 256GB SSD 存在两个旧分区（约 1.05GiB + 237.4GiB，疑似旧 Linux）。
-3. **M2–M4 上游调研与 OpenCore 1.0.8 候选工程生成**：
-   - 核实 2026 年 10 月最新 OpenCore `1.0.8`、Lilu `1.7.2`、VirtualSMC `1.3.8` 对 macOS 26 Tahoe 的支持及 Tahoe 移除 `AppleHDA.kext` 的影响。
-   - 编写本机专属 `SSDT-PLUG-ALT.dsl`、`SSDT-EC-USBX.dsl`、`SSDT-RTCAWAC.dsl`、`SSDT-NVME-PROTECT.dsl`（免拆机隐藏 Windows NVMe 防误格保护）、`UTBMap.kext` 与 `config.plist`，并通过 `validate_opencore_candidate.py` 全部 12 项校验。
-4. **M5 Navi44 驱动源码开发与离线测试**：
-   - 在 `src/edid.hpp/.cpp` 与 `core/display.hpp/.cpp` 中实现 VESA DisplayID v1.3/v2.0 (`0x70`) 扩展块解析，支持 `2560x1440@180Hz` (`734.4 MHz`) 高刷时序与 DP HBR3 链路预算评估。
-   - 在 `core/query_candidate.hpp/.cpp` 中实现 `N44Q 1.0` (128B) → `CobaltQueryProjection` (192B `n48n_info` 兼容布局) 的安全字段映射与反向校验。
-   - 通过 Clang `23.1.3` 编译、静态分析（0 warning）、`171 PASS` C++ 单元测试与 `4000` 组有界变异测试。
-
----
-
-## 2. 本轮新增与修改文件清单
-
-### 修改的源码与测试文件
-- `development/AMDRadeonRDNA4-Navi44/src/edid.hpp`
-- `development/AMDRadeonRDNA4-Navi44/src/edid.cpp`
-- `development/AMDRadeonRDNA4-Navi44/core/display.hpp`
-- `development/AMDRadeonRDNA4-Navi44/core/display.cpp`
-- `development/AMDRadeonRDNA4-Navi44/core/query_candidate.hpp`
-- `development/AMDRadeonRDNA4-Navi44/core/query_candidate.cpp`
-- `tests/fixtures/m8_display.hpp`
-- `tests/unit/m8_unit.cpp`
-- `tests/unit/m8_fuzz.cpp`
-
-### 新增的 `tahoe26/` 与 `docs/tahoe26/` 工程文件
-- `tahoe26/README.md`, `tahoe26/PROJECT_STATE.md`, `tahoe26/NEXT_ACTIONS.md`
-- `tahoe26/hardware/{hardware-inventory,pci-inventory,storage-inventory,compatibility-inventory,windows-protection-baseline}.md`
-- `tahoe26/research/navi44-vs-navi48-model.md`
-- `tahoe26/opencore/acpi/{SSDT-PLUG-ALT,SSDT-EC-USBX,SSDT-RTCAWAC,SSDT-NVME-PROTECT}.dsl`
-- `tahoe26/opencore/EFI/OC/config.plist`
-- `tahoe26/opencore/EFI/OC/Kexts/UTBMap.kext/Contents/Info.plist`
-- `tahoe26/scripts/{validate_opencore_candidate,run_mac_native_verification}.py`
-- `tahoe26/tests/host/opencore-validation-report.json`
-- `docs/tahoe26/00-project-overview.md` .. `15-project-progress.md` (全套 16 份工程文档)
+1. **落实免物理拆机 Windows 2TB 主盘双层隔离 (`tahoe26/opencore/EFI/OC/config.plist`)**：
+   - 默认启用 `SSDT-NVME-PROTECT.aml` (`Enabled = true`)。
+   - 在 `DeviceProperties -> Add -> PciRoot(0x0)/Pci(0x6,0x0)/Pci(0x0,0x0)` 注入 `class-code = <FFFFFFFF>`、`IOName = "#disabled-nvme"`、`name = <2364697361626c65642d6e766d6500>`，确保 macOS 的 `IONVMeFamily.kext` 完全不挂载 `WD_BLACK SN850X 2000GB`，而仅识别 Bus 6 (`PciRoot(0x0)/Pci(0x1C,0x4)/Pci(0x0,0x0)`) 上的 `INTEL SSDPEKKF256G8L` (256GB)。
+   - 更新 `tahoe26/scripts/validate_opencore_candidate.py` 并运行验证：**`13 / 13 PASS`**。
+2. **适配真实 Mac (macOS 27) 制盘与原生验证自动化脚本**：
+   - 更新 `tahoe26/scripts/run_mac_native_verification.py`：支持在 macOS 27 (Apple Silicon 或 Intel) 下通过 `clang++ -target x86_64-apple-macos26.0` 编译验证全部 11 个核心驱动源码与 173 项单元测试，并自动调用 `iasl` 将 4 个 `.dsl` 编译为 `.aml`。
+   - 新增 `tahoe26/scripts/assemble_efi_on_mac.py`：在 Mac 上一键校验全部二进制/Kext、自动调用 `macserial -m MacPro7,1` 生成本机独立序列号填入 `EFI_READY/EFI/OC/config.plist`（不污染 Git 仓库）、并调用 `ocvalidate` 做官方结构校验。
+   - 更新 `docs/tahoe26/07-native-build.md` 与 `docs/tahoe26/10-install-guide.md`：专门针对 **macOS 27 下载 macOS 26 Tahoe 安装器**（必须显式指定 `--full-installer-version 26.x`）及免拆机安装核验流程编写完整分步指南。
+3. **本机真实显示器 `HKC2410` (`G24H2D`) EDID 核查与驱动源码增强**：
+   - 从 Windows 注册表只读提取本机 `HKC2410` (`G24H2D`) 384 字节 3-Block EDID，发现其 `2560x1440@180Hz` (`725.10 MHz`) 模式存储于 Block 2 DisplayID v1.2 (`0x12`) 的 Tag `0x03` 数据块中。
+   - 更新 `src/edid.cpp` 支持 DisplayID v1.2 Tag `0x03` 详细时序块，新增 `NaviDisplay::boardDiagnostics` 接口，并通过全部 **173 项 C++ 单元测试 + 4000 组变异测试**。
+4. **执行用户批准的 Gate E 推送 (`git push -u origin tahoe26-dev`)**。
 
 ---
 
-## 3. 下一步可自动推进的研发任务 (Gate A 范围内)
+## 2. 用户在真实 Mac (macOS 27) 与目标 PC 上的下一步操作清单
 
-1. 进一步扩展 `development/AMDRadeonRDNA4-Navi44/core/` 对 AtomBIOS `VramInfo` / `DceInfo` / `GpioPinLut` 数据表的纯 CPU 安全解析封装，为 Gate D 真机读取 Gigabyte RX 9060 XT (`1458:2438`) 连接器路由做准备。
-2. 编写针对 `Cobalt64` `mesa-patches/0002` 与 `0007` 的 `gfx1200` 适配候选补丁（移除 `ACD_GB_ADDR_CONFIG_GFX1201` 硬编码阻塞，改为基于 `N44P` / `gfx1200` 动态校验）。
-3. 编写 Windows 侧只读采集显示器注册表 EDID（`HKLM:\SYSTEM\CurrentControlSet\Enum\DISPLAY\HKC2410\...\Device Parameters\EDID`）并在离线解析器中验证本机真实 `HKC2410` 显示器描述符的辅助测试。
-
----
-
-## 4. 需要用户确认的具体授权事项
-
-1. **Apple Mac 原生构建协同（M6）**：
-   - 请确认您的真实 Apple Mac 的系统版本、架构（Apple Silicon 还是 Intel）及 Xcode 版本，并确认是否方便在 Mac 上运行 `python3 tahoe26/scripts/run_mac_native_verification.py`（以及用于下载官方 `Install macOS Tahoe.app` 与编译 `.aml`）。
-2. **Gate E（可选，用于向您的 Apple Mac 同步代码）**：
-   - 是否批准将当前新建的独立分支 `tahoe26-dev` 推送到您的 GitHub 仓库 `ihatetheworld-ckl/Hackintosh-Navi44-Lab`（不触碰 `main` 分支），以便您的 Apple Mac 直接 `git pull` 拉取最新代码与脚本？
-3. **Gate C 前置确认（关于第二块硬盘 `INTEL SSDPEKKF256G8L` 256GB）**：
-   - 我们检测到该 256GB Intel NVMe (`PCI\VEN_8086&DEV_F1A6` @ Bus 6) 上目前有两个旧分区（约 1.05 GiB + 237.4 GiB，疑似旧 Linux 系统）。请确认上面的旧数据是否已不再需要、允许在后续安装阶段选择**方案 A（全盘抹掉重建独立 EFI + 单一 APFS 容器）**？
-4. **Gate B 前置确认（关于安装 U 盘）**：
-   - 您准备使用哪个容量的 U 盘制作 macOS 26 Tahoe 安装介质？是否优先在您的真实 Apple Mac 上使用官方 `createinstallmedia` 制作完整离线安装盘（方案 A）？
+1. **在真实 Mac (macOS 27) 上克隆仓库并运行 M6 原生验证与 EFI 一键组装**：
+   - 详见 `docs/tahoe26/07-native-build.md` 与 `docs/tahoe26/10-install-guide.md`。
+2. **在真实 Mac (macOS 27) 上下载 macOS 26 Tahoe 并制作离线安装 U 盘 (Gate B)**：
+   - 使用 `softwareupdate --list-full-installers | grep "26\."` 与 `softwareupdate --fetch-full-installer --full-installer-version <26.x>` 获取 `Install macOS Tahoe.app`，写入 U 盘并拷入组装好的 `EFI_READY/EFI`。
+3. **在目标 PC 上执行免拆机隔离核验与清空 256GB Ubuntu 盘安装 macOS 26 (Gate C)**：
+   - 进入 macOS Recovery 终端，先执行 `diskutil list` 确认 **只有 256GB `INTEL SSDPEKKF256G8L Media` 可见，2TB `WD_BLACK SN850X` 完全不可见**，然后执行清空与安装。

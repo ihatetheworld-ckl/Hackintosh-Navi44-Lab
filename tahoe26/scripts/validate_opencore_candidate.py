@@ -113,6 +113,18 @@ def main() -> int:
         "RequestBootVarRouting=True, LauncherOption=Full",
     )
 
+    # Mandatory non-physical Windows NVMe isolation check (PciRoot(0x0)/Pci(0x6,0x0)/Pci(0x0,0x0))
+    win_nvme_dp = cfg["DeviceProperties"]["Add"].get("PciRoot(0x0)/Pci(0x6,0x0)/Pci(0x0,0x0)", {})
+    nvme_ssdt = [x for x in cfg["ACPI"]["Add"] if x["Path"] == "SSDT-NVME-PROTECT.aml"]
+    check(
+        "windows_nvme_software_isolated",
+        win_nvme_dp.get("class-code") == b"\xff\xff\xff\xff"
+        and win_nvme_dp.get("IOName") == "#disabled-nvme"
+        and len(nvme_ssdt) == 1
+        and nvme_ssdt[0]["Enabled"] is True,
+        "Pci(0x6,0x0)/Pci(0x0,0x0) class-code=FFFFFFFF + SSDT-NVME-PROTECT Enabled=True",
+    )
+
     # UTBMap check for Maxsun B760M D5 XHCI (8086:7a60) and Bluetooth HS14
     personalities = utb.get("IOKitPersonalities", {}).get("Maxsun_B760M_D5_XHCI", {})
     ports = personalities.get("IOProviderMergeProperties", {}).get("ports", {})

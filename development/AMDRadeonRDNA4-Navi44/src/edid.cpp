@@ -489,9 +489,9 @@ bool parseDisplayIdBlock(const uint8_t ext[128], DisplayIdCaps &out) {
 			out = {};
 			return false;
 		}
-		if (bTag == 0x01 || bTag == 0x22) {
-			// Type I (v1.x) or Type VII (v2.0) Detailed Timing Data Block:
-			// 20 bytes per descriptor.
+		if (bTag == 0x03 || bTag == 0x01 || bTag == 0x22) {
+			// Type I (DisplayID v1.x tag 0x03 or legacy 0x01) or Type VII (v2.0 tag 0x22)
+			// Detailed Timing Data Block: 20 bytes per descriptor.
 			if (bLen == 0 || (bLen % 20u) != 0) {
 				out = {};
 				return false;

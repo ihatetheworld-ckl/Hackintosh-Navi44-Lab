@@ -32,9 +32,9 @@
 			</dict>
 			<dict>
 				<key>Comment</key>
-				<string>Optional: Hide WD_BLACK SN850X Windows NVMe during macOS Installer (Gate C Protection)</string>
+				<string>Mandatory Software Isolation: Hide WD_BLACK SN850X Windows NVMe during macOS Installer (Gate C Protection)</string>
 				<key>Enabled</key>
-				<false/>
+				<true/>
 				<key>Path</key>
 				<string>SSDT-NVME-PROTECT.aml</string>
 			</dict>
@@ -123,9 +123,13 @@
 			<key>PciRoot(0x0)/Pci(0x6,0x0)/Pci(0x0,0x0)</key>
 			<dict>
 				<key>Comment</key>
-				<string>WD_BLACK SN850X 2000GB (Windows Primary SSD) - Keep Read-Only / Protected</string>
-				<key>built-in</key>
-				<data>AA==</data>
+				<string>WD_BLACK SN850X 2000GB (Windows Primary SSD) - Software Isolated (#disabled-nvme) so IONVMeFamily never binds</string>
+				<key>IOName</key>
+				<string>#disabled-nvme</string>
+				<key>class-code</key>
+				<data>/////w==</data>
+				<key>name</key>
+				<data>I2Rpc2FibGVkLW52bWUA</data>
 			</dict>
 			<key>PciRoot(0x0)/Pci(0x1C,0x4)/Pci(0x0,0x0)</key>
 			<dict>

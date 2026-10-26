@@ -2,11 +2,11 @@
   "validator": "validate_opencore_candidate.py",
   "mode": "DRY_RUN_READ_ONLY",
   "status": "PASS",
-  "total_checks": 12,
-  "passed": 12,
+  "total_checks": 13,
+  "passed": 13,
   "failed": 0,
   "artifacts": {
-    "config.plist": "a868aff8c5a596b4728401f03830d49520895e3674e431166881744896b24fca",
+    "config.plist": "a9971ae94e9e031fa6f094fb7a37dbbdcc67d96b27d6881985cdcb309c58a339",
     "UTBMap_Info.plist": "3ddfca946b18ea54d7f478cfbdce241a3f177a19964123b51a2468c85ca474ce"
   },
   "checks": [
@@ -64,6 +64,11 @@
       "name": "windows_boot_var_routing",
       "status": "PASS",
       "detail": "RequestBootVarRouting=True, LauncherOption=Full"
+    },
+    {
+      "name": "windows_nvme_software_isolated",
+      "status": "PASS",
+      "detail": "Pci(0x6,0x0)/Pci(0x0,0x0) class-code=FFFFFFFF + SSDT-NVME-PROTECT Enabled=True"
     },
     {
       "name": "utbmap_b760_ports_valid",

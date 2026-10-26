@@ -121,6 +121,15 @@ Result connectors(View v,Origin origin,ConnectorList&out){
     }
     out=result;return success();
 }
+Result boardDiagnostics(View v,Origin origin,BoardDiagnostics&out){
+    out={};if(!originValid(origin))return failure("display_origin");
+    AtomBios rom;if(!rom.init(v.data,v.size))return failure(rom.error());
+    BoardDiagnostics result{};result.origin=origin;
+    result.subsysVid=rom.subsystemVendorId();result.subsysId=rom.subsystemId();
+    result.hasFirmwareInfo=rom.getFirmwareInfo(result.firmware);
+    result.gpioPinCount=rom.getGpioPins(result.gpioPins,AtomBios::MaxGpioPins);
+    out=result;return success();
+}
 Result assess(const Mode&m,const LinkBudget&link,const EngineBudget&engine,uint8_t bpp,Decision&out){
     out={};Mode canonical{};Result r=timing(m.timing,canonical);if(!r.ok())return r;
     if(m.refresh.numerator!=canonical.refresh.numerator||m.refresh.denominator!=canonical.refresh.denominator||m.hardwareVerified)
