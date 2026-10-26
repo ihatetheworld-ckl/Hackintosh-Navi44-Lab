@@ -175,6 +175,29 @@ struct CtaCaps {
 // or structure is invalid. Does not verify the checksum (see blockChecksumOk).
 bool parseCtaBlock(const uint8_t ext[128], CtaCaps &out);
 
+// --- DisplayID v1.3 / v2.0 extension block (tag 0x70) -----------------------
+// High-refresh modes (> 655.35 MHz pixel clock, such as 2560x1440@180Hz at
+// 734.4 MHz) cannot fit in a classic 18-byte EDID DTD because its 16-bit
+// 10 kHz pixel clock maxes out at 655,350 kHz. Monitors advertise them in
+// DisplayID Type I (v1.x tag 0x01) or Type VII (v2.0 tag 0x22) timing blocks,
+// which carry a 24-bit pixel clock in 10 kHz or 1 kHz units (here v1.3/v2.0
+// 20-byte timing descriptors use 10 kHz units: (pixel_clock + 1) * 10 kHz).
+constexpr size_t MaxDisplayIdTimings = 6;
+
+struct DisplayIdCaps {
+	uint8_t  version { 0 };       // e.g. 0x13 (v1.3) or 0x20 (v2.0)
+	uint8_t  primaryUse { 0 };    // byte 3 of DisplayID section
+	size_t   timingCount { 0 };
+	DetailedTiming timings[MaxDisplayIdTimings] {};
+	bool     preferred[MaxDisplayIdTimings] {};
+};
+
+// Parse one 128-byte DisplayID extension block (EDID extension tag 0x70).
+// Validates the EDID block checksum (byte 127), the DisplayID section length
+// and checksum, and extracts Type I (0x01) / Type VII (0x22) 20-byte detailed
+// timings. Rejects stereo/interlaced/malformed blocks.
+bool parseDisplayIdBlock(const uint8_t ext[128], DisplayIdCaps &out);
+
 // What the extensions of an EDID say about HDMI 2.0: whether the sink has
 // SCDC, and the highest TMDS character rate it takes above 340 MHz (0: none).
 struct Hdmi2Caps {

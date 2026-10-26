@@ -1,0 +1,74 @@
+{
+  "validator": "validate_opencore_candidate.py",
+  "mode": "DRY_RUN_READ_ONLY",
+  "status": "PASS",
+  "total_checks": 12,
+  "passed": 12,
+  "failed": 0,
+  "artifacts": {
+    "config.plist": "a868aff8c5a596b4728401f03830d49520895e3674e431166881744896b24fca",
+    "UTBMap_Info.plist": "3ddfca946b18ea54d7f478cfbdce241a3f177a19964123b51a2468c85ca474ce"
+  },
+  "checks": [
+    {
+      "name": "config_exists",
+      "status": "PASS",
+      "detail": "tahoe26\\opencore\\EFI\\OC\\config.plist"
+    },
+    {
+      "name": "utbmap_exists",
+      "status": "PASS",
+      "detail": "tahoe26\\opencore\\EFI\\OC\\Kexts\\UTBMap.kext\\Contents\\Info.plist"
+    },
+    {
+      "name": "top_level_sections",
+      "status": "PASS",
+      "detail": "ACPI,Booter,DeviceProperties,Kernel,Misc,NVRAM,PlatformInfo,UEFI"
+    },
+    {
+      "name": "acpi_dsl_sources_present",
+      "status": "PASS",
+      "detail": "4 SSDT templates audited"
+    },
+    {
+      "name": "alder_lake_cpuid_spoof",
+      "status": "PASS",
+      "detail": "Cpuid1Data=55060a00"
+    },
+    {
+      "name": "kernel_quirks_alder_lake",
+      "status": "PASS",
+      "detail": "ProvideCurrentCpuInfo=True, CustomSMBIOSGuid=True, XhciPortLimit=False"
+    },
+    {
+      "name": "smbios_macpro71_isolated",
+      "status": "PASS",
+      "detail": "MacPro7,1 + UpdateSMBIOSMode=Create + No leaked serials"
+    },
+    {
+      "name": "whatevergreen_conflict_disabled",
+      "status": "PASS",
+      "detail": "WhateverGreen.kext Enabled=False (avoids RDNA4 conflict)"
+    },
+    {
+      "name": "experimental_rdna4_gated",
+      "status": "PASS",
+      "detail": "AMDRadeonRDNA4.kext Enabled=False until Gate D"
+    },
+    {
+      "name": "core_kexts_enabled",
+      "status": "PASS",
+      "detail": "Lilu, VirtualSMC, LucyRTL8125Ethernet, CpuTopologyRebuild enabled"
+    },
+    {
+      "name": "windows_boot_var_routing",
+      "status": "PASS",
+      "detail": "RequestBootVarRouting=True, LauncherOption=Full"
+    },
+    {
+      "name": "utbmap_b760_ports_valid",
+      "status": "PASS",
+      "detail": "IOPCIMatch=0x7a608086, 15 ports (<=15 limit), HS14 internal BT mapped"
+    }
+  ]
+}

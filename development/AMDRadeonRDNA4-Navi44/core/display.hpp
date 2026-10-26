@@ -7,8 +7,8 @@
 namespace NaviDisplay {
 using NaviCore::View;using NaviCore::Result;
 enum class Origin:uint8_t { Unknown,Synthetic,StaticReference };
-enum class ExtensionPolicy:uint8_t { RejectUnknown,KnownBlocksOnly };
-enum Source:uint32_t { BaseDtd=1,CtaDtd=2,Established=4,Standard=8,CtaVic=16 };
+enum class ExtensionPolicy:uint8_t { RejectUnknown,KnownBlocksOnly,AllowDisplayId };
+enum Source:uint32_t { BaseDtd=1,CtaDtd=2,Established=4,Standard=8,CtaVic=16,DisplayIdType1=32 };
 struct Fraction {uint64_t numerator,denominator;};
 struct Mode {
     Edid::DetailedTiming timing{};Fraction refresh{};uint32_t sources{0};

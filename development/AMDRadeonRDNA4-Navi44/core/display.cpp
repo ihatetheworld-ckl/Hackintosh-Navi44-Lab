@@ -54,6 +54,14 @@ Result parseEdid(View v,Origin origin,Monitor&m,Mode*out,size_t cap,ExtensionPol
     for(size_t b=1;b<blocks;++b){
         const uint8_t*ext=v.data+b*128;
         if(!Edid::blockChecksumOk(ext))return failure("edid_extension_checksum");
+        if(ext[0]==0x70&&policy==ExtensionPolicy::AllowDisplayId){
+            Edid::DisplayIdCaps did{};
+            if(!Edid::parseDisplayIdBlock(ext,did))return failure("edid_displayid_structure");
+            for(size_t i=0;i<did.timingCount;++i){
+                Result r=add(did.timings[i],DisplayIdType1,m,out,cap);if(!r.ok())return r;
+            }
+            continue;
+        }
         if(ext[0]!=2){
             if(policy!=ExtensionPolicy::KnownBlocksOnly)return failure("edid_extension_unsupported",Error::Unsupported);
             m.partial=true;continue;

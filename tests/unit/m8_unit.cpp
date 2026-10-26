@@ -147,5 +147,41 @@ int main(){
     check("elf_table_count_budget",elf({elfbytes.data(),64},Asic::Target::Gfx1200,scratch).code==Error::Budget);
     std::vector<uint8_t> boundedLarge((16u<<20)+1);
     check("elf_direct_input_budget",elf({boundedLarge.data(),boundedLarge.size()},Asic::Target::Gfx1200,scratch).code==Error::Budget);
+    auto didExt=displayId1440p180();
+    check("displayid_policy_default_refused",!parse(didExt,ExtensionPolicy::RejectUnknown).ok());
+    check("displayid_1440p180_parsed",parse(didExt,ExtensionPolicy::AllowDisplayId).ok()&&monitor.modeCount==2&&
+        modes[1].timing.hActive==2560&&modes[1].timing.vActive==1440&&
+        modes[1].timing.pixelClockKHz==734400&&modes[1].refresh.numerator==180&&modes[1].refresh.denominator==1&&
+        (modes[1].sources&DisplayIdType1)&&!modes[1].hardwareVerified);
+    LinkBudget dpHbr3{Origin::Synthetic,LinkKind::Dp8b10b,4,8100,0};
+    check("displayid_1440p180_dp_hbr3_budget",assess(modes[1],dpHbr3,EngineBudget{Origin::Synthetic,900000},24,decision).ok()&&
+        decision.link==Fit::WithinBudget&&decision.engine==Fit::WithinBudget&&!decision.outputAllowed);
+    auto didBadSum=displayId1440p180();didBadSum[128+28]^=1;seal(didBadSum,128);
+    check("displayid_section_checksum_reject",!parse(didBadSum,ExtensionPolicy::AllowDisplayId).ok());
+    auto didStereo=displayId1440p180();didStereo[128+8+3]|=0x20;
+    {uint8_t s=0;didStereo[128+28]=0;for(size_t i=129;i<128+28;++i)s=uint8_t(s+didStereo[i]);didStereo[128+28]=uint8_t(0-s);seal(didStereo,128);}
+    check("displayid_stereo_rejected",!parse(didStereo,ExtensionPolicy::AllowDisplayId).ok());
+    auto didTrailing=displayId1440p180();didTrailing[128+40]=1;seal(didTrailing,128);
+    check("displayid_nonzero_padding_rejected",!parse(didTrailing,ExtensionPolicy::AllowDisplayId).ok());
+    QueryCandidate qProj{};
+    qProj.device.profile=Asic::identify(0x1002,0x7590,0xc0,true);
+    qProj.device.present=7u;
+    qProj.device.gcMajor=12;qProj.device.gcMinor=0;qProj.device.gcRevision=0;
+    qProj.device.se=2;qProj.device.cu=32;qProj.device.rb=8;qProj.device.tcc=8;qProj.device.gbAddrConfig=0x00000243u;
+    qProj.device.vramBytes=16ULL<<30;qProj.device.visibleBarBytes=16ULL<<30;
+    qProj.provenance=Provenance::StaticReference;qProj.generation=42;
+    CobaltQueryProjection proj{},projDecoded{};uint8_t wire192[192]{};
+    check("cobalt_projection_encode_decode",projectToCobaltInfo(qProj,proj,wire192,192).ok()&&
+        decodeCobaltProjection({wire192,192},projDecoded).ok()&&
+        projDecoded.vendorId==0x1002&&projDecoded.deviceId==0x7590&&projDecoded.revisionId==0xc0&&
+        projDecoded.gcVersion==((12u<<16)|(0u<<8)|0u)&&projDecoded.gbAddrConfig==0x00000243u&&
+        projDecoded.vramVisTotal==(16ULL<<30)&&projDecoded.vramVisFree==0&&projDecoded.flags==0&&
+        projDecoded.generation==42);
+    wire192[8]=4; // Attempt to forge N48N_INFO_NATIVE_BOOT
+    check("cobalt_projection_forged_boot_flag_rejected",!decodeCobaltProjection({wire192,192},projDecoded).ok());
+    wire192[8]=0;wire192[40]=1; // Attempt to forge non-zero free VRAM pool offline
+    check("cobalt_projection_forged_free_pool_rejected",!decodeCobaltProjection({wire192,192},projDecoded).ok());
+    wire192[40]=0;wire192[168]=0x4e; // Attempt to forge gfx1201 target on 0x7590
+    check("cobalt_projection_target_mismatch_rejected",!decodeCobaltProjection({wire192,192},projDecoded).ok());
     std::cout<<"SUMMARY "<<pass<<' '<<fail<<'\n';return fail?1:0;
 }

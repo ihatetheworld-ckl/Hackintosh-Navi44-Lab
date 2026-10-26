@@ -440,6 +440,116 @@ bool parseCtaBlock(const uint8_t ext[128], CtaCaps &out) {
 	return true;
 }
 
+bool parseDisplayIdBlock(const uint8_t ext[128], DisplayIdCaps &out) {
+	out = DisplayIdCaps {};
+	if (!ext || ext[0] != 0x70 || !blockChecksumOk(ext))
+		return false;
+	const uint8_t ver = ext[1];
+	if (ver != 0x12 && ver != 0x13 && ver != 0x20)
+		return false;
+	const uint8_t payloadBytes = ext[2];
+	// DisplayID section header is 4 bytes (ext[1..4]), payload is ext[5 .. 4 + payloadBytes],
+	// followed by the 1-byte DisplayID checksum at ext[5 + payloadBytes].
+	// Must fit strictly before the EDID block checksum at ext[127].
+	if (payloadBytes == 0 || 5u + payloadBytes >= 127u)
+		return false;
+	uint8_t didSum = 0;
+	for (size_t i = 1; i <= 5u + payloadBytes; ++i)
+		didSum = static_cast<uint8_t>(didSum + ext[i]);
+	if (didSum != 0)
+		return false;
+	// Padding after the DisplayID checksum up to byte 126 must be zero.
+	for (size_t i = 6u + payloadBytes; i < 127u; ++i) {
+		if (ext[i] != 0)
+			return false;
+	}
+	out.version    = ver;
+	out.primaryUse = ext[3];
+	const size_t sectionEnd = 5u + payloadBytes; // index of DisplayID checksum byte
+	size_t pos = 5;
+	while (pos < sectionEnd) {
+		if (pos + 3 > sectionEnd) {
+			out = {};
+			return false;
+		}
+		const uint8_t bTag = ext[pos];
+		const uint8_t bRev = ext[pos + 1];
+		const uint8_t bLen = ext[pos + 2];
+		if (bTag == 0 && bRev == 0 && bLen == 0) {
+			// Trailing zero pad inside payload area must be all zeros to sectionEnd.
+			for (size_t z = pos; z < sectionEnd; ++z) {
+				if (ext[z] != 0) {
+					out = {};
+					return false;
+				}
+			}
+			break;
+		}
+		if (pos + 3u + bLen > sectionEnd) {
+			out = {};
+			return false;
+		}
+		if (bTag == 0x01 || bTag == 0x22) {
+			// Type I (v1.x) or Type VII (v2.0) Detailed Timing Data Block:
+			// 20 bytes per descriptor.
+			if (bLen == 0 || (bLen % 20u) != 0) {
+				out = {};
+				return false;
+			}
+			for (size_t off = pos + 3u; off < pos + 3u + bLen; off += 20u) {
+				const uint8_t *d = ext + off;
+				const uint32_t rawClk = static_cast<uint32_t>(d[0]) |
+				                        (static_cast<uint32_t>(d[1]) << 8) |
+				                        (static_cast<uint32_t>(d[2]) << 16);
+				const uint8_t flags = d[3];
+				// Reject interlaced (bit 4) or 3D stereo (bits 6:5 != 0).
+				if ((flags & 0x10) != 0 || (flags & 0x60) != 0) {
+					out = {};
+					return false;
+				}
+				const uint32_t hAct = (static_cast<uint32_t>(d[4]) | (static_cast<uint32_t>(d[5]) << 8)) + 1u;
+				const uint32_t hBlk = (static_cast<uint32_t>(d[6]) | (static_cast<uint32_t>(d[7]) << 8)) + 1u;
+				const uint32_t hOff = (static_cast<uint32_t>(d[8]) | (static_cast<uint32_t>(d[9] & 0x7f) << 8)) + 1u;
+				const uint32_t hSw  = (static_cast<uint32_t>(d[10]) | (static_cast<uint32_t>(d[11]) << 8)) + 1u;
+				const uint32_t vAct = (static_cast<uint32_t>(d[12]) | (static_cast<uint32_t>(d[13]) << 8)) + 1u;
+				const uint32_t vBlk = (static_cast<uint32_t>(d[14]) | (static_cast<uint32_t>(d[15]) << 8)) + 1u;
+				const uint32_t vOff = (static_cast<uint32_t>(d[16]) | (static_cast<uint32_t>(d[17] & 0x7f) << 8)) + 1u;
+				const uint32_t vSw  = (static_cast<uint32_t>(d[18]) | (static_cast<uint32_t>(d[19]) << 8)) + 1u;
+				if (hAct > UINT16_MAX || hBlk > UINT16_MAX || hOff > UINT16_MAX || hSw > UINT16_MAX ||
+				    vAct > UINT16_MAX || vBlk > UINT16_MAX || vOff > UINT16_MAX || vSw > UINT16_MAX ||
+				    hOff + hSw > hBlk || vOff + vSw > vBlk) {
+					out = {};
+					return false;
+				}
+				if (out.timingCount >= MaxDisplayIdTimings) {
+					out = {};
+					return false;
+				}
+				DetailedTiming t {};
+				t.pixelClockKHz = (rawClk + 1u) * 10u;
+				t.hActive       = static_cast<uint16_t>(hAct);
+				t.hBlank        = static_cast<uint16_t>(hBlk);
+				t.hSyncOffset   = static_cast<uint16_t>(hOff);
+				t.hSyncWidth    = static_cast<uint16_t>(hSw);
+				t.vActive       = static_cast<uint16_t>(vAct);
+				t.vBlank        = static_cast<uint16_t>(vBlk);
+				t.vSyncOffset   = static_cast<uint16_t>(vOff);
+				t.vSyncWidth    = static_cast<uint16_t>(vSw);
+				t.hSyncPositive = (d[9] & 0x80) != 0;
+				t.vSyncPositive = (d[17] & 0x80) != 0;
+				t.interlaced    = false;
+				out.preferred[out.timingCount] = (flags & 0x80) != 0;
+				out.timings[out.timingCount++] = t;
+			}
+		} else {
+			out = {};
+			return false;
+		}
+		pos += 3u + bLen;
+	}
+	return out.timingCount > 0;
+}
+
 Hdmi2Caps hdmi2Caps(const uint8_t *edid, size_t len) {
 	Hdmi2Caps caps { false, 0 };
 	for (size_t off = BlockSize; edid && off + BlockSize <= len; off += BlockSize) {
